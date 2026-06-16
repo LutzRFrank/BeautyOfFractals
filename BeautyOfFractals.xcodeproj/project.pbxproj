@@ -62,19 +62,19 @@
 			path = BeautyOfFractals;
 			sourceTree = "<group>";
 		};
-		55E4664C2FE1155C00DC3CA5 /* BeautOfFractals-iOS */ = {
+		55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "BeautOfFractals-iOS";
+			path = "BeautyOfFractals-iOS";
 			sourceTree = "<group>";
 		};
-		55E4665A2FE1155F00DC3CA5 /* BeautOfFractalsTests */ = {
+		55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BeautOfFractalsTests;
+			path = BeautyOfFractalsTests;
 			sourceTree = "<group>";
 		};
-		55E466642FE1155F00DC3CA5 /* BeautOfFractalsUITests */ = {
+		55E466642FE1155F00DC3CA5 /* BeautyOfFractalsUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BeautOfFractalsUITests;
+			path = BeautyOfFractalsUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -116,9 +116,9 @@
 			children = (
 				55AF5E022FDC00FC0009491D /* Assets.xcassets */,
 				000000000000000000000010 /* BeautyOfFractals */,
-				55E4664C2FE1155C00DC3CA5 /* BeautOfFractals-iOS */,
-				55E4665A2FE1155F00DC3CA5 /* BeautOfFractalsTests */,
-				55E466642FE1155F00DC3CA5 /* BeautOfFractalsUITests */,
+				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,
+				55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */,
+				55E466642FE1155F00DC3CA5 /* BeautyOfFractalsUITests */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -172,7 +172,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				55E4664C2FE1155C00DC3CA5 /* BeautOfFractals-iOS */,
+				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,
 			);
 			name = "BeautOfFractals iOS";
 			packageProductDependencies = (
@@ -195,7 +195,7 @@
 				55E466592FE1155F00DC3CA5 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				55E4665A2FE1155F00DC3CA5 /* BeautOfFractalsTests */,
+				55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */,
 			);
 			name = BeautOfFractalsTests;
 			packageProductDependencies = (
@@ -218,7 +218,7 @@
 				55E466632FE1155F00DC3CA5 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				55E466642FE1155F00DC3CA5 /* BeautOfFractalsUITests */,
+				55E466642FE1155F00DC3CA5 /* BeautyOfFractalsUITests */,
 			);
 			name = BeautOfFractalsUITests;
 			packageProductDependencies = (
