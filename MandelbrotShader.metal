@@ -169,7 +169,7 @@ static float3 paletteColor(
             0.02 + 0.18 * relief + 0.08 * ridge,
             0.24 + 1.05 * relief + 0.35 * glow
         );
-    } else {
+    } else if (palette == 6) {
         float yellowSpark = pow(glow, 1.35);
         float cyanEdge = pow(relief, 0.55);
         
@@ -177,6 +177,28 @@ static float3 paletteColor(
             0.00 + 0.05 * cyanEdge + 0.80 * yellowSpark + 0.10 * ridge,
             0.04 + 0.70 * cyanEdge + 0.95 * yellowSpark + 0.20 * ridge,
             0.18 + 1.05 * cyanEdge + 0.18 * yellowSpark + 0.18 * ridge
+        );
+    } else if (palette == 7) {
+        float detail = pow(ridge, 0.72);
+        float warmBody = pow(relief, 0.58);
+        float hotGlow = pow(glow, 0.82);
+        float darkFiligree = pow(1.0 - clamp(relief + glow * 0.35, 0.0, 1.0), 2.8) * ridge;
+        
+        color = float3(
+            0.40 + 0.82 * warmBody + 0.60 * hotGlow + 0.42 * detail - 0.30 * darkFiligree,
+            0.28 + 0.78 * warmBody + 0.42 * hotGlow + 0.12 * detail - 0.36 * darkFiligree,
+            0.08 + 0.24 * warmBody + 0.05 * hotGlow + 0.04 * detail - 0.22 * darkFiligree
+        );
+    } else {
+        float detail = pow(ridge, 0.58);
+        float warmBody = pow(relief, 0.52);
+        float ember = pow(glow, 0.72);
+        float darkFiligree = pow(1.0 - clamp(relief * 0.8 + glow * 0.45, 0.0, 1.0), 2.2) * ridge;
+        
+        color = float3(
+            0.18 + 1.10 * warmBody + 0.92 * ember + 0.58 * detail - 0.40 * darkFiligree,
+            0.05 + 0.45 * warmBody + 0.36 * ember + 0.16 * detail - 0.32 * darkFiligree,
+            0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree
         );
     }
     
@@ -201,8 +223,12 @@ static float3 insideColor(uint mode, uint palette) {
             return float3(0.08, 0.04, 0.00);
         } else if (palette == 5) {
             return float3(0.05, 0.00, 0.10);
-        } else {
+        } else if (palette == 6) {
             return float3(0.00, 0.01, 0.08);
+        } else if (palette == 7) {
+            return float3(0.10, 0.055, 0.020);
+        } else {
+            return float3(0.075, 0.020, 0.010);
         }
     }
     

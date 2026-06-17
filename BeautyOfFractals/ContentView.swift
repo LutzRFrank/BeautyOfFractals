@@ -179,6 +179,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case gold = 4
     case violet = 5
     case deepBlue = 6
+    case solarCoral = 7
+    case infernoCoral = 8
     
     var id: Int {
         rawValue
@@ -200,6 +202,10 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Violet"
         case .deepBlue:
             return "Deep Blue"
+        case .solarCoral:
+            return "Solar Coral"
+        case .infernoCoral:
+            return "Inferno Coral"
         }
     }
     
@@ -219,6 +225,10 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Violet"
         case .deepBlue:
             return "DeepBlue"
+        case .solarCoral:
+            return "SolarCoral"
+        case .infernoCoral:
+            return "InfernoCoral"
         }
     }
 }
@@ -1723,6 +1733,24 @@ nonisolated private func calculateNewtonColor(
         } else {
             rootColor = (0.82, 1.00, 0.15)
         }
+        
+    case .solarCoral:
+        if nearestRootIndex == 0 {
+            rootColor = (1.00, 0.86, 0.20)
+        } else if nearestRootIndex == 1 {
+            rootColor = (1.00, 0.32, 0.18)
+        } else {
+            rootColor = (0.95, 0.92, 0.62)
+        }
+        
+    case .infernoCoral:
+        if nearestRootIndex == 0 {
+            rootColor = (1.00, 0.20, 0.05)
+        } else if nearestRootIndex == 1 {
+            rootColor = (1.00, 0.58, 0.04)
+        } else {
+            rootColor = (0.32, 0.18, 0.08)
+        }
     }
     
     let background = 0.05 + 0.12 * edge
@@ -1939,6 +1967,30 @@ nonisolated private func paletteBaseColor(
             clamp01(0.04 + 0.70 * cyanEdge + 0.95 * yellowSpark + 0.20 * ridge),
             clamp01(0.18 + 1.05 * cyanEdge + 0.18 * yellowSpark + 0.18 * ridge)
         )
+        
+    case .solarCoral:
+        let detail = pow(ridge, 0.72)
+        let warmBody = pow(relief, 0.58)
+        let hotGlow = pow(glow, 0.82)
+        let darkFiligree = pow(1.0 - clamp01(relief + glow * 0.35), 2.8) * ridge
+        
+        return (
+            clamp01(0.40 + 0.82 * warmBody + 0.60 * hotGlow + 0.42 * detail - 0.30 * darkFiligree),
+            clamp01(0.28 + 0.78 * warmBody + 0.42 * hotGlow + 0.12 * detail - 0.36 * darkFiligree),
+            clamp01(0.08 + 0.24 * warmBody + 0.05 * hotGlow + 0.04 * detail - 0.22 * darkFiligree)
+        )
+        
+    case .infernoCoral:
+        let detail = pow(ridge, 0.58)
+        let warmBody = pow(relief, 0.52)
+        let ember = pow(glow, 0.72)
+        let darkFiligree = pow(1.0 - clamp01(relief * 0.8 + glow * 0.45), 2.2) * ridge
+        
+        return (
+            clamp01(0.18 + 1.10 * warmBody + 0.92 * ember + 0.58 * detail - 0.40 * darkFiligree),
+            clamp01(0.05 + 0.45 * warmBody + 0.36 * ember + 0.16 * detail - 0.32 * darkFiligree),
+            clamp01(0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree)
+        )
     }
 }
 
@@ -1967,6 +2019,10 @@ nonisolated private func insideColor(
             return (0.05, 0.00, 0.10)
         case .deepBlue:
             return (0.00, 0.01, 0.08)
+        case .solarCoral:
+            return (0.10, 0.055, 0.020)
+        case .infernoCoral:
+            return (0.075, 0.020, 0.010)
         }
     }
     
