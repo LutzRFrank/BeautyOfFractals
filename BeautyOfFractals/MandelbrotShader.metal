@@ -376,6 +376,72 @@ static float2 complexDiv(float2 a, float2 b) {
     );
 }
 
+static float3 newtonPopRootColor(uint palette, uint rootIndex) {
+    uint r = rootIndex % 5;
+    
+    if (palette == 0) {
+        if (r == 0) return float3(0.00, 0.95, 1.00);
+        if (r == 1) return float3(0.00, 0.30, 1.00);
+        if (r == 2) return float3(0.00, 1.00, 0.58);
+        if (r == 3) return float3(0.08, 0.05, 0.55);
+        return float3(0.78, 1.00, 0.12);
+    } else if (palette == 1) {
+        if (r == 0) return float3(0.00, 1.00, 1.00);
+        if (r == 1) return float3(1.00, 0.00, 0.95);
+        if (r == 2) return float3(0.15, 0.20, 1.00);
+        if (r == 3) return float3(0.00, 1.00, 0.35);
+        return float3(1.00, 0.95, 0.00);
+    } else if (palette == 2) {
+        if (r == 0) return float3(1.00, 0.08, 0.00);
+        if (r == 1) return float3(1.00, 0.62, 0.00);
+        if (r == 2) return float3(1.00, 0.98, 0.08);
+        if (r == 3) return float3(0.48, 0.02, 0.00);
+        return float3(1.00, 0.25, 0.02);
+    } else if (palette == 3) {
+        if (r == 0) return float3(0.86, 1.00, 1.00);
+        if (r == 1) return float3(0.18, 0.62, 1.00);
+        if (r == 2) return float3(0.56, 0.92, 1.00);
+        if (r == 3) return float3(0.04, 0.10, 0.45);
+        return float3(1.00, 1.00, 0.92);
+    } else if (palette == 4) {
+        if (r == 0) return float3(1.00, 0.84, 0.05);
+        if (r == 1) return float3(1.00, 0.34, 0.02);
+        if (r == 2) return float3(0.74, 1.00, 0.05);
+        if (r == 3) return float3(0.44, 0.16, 0.02);
+        return float3(1.00, 0.96, 0.62);
+    } else if (palette == 5) {
+        if (r == 0) return float3(0.96, 0.05, 1.00);
+        if (r == 1) return float3(0.26, 0.10, 1.00);
+        if (r == 2) return float3(1.00, 0.40, 0.76);
+        if (r == 3) return float3(0.04, 0.02, 0.25);
+        return float3(1.00, 0.92, 0.18);
+    } else if (palette == 6) {
+        if (r == 0) return float3(0.00, 0.92, 1.00);
+        if (r == 1) return float3(0.02, 0.22, 1.00);
+        if (r == 2) return float3(0.80, 1.00, 0.08);
+        if (r == 3) return float3(0.00, 0.03, 0.22);
+        return float3(0.78, 0.92, 1.00);
+    } else if (palette == 7) {
+        if (r == 0) return float3(1.00, 0.88, 0.12);
+        if (r == 1) return float3(1.00, 0.22, 0.06);
+        if (r == 2) return float3(1.00, 0.55, 0.05);
+        if (r == 3) return float3(0.42, 0.18, 0.04);
+        return float3(1.00, 0.94, 0.68);
+    } else if (palette == 8) {
+        if (r == 0) return float3(1.00, 0.12, 0.02);
+        if (r == 1) return float3(1.00, 0.50, 0.02);
+        if (r == 2) return float3(1.00, 0.86, 0.08);
+        if (r == 3) return float3(0.06, 0.01, 0.00);
+        return float3(0.70, 0.16, 0.05);
+    } else {
+        if (r == 0) return float3(1.00, 0.96, 0.02);
+        if (r == 1) return float3(1.00, 0.08, 0.02);
+        if (r == 2) return float3(1.00, 0.48, 0.02);
+        if (r == 3) return float3(0.05, 0.035, 0.025);
+        return float3(1.00, 0.94, 0.68);
+    }
+}
+
 static float4 renderNewton(
     float2 uv,
     constant Uniforms& uniforms
@@ -385,19 +451,23 @@ static float4 renderNewton(
     
     float2 z = float2(x0, y0);
     
-    float2 rootA = float2(1.0, 0.0);
-    float2 rootB = float2(-0.5, 0.8660254);
-    float2 rootC = float2(-0.5, -0.8660254);
+    float2 roots[5] = {
+        float2( 1.0000000,  0.0000000),
+        float2( 0.3090170,  0.9510565),
+        float2(-0.8090170,  0.5877853),
+        float2(-0.8090170, -0.5877853),
+        float2( 0.3090170, -0.9510565)
+    };
     
     uint iteration = 0;
     
     for (uint i = 0; i < uniforms.maxIterations; i++) {
         float2 z2 = complexMul(z, z);
-        float2 z3 = complexMul(z2, z);
+        float2 z4 = complexMul(z2, z2);
+        float2 z5 = complexMul(z4, z);
         
-        float2 numerator = float2(z3.x - 1.0, z3.y);
-        float2 denominator = complexMul(float2(3.0, 0.0), z2);
-        
+        float2 numerator = float2(z5.x - 1.0, z5.y);
+        float2 denominator = float2(5.0 * z4.x, 5.0 * z4.y);
         float2 correction = complexDiv(numerator, denominator);
         z -= correction;
         
@@ -408,95 +478,38 @@ static float4 renderNewton(
         }
     }
     
-    float dA = length(z - rootA);
-    float dB = length(z - rootB);
-    float dC = length(z - rootC);
-    
     uint rootIndex = 0;
-    float minD = dA;
+    float minD = length(z - roots[0]);
     
-    if (dB < minD) {
-        minD = dB;
-        rootIndex = 1;
-    }
-    
-    if (dC < minD) {
-        rootIndex = 2;
-    }
-    
-    float t = float(iteration) / float(uniforms.maxIterations);
-    float convergence = 1.0 - t;
-    
-    float edge = pow(t, 0.32);
-    float glow = pow(max(convergence, 0.0), 0.28);
-    float rings = 0.5 + 0.5 * sin(float(iteration) * 1.45);
-    float fine = 0.5 + 0.5 * sin(float(iteration) * 4.8);
-    
-    float3 rootColor;
-    
-    if (uniforms.fractalPalette == 0) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.02, 0.80, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.05, 0.32, 1.00);
-        } else {
-            rootColor = float3(0.00, 1.00, 0.72);
-        }
-    } else if (uniforms.fractalPalette == 1) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.00, 1.00, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.20, 0.35, 1.00);
-        } else {
-            rootColor = float3(0.75, 0.00, 1.00);
-        }
-    } else if (uniforms.fractalPalette == 2) {
-        if (rootIndex == 0) {
-            rootColor = float3(1.00, 0.18, 0.02);
-        } else if (rootIndex == 1) {
-            rootColor = float3(1.00, 0.72, 0.02);
-        } else {
-            rootColor = float3(0.95, 0.05, 0.00);
-        }
-    } else if (uniforms.fractalPalette == 3) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.70, 1.00, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.25, 0.65, 1.00);
-        } else {
-            rootColor = float3(0.88, 0.92, 1.00);
-        }
-    } else if (uniforms.fractalPalette == 4) {
-        if (rootIndex == 0) {
-            rootColor = float3(1.00, 0.72, 0.05);
-        } else if (rootIndex == 1) {
-            rootColor = float3(1.00, 0.38, 0.02);
-        } else {
-            rootColor = float3(0.75, 0.95, 0.05);
-        }
-    } else if (uniforms.fractalPalette == 5) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.95, 0.15, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.35, 0.15, 1.00);
-        } else {
-            rootColor = float3(1.00, 0.35, 0.75);
-        }
-    } else {
-        if (rootIndex == 0) {
-            rootColor = float3(0.00, 0.95, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.08, 0.38, 1.00);
-        } else {
-            rootColor = float3(0.82, 1.00, 0.15);
+    for (uint i = 1; i < 5; i++) {
+        float d = length(z - roots[i]);
+        if (d < minD) {
+            minD = d;
+            rootIndex = i;
         }
     }
     
-    float background = 0.05 + 0.12 * edge;
-    float lineBoost = pow(rings, 5.0) * 0.45 + pow(fine, 10.0) * 0.35;
-    float brightness = 0.22 + 1.25 * glow + lineBoost;
+    float t = clamp(float(iteration) / float(uniforms.maxIterations), 0.0, 1.0);
+    float boundary = pow(clamp(t * 4.2, 0.0, 1.0), 0.62);
+    float convergence = pow(1.0 - t, 0.32);
+    float rings = 0.5 + 0.5 * sin(float(iteration) * 2.35 + float(rootIndex) * 1.70);
+    float fine = 0.5 + 0.5 * sin(float(iteration) * 6.10 + atan2(y0, x0) * 3.0);
+    float angle = 0.5 + 0.5 * sin(7.0 * atan2(y0, x0) + float(rootIndex) * 2.1);
     
-    float3 color = background + rootColor * brightness;
+    float3 base = newtonPopRootColor(uniforms.fractalPalette, rootIndex);
+    float3 next = newtonPopRootColor(uniforms.fractalPalette, rootIndex + 1);
+    float mixAmount = 0.12 + 0.28 * pow(angle, 2.0) * boundary;
+    float3 color = mix(base, next, mixAmount);
+    
+    float bright = 0.40 + 0.92 * convergence + 0.35 * pow(rings, 5.0) * boundary;
+    color *= bright;
+    
+    float ink = pow(boundary, 1.85) * (0.42 + 0.30 * (1.0 - fine));
+    color *= (1.0 - ink);
+    
+    float goldEdge = pow(rings, 10.0) * boundary * 0.48;
+    float whiteSpark = pow(fine, 18.0) * boundary * 0.25;
+    color += float3(0.95, 0.74, 0.18) * goldEdge + float3(1.0) * whiteSpark;
     
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }

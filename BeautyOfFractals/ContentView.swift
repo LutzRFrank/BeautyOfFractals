@@ -1624,22 +1624,27 @@ nonisolated private func calculateNewtonColor(
     maxIterations: Int
 ) -> (r: Double, g: Double, b: Double) {
     
+    // Newton Pop:
+    // z^5 - 1 gives five attraction basins instead of three.
+    // The root index drives strong local color zones; iteration count adds dark borders and glow.
     var z = SIMD2<Double>(x0, y0)
     let roots = [
-        SIMD2<Double>(1.0, 0.0),
-        SIMD2<Double>(-0.5, 0.8660254037844386),
-        SIMD2<Double>(-0.5, -0.8660254037844386)
+        SIMD2<Double>( 1.0000000000,  0.0000000000),
+        SIMD2<Double>( 0.3090169944,  0.9510565163),
+        SIMD2<Double>(-0.8090169944,  0.5877852523),
+        SIMD2<Double>(-0.8090169944, -0.5877852523),
+        SIMD2<Double>( 0.3090169944, -0.9510565163)
     ]
     
     var iteration = 0
     
     while iteration < maxIterations {
         let z2 = complexMul(z, z)
-        let z3 = complexMul(z2, z)
+        let z4 = complexMul(z2, z2)
+        let z5 = complexMul(z4, z)
         
-        let numerator = SIMD2<Double>(z3.x - 1.0, z3.y)
-        let denominator = complexMul(SIMD2<Double>(3.0, 0.0), z2)
-        
+        let numerator = SIMD2<Double>(z5.x - 1.0, z5.y)
+        let denominator = SIMD2<Double>(5.0 * z4.x, 5.0 * z4.y)
         let correction = complexDiv(numerator, denominator)
         z -= correction
         
@@ -1665,116 +1670,123 @@ nonisolated private func calculateNewtonColor(
         }
     }
     
-    let t = Double(iteration) / Double(maxIterations)
-    let convergence = 1.0 - t
+    let t = clamp01(Double(iteration) / Double(maxIterations))
+    let boundary = pow(clamp01(t * 4.2), 0.62)
+    let convergence = pow(1.0 - t, 0.32)
+    let rings = 0.5 + 0.5 * sin(Double(iteration) * 2.35 + Double(nearestRootIndex) * 1.70)
+    let fine = 0.5 + 0.5 * sin(Double(iteration) * 6.10 + atan2(y0, x0) * 3.0)
+    let angle = 0.5 + 0.5 * sin(7.0 * atan2(y0, x0) + Double(nearestRootIndex) * 2.1)
     
-    let edge = pow(t, 0.32)
-    let glow = pow(max(convergence, 0.0), 0.28)
-    let rings = 0.5 + 0.5 * sin(Double(iteration) * 1.45)
-    let fine = 0.5 + 0.5 * sin(Double(iteration) * 4.8)
-    
-    var rootColor: (r: Double, g: Double, b: Double)
+    let colors: [(Double, Double, Double)]
     
     switch palette {
     case .ocean:
-        if nearestRootIndex == 0 {
-            rootColor = (0.02, 0.80, 1.00)
-        } else if nearestRootIndex == 1 {
-            rootColor = (0.05, 0.32, 1.00)
-        } else {
-            rootColor = (0.00, 1.00, 0.72)
-        }
-        
+        colors = [
+            (0.00, 0.95, 1.00),
+            (0.00, 0.30, 1.00),
+            (0.00, 1.00, 0.58),
+            (0.08, 0.05, 0.55),
+            (0.78, 1.00, 0.12)
+        ]
     case .electric:
-        if nearestRootIndex == 0 {
-            rootColor = (0.00, 1.00, 1.00)
-        } else if nearestRootIndex == 1 {
-            rootColor = (0.20, 0.35, 1.00)
-        } else {
-            rootColor = (0.75, 0.00, 1.00)
-        }
-        
+        colors = [
+            (0.00, 1.00, 1.00),
+            (1.00, 0.00, 0.95),
+            (0.15, 0.20, 1.00),
+            (0.00, 1.00, 0.35),
+            (1.00, 0.95, 0.00)
+        ]
     case .fire:
-        if nearestRootIndex == 0 {
-            rootColor = (1.00, 0.18, 0.02)
-        } else if nearestRootIndex == 1 {
-            rootColor = (1.00, 0.72, 0.02)
-        } else {
-            rootColor = (0.95, 0.05, 0.00)
-        }
-        
+        colors = [
+            (1.00, 0.08, 0.00),
+            (1.00, 0.62, 0.00),
+            (1.00, 0.98, 0.08),
+            (0.48, 0.02, 0.00),
+            (1.00, 0.25, 0.02)
+        ]
     case .ice:
-        if nearestRootIndex == 0 {
-            rootColor = (0.70, 1.00, 1.00)
-        } else if nearestRootIndex == 1 {
-            rootColor = (0.25, 0.65, 1.00)
-        } else {
-            rootColor = (0.88, 0.92, 1.00)
-        }
-        
+        colors = [
+            (0.86, 1.00, 1.00),
+            (0.18, 0.62, 1.00),
+            (0.56, 0.92, 1.00),
+            (0.04, 0.10, 0.45),
+            (1.00, 1.00, 0.92)
+        ]
     case .gold:
-        if nearestRootIndex == 0 {
-            rootColor = (1.00, 0.72, 0.05)
-        } else if nearestRootIndex == 1 {
-            rootColor = (1.00, 0.38, 0.02)
-        } else {
-            rootColor = (0.75, 0.95, 0.05)
-        }
-        
+        colors = [
+            (1.00, 0.84, 0.05),
+            (1.00, 0.34, 0.02),
+            (0.74, 1.00, 0.05),
+            (0.44, 0.16, 0.02),
+            (1.00, 0.96, 0.62)
+        ]
     case .violet:
-        if nearestRootIndex == 0 {
-            rootColor = (0.95, 0.15, 1.00)
-        } else if nearestRootIndex == 1 {
-            rootColor = (0.35, 0.15, 1.00)
-        } else {
-            rootColor = (1.00, 0.35, 0.75)
-        }
-        
+        colors = [
+            (0.96, 0.05, 1.00),
+            (0.26, 0.10, 1.00),
+            (1.00, 0.40, 0.76),
+            (0.04, 0.02, 0.25),
+            (1.00, 0.92, 0.18)
+        ]
     case .deepBlue:
-        if nearestRootIndex == 0 {
-            rootColor = (0.00, 0.95, 1.00)
-        } else if nearestRootIndex == 1 {
-            rootColor = (0.08, 0.38, 1.00)
-        } else {
-            rootColor = (0.82, 1.00, 0.15)
-        }
-        
+        colors = [
+            (0.00, 0.92, 1.00),
+            (0.02, 0.22, 1.00),
+            (0.80, 1.00, 0.08),
+            (0.00, 0.03, 0.22),
+            (0.78, 0.92, 1.00)
+        ]
     case .solarCoral:
-        if nearestRootIndex == 0 {
-            rootColor = (1.00, 0.86, 0.20)
-        } else if nearestRootIndex == 1 {
-            rootColor = (1.00, 0.32, 0.18)
-        } else {
-            rootColor = (0.95, 0.92, 0.62)
-        }
-        
+        colors = [
+            (1.00, 0.88, 0.12),
+            (1.00, 0.22, 0.06),
+            (1.00, 0.55, 0.05),
+            (0.42, 0.18, 0.04),
+            (1.00, 0.94, 0.68)
+        ]
     case .infernoCoral:
-        if nearestRootIndex == 0 {
-            rootColor = (1.00, 0.20, 0.05)
-        } else if nearestRootIndex == 1 {
-            rootColor = (1.00, 0.58, 0.04)
-        } else {
-            rootColor = (0.32, 0.18, 0.08)
-        }
-        
+        colors = [
+            (1.00, 0.12, 0.02),
+            (1.00, 0.50, 0.02),
+            (1.00, 0.86, 0.08),
+            (0.06, 0.01, 0.00),
+            (0.70, 0.16, 0.05)
+        ]
     case .solarPop:
-        if nearestRootIndex == 0 {
-            rootColor = (1.00, 0.96, 0.05)
-        } else if nearestRootIndex == 1 {
-            rootColor = (1.00, 0.08, 0.025)
-        } else {
-            rootColor = (1.00, 0.94, 0.74)
-        }
+        colors = [
+            (1.00, 0.96, 0.02),
+            (1.00, 0.08, 0.02),
+            (1.00, 0.48, 0.02),
+            (0.05, 0.035, 0.025),
+            (1.00, 0.94, 0.68)
+        ]
     }
     
-    let background = 0.05 + 0.12 * edge
-    let lineBoost = pow(rings, 5.0) * 0.45 + pow(fine, 10.0) * 0.35
-    let brightness = 0.22 + 1.25 * glow + lineBoost
+    let base = colors[nearestRootIndex]
+    let next = colors[(nearestRootIndex + 1) % colors.count]
+    let mixAmount = 0.12 + 0.28 * pow(angle, 2.0) * boundary
+    
+    var r = base.0 + (next.0 - base.0) * mixAmount
+    var g = base.1 + (next.1 - base.1) * mixAmount
+    var b = base.2 + (next.2 - base.2) * mixAmount
+    
+    let bright = 0.40 + 0.92 * convergence + 0.35 * pow(rings, 5.0) * boundary
+    r *= bright
+    g *= bright
+    b *= bright
+    
+    let ink = pow(boundary, 1.85) * (0.42 + 0.30 * (1.0 - fine))
+    r *= (1.0 - ink)
+    g *= (1.0 - ink)
+    b *= (1.0 - ink)
+    
+    let goldEdge = pow(rings, 10.0) * boundary * 0.48
+    let whiteSpark = pow(fine, 18.0) * boundary * 0.25
     
     return (
-        clamp01(background + rootColor.r * brightness),
-        clamp01(background + rootColor.g * brightness),
-        clamp01(background + rootColor.b * brightness)
+        clamp01(r + 0.95 * goldEdge + whiteSpark),
+        clamp01(g + 0.74 * goldEdge + whiteSpark),
+        clamp01(b + 0.18 * goldEdge + whiteSpark)
     )
 }
 
