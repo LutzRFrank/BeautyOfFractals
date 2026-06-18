@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		55AF5E032FDC00FC0009491D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 55AF5E022FDC00FC0009491D /* Assets.xcassets */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		55E466582FE1155F00DC3CA5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,7 +25,6 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* BeautyOfFractals.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeautyOfFractals.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		55AF5E022FDC00FC0009491D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		55E4664B2FE1155C00DC3CA5 /* BeautOfFractals iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautOfFractals iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E466572FE1155F00DC3CA5 /* BeautOfFractalsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeautOfFractalsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E466612FE1155F00DC3CA5 /* BeautOfFractalsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeautOfFractalsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -114,7 +109,6 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				55AF5E022FDC00FC0009491D /* Assets.xcassets */,
 				000000000000000000000010 /* BeautyOfFractals */,
 				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,
 				55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */,
@@ -280,7 +274,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				55AF5E032FDC00FC0009491D /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
