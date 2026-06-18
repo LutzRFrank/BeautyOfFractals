@@ -181,6 +181,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case deepBlue = 6
     case solarCoral = 7
     case infernoCoral = 8
+    case solarPop = 9
     
     var id: Int {
         rawValue
@@ -206,6 +207,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Solar Coral"
         case .infernoCoral:
             return "Inferno Coral"
+        case .solarPop:
+            return "Solar Pop"
         }
     }
     
@@ -229,6 +232,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "SolarCoral"
         case .infernoCoral:
             return "InfernoCoral"
+        case .solarPop:
+            return "SolarPop"
         }
     }
 }
@@ -1751,6 +1756,15 @@ nonisolated private func calculateNewtonColor(
         } else {
             rootColor = (0.32, 0.18, 0.08)
         }
+        
+    case .solarPop:
+        if nearestRootIndex == 0 {
+            rootColor = (1.00, 0.96, 0.05)
+        } else if nearestRootIndex == 1 {
+            rootColor = (1.00, 0.08, 0.025)
+        } else {
+            rootColor = (1.00, 0.94, 0.74)
+        }
     }
     
     let background = 0.05 + 0.12 * edge
@@ -1991,6 +2005,58 @@ nonisolated private func paletteBaseColor(
             clamp01(0.05 + 0.45 * warmBody + 0.36 * ember + 0.16 * detail - 0.32 * darkFiligree),
             clamp01(0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree)
         )
+        
+    case .solarPop:
+        // Solar Pop:
+        // high-contrast lemon, ivory, coral-red and charcoal bands.
+        // More colorful and stepped than Solar Coral.
+        let detail = pow(ridge, 0.50)
+        let body = pow(relief, 0.44)
+        let light = pow(glow, 0.60)
+        
+        let rawPhase = 0.06 + 2.75 * relief + 4.15 * glow + 6.80 * ridge
+        let phase = rawPhase - floor(rawPhase)
+        let micro = 0.5 + 0.5 * cos(62.0 * ridge + 15.0 * glow - 9.0 * relief)
+        
+        let redBand = smoothstep(edge0: 0.08, edge1: 0.18, x: phase) * (1.0 - smoothstep(edge0: 0.30, edge1: 0.44, x: phase))
+        let lemonBand = smoothstep(edge0: 0.28, edge1: 0.42, x: phase) * (1.0 - smoothstep(edge0: 0.56, edge1: 0.70, x: phase))
+        let ivoryBand = smoothstep(edge0: 0.58, edge1: 0.72, x: phase) * (1.0 - smoothstep(edge0: 0.82, edge1: 0.96, x: phase))
+        let darkBand = smoothstep(edge0: 0.80, edge1: 0.94, x: phase)
+        
+        let warmOrange = (1.00, 0.50, 0.02)
+        let lemon = (1.00, 0.95, 0.04)
+        let coralRed = (1.00, 0.08, 0.025)
+        let ivory = (1.00, 0.94, 0.74)
+        let charcoal = (0.050, 0.038, 0.030)
+        
+        var r = warmOrange.0
+        var g = warmOrange.1
+        var b = warmOrange.2
+        
+        r = r + (lemon.0 - r) * (0.78 * lemonBand)
+        g = g + (lemon.1 - g) * (0.78 * lemonBand)
+        b = b + (lemon.2 - b) * (0.78 * lemonBand)
+        
+        r = r + (coralRed.0 - r) * (0.70 * redBand)
+        g = g + (coralRed.1 - g) * (0.70 * redBand)
+        b = b + (coralRed.2 - b) * (0.70 * redBand)
+        
+        r = r + (ivory.0 - r) * (0.58 * ivoryBand * (0.35 + 0.65 * detail))
+        g = g + (ivory.1 - g) * (0.58 * ivoryBand * (0.35 + 0.65 * detail))
+        b = b + (ivory.2 - b) * (0.58 * ivoryBand * (0.35 + 0.65 * detail))
+        
+        r = r + (charcoal.0 - r) * (0.36 * darkBand * detail)
+        g = g + (charcoal.1 - g) * (0.36 * darkBand * detail)
+        b = b + (charcoal.2 - b) * (0.36 * darkBand * detail)
+        
+        let edgeSpark = pow(detail, 0.68) * (0.50 + 0.50 * micro)
+        let lift = 0.56 + 0.72 * body + 0.44 * light
+        
+        return (
+            clamp01(r * lift + 0.48 * edgeSpark + 0.38 * redBand * detail),
+            clamp01(g * lift + 0.32 * edgeSpark + 0.04 * redBand * detail),
+            clamp01(b * lift + 0.07 * edgeSpark + 0.02 * redBand * detail)
+        )
     }
 }
 
@@ -2023,6 +2089,8 @@ nonisolated private func insideColor(
             return (0.10, 0.055, 0.020)
         case .infernoCoral:
             return (0.075, 0.020, 0.010)
+        case .solarPop:
+            return (0.090, 0.040, 0.018)
         }
     }
     
