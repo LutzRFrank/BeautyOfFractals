@@ -189,7 +189,7 @@ static float3 paletteColor(
             0.28 + 0.78 * warmBody + 0.42 * hotGlow + 0.12 * detail - 0.36 * darkFiligree,
             0.08 + 0.24 * warmBody + 0.05 * hotGlow + 0.04 * detail - 0.22 * darkFiligree
         );
-    } else {
+    } else if (palette == 8) {
         float detail = pow(ridge, 0.58);
         float warmBody = pow(relief, 0.52);
         float ember = pow(glow, 0.72);
@@ -200,6 +200,40 @@ static float3 paletteColor(
             0.05 + 0.45 * warmBody + 0.36 * ember + 0.16 * detail - 0.32 * darkFiligree,
             0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree
         );
+    } else {
+        // Solar Pop:
+        // high-contrast lemon, ivory, coral-red and charcoal bands.
+        // More colorful and stepped than Solar Coral, but kept separate as palette 9.
+        float detail = pow(ridge, 0.50);
+        float body = pow(relief, 0.44);
+        float light = pow(glow, 0.60);
+        
+        float phase = fract(0.06 + 2.75 * relief + 4.15 * glow + 6.80 * ridge);
+        float micro = 0.5 + 0.5 * cos(62.0 * ridge + 15.0 * glow - 9.0 * relief);
+        
+        float redBand = smoothstep(0.08, 0.18, phase) * (1.0 - smoothstep(0.30, 0.44, phase));
+        float lemonBand = smoothstep(0.28, 0.42, phase) * (1.0 - smoothstep(0.56, 0.70, phase));
+        float ivoryBand = smoothstep(0.58, 0.72, phase) * (1.0 - smoothstep(0.82, 0.96, phase));
+        float darkBand = smoothstep(0.80, 0.94, phase);
+        
+        float3 warmOrange = float3(1.00, 0.50, 0.02);
+        float3 lemon = float3(1.00, 0.95, 0.04);
+        float3 coralRed = float3(1.00, 0.08, 0.025);
+        float3 ivory = float3(1.00, 0.94, 0.74);
+        float3 charcoal = float3(0.050, 0.038, 0.030);
+        
+        float3 base = warmOrange;
+        base = mix(base, lemon, 0.78 * lemonBand);
+        base = mix(base, coralRed, 0.70 * redBand);
+        base = mix(base, ivory, 0.58 * ivoryBand * (0.35 + 0.65 * detail));
+        base = mix(base, charcoal, 0.36 * darkBand * detail);
+        
+        float edgeSpark = pow(detail, 0.68) * (0.50 + 0.50 * micro);
+        float lift = 0.56 + 0.72 * body + 0.44 * light;
+        
+        color = base * lift
+              + float3(0.48, 0.32, 0.07) * edgeSpark
+              + float3(0.38, 0.04, 0.02) * redBand * detail;
     }
     
     return clamp(color, 0.0, 1.0);
@@ -227,8 +261,10 @@ static float3 insideColor(uint mode, uint palette) {
             return float3(0.00, 0.01, 0.08);
         } else if (palette == 7) {
             return float3(0.10, 0.055, 0.020);
-        } else {
+        } else if (palette == 8) {
             return float3(0.075, 0.020, 0.010);
+        } else {
+            return float3(0.090, 0.040, 0.018);
         }
     }
     
