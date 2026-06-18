@@ -235,7 +235,6 @@ static float3 paletteColor(
               + float3(0.48, 0.32, 0.07) * edgeSpark
               + float3(0.38, 0.04, 0.02) * redBand * detail;
     }
-    }
     
     return clamp(color, 0.0, 1.0);
 }
@@ -377,6 +376,72 @@ static float2 complexDiv(float2 a, float2 b) {
     );
 }
 
+static float3 newtonPopRootColor(uint palette, uint rootIndex) {
+    uint r = rootIndex % 5;
+    
+    if (palette == 0) {
+        if (r == 0) return float3(0.00, 0.95, 1.00);
+        if (r == 1) return float3(0.00, 0.30, 1.00);
+        if (r == 2) return float3(0.00, 1.00, 0.58);
+        if (r == 3) return float3(0.08, 0.05, 0.55);
+        return float3(0.78, 1.00, 0.12);
+    } else if (palette == 1) {
+        if (r == 0) return float3(0.00, 1.00, 1.00);
+        if (r == 1) return float3(1.00, 0.00, 0.95);
+        if (r == 2) return float3(0.15, 0.20, 1.00);
+        if (r == 3) return float3(0.00, 1.00, 0.35);
+        return float3(1.00, 0.95, 0.00);
+    } else if (palette == 2) {
+        if (r == 0) return float3(1.00, 0.08, 0.00);
+        if (r == 1) return float3(1.00, 0.62, 0.00);
+        if (r == 2) return float3(1.00, 0.98, 0.08);
+        if (r == 3) return float3(0.48, 0.02, 0.00);
+        return float3(1.00, 0.25, 0.02);
+    } else if (palette == 3) {
+        if (r == 0) return float3(0.86, 1.00, 1.00);
+        if (r == 1) return float3(0.18, 0.62, 1.00);
+        if (r == 2) return float3(0.56, 0.92, 1.00);
+        if (r == 3) return float3(0.04, 0.10, 0.45);
+        return float3(1.00, 1.00, 0.92);
+    } else if (palette == 4) {
+        if (r == 0) return float3(1.00, 0.84, 0.05);
+        if (r == 1) return float3(1.00, 0.34, 0.02);
+        if (r == 2) return float3(0.74, 1.00, 0.05);
+        if (r == 3) return float3(0.44, 0.16, 0.02);
+        return float3(1.00, 0.96, 0.62);
+    } else if (palette == 5) {
+        if (r == 0) return float3(0.96, 0.05, 1.00);
+        if (r == 1) return float3(0.26, 0.10, 1.00);
+        if (r == 2) return float3(1.00, 0.40, 0.76);
+        if (r == 3) return float3(0.04, 0.02, 0.25);
+        return float3(1.00, 0.92, 0.18);
+    } else if (palette == 6) {
+        if (r == 0) return float3(0.00, 0.92, 1.00);
+        if (r == 1) return float3(0.02, 0.22, 1.00);
+        if (r == 2) return float3(0.80, 1.00, 0.08);
+        if (r == 3) return float3(0.00, 0.03, 0.22);
+        return float3(0.78, 0.92, 1.00);
+    } else if (palette == 7) {
+        if (r == 0) return float3(1.00, 0.88, 0.12);
+        if (r == 1) return float3(1.00, 0.22, 0.06);
+        if (r == 2) return float3(1.00, 0.55, 0.05);
+        if (r == 3) return float3(0.42, 0.18, 0.04);
+        return float3(1.00, 0.94, 0.68);
+    } else if (palette == 8) {
+        if (r == 0) return float3(1.00, 0.12, 0.02);
+        if (r == 1) return float3(1.00, 0.50, 0.02);
+        if (r == 2) return float3(1.00, 0.86, 0.08);
+        if (r == 3) return float3(0.06, 0.01, 0.00);
+        return float3(0.70, 0.16, 0.05);
+    } else {
+        if (r == 0) return float3(1.00, 0.96, 0.02);
+        if (r == 1) return float3(1.00, 0.08, 0.02);
+        if (r == 2) return float3(1.00, 0.48, 0.02);
+        if (r == 3) return float3(0.05, 0.035, 0.025);
+        return float3(1.00, 0.94, 0.68);
+    }
+}
+
 static float4 renderNewton(
     float2 uv,
     constant Uniforms& uniforms
@@ -386,19 +451,23 @@ static float4 renderNewton(
     
     float2 z = float2(x0, y0);
     
-    float2 rootA = float2(1.0, 0.0);
-    float2 rootB = float2(-0.5, 0.8660254);
-    float2 rootC = float2(-0.5, -0.8660254);
+    float2 roots[5] = {
+        float2( 1.0000000,  0.0000000),
+        float2( 0.3090170,  0.9510565),
+        float2(-0.8090170,  0.5877853),
+        float2(-0.8090170, -0.5877853),
+        float2( 0.3090170, -0.9510565)
+    };
     
     uint iteration = 0;
     
     for (uint i = 0; i < uniforms.maxIterations; i++) {
         float2 z2 = complexMul(z, z);
-        float2 z3 = complexMul(z2, z);
+        float2 z4 = complexMul(z2, z2);
+        float2 z5 = complexMul(z4, z);
         
-        float2 numerator = float2(z3.x - 1.0, z3.y);
-        float2 denominator = complexMul(float2(3.0, 0.0), z2);
-        
+        float2 numerator = float2(z5.x - 1.0, z5.y);
+        float2 denominator = float2(5.0 * z4.x, 5.0 * z4.y);
         float2 correction = complexDiv(numerator, denominator);
         z -= correction;
         
@@ -409,95 +478,38 @@ static float4 renderNewton(
         }
     }
     
-    float dA = length(z - rootA);
-    float dB = length(z - rootB);
-    float dC = length(z - rootC);
-    
     uint rootIndex = 0;
-    float minD = dA;
+    float minD = length(z - roots[0]);
     
-    if (dB < minD) {
-        minD = dB;
-        rootIndex = 1;
-    }
-    
-    if (dC < minD) {
-        rootIndex = 2;
-    }
-    
-    float t = float(iteration) / float(uniforms.maxIterations);
-    float convergence = 1.0 - t;
-    
-    float edge = pow(t, 0.32);
-    float glow = pow(max(convergence, 0.0), 0.28);
-    float rings = 0.5 + 0.5 * sin(float(iteration) * 1.45);
-    float fine = 0.5 + 0.5 * sin(float(iteration) * 4.8);
-    
-    float3 rootColor;
-    
-    if (uniforms.fractalPalette == 0) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.02, 0.80, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.05, 0.32, 1.00);
-        } else {
-            rootColor = float3(0.00, 1.00, 0.72);
-        }
-    } else if (uniforms.fractalPalette == 1) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.00, 1.00, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.20, 0.35, 1.00);
-        } else {
-            rootColor = float3(0.75, 0.00, 1.00);
-        }
-    } else if (uniforms.fractalPalette == 2) {
-        if (rootIndex == 0) {
-            rootColor = float3(1.00, 0.18, 0.02);
-        } else if (rootIndex == 1) {
-            rootColor = float3(1.00, 0.72, 0.02);
-        } else {
-            rootColor = float3(0.95, 0.05, 0.00);
-        }
-    } else if (uniforms.fractalPalette == 3) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.70, 1.00, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.25, 0.65, 1.00);
-        } else {
-            rootColor = float3(0.88, 0.92, 1.00);
-        }
-    } else if (uniforms.fractalPalette == 4) {
-        if (rootIndex == 0) {
-            rootColor = float3(1.00, 0.72, 0.05);
-        } else if (rootIndex == 1) {
-            rootColor = float3(1.00, 0.38, 0.02);
-        } else {
-            rootColor = float3(0.75, 0.95, 0.05);
-        }
-    } else if (uniforms.fractalPalette == 5) {
-        if (rootIndex == 0) {
-            rootColor = float3(0.95, 0.15, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.35, 0.15, 1.00);
-        } else {
-            rootColor = float3(1.00, 0.35, 0.75);
-        }
-    } else {
-        if (rootIndex == 0) {
-            rootColor = float3(0.00, 0.95, 1.00);
-        } else if (rootIndex == 1) {
-            rootColor = float3(0.08, 0.38, 1.00);
-        } else {
-            rootColor = float3(0.82, 1.00, 0.15);
+    for (uint i = 1; i < 5; i++) {
+        float d = length(z - roots[i]);
+        if (d < minD) {
+            minD = d;
+            rootIndex = i;
         }
     }
     
-    float background = 0.05 + 0.12 * edge;
-    float lineBoost = pow(rings, 5.0) * 0.45 + pow(fine, 10.0) * 0.35;
-    float brightness = 0.22 + 1.25 * glow + lineBoost;
+    float t = clamp(float(iteration) / float(uniforms.maxIterations), 0.0, 1.0);
+    float boundary = pow(clamp(t * 4.2, 0.0, 1.0), 0.62);
+    float convergence = pow(1.0 - t, 0.32);
+    float rings = 0.5 + 0.5 * sin(float(iteration) * 2.35 + float(rootIndex) * 1.70);
+    float fine = 0.5 + 0.5 * sin(float(iteration) * 6.10 + atan2(y0, x0) * 3.0);
+    float angle = 0.5 + 0.5 * sin(7.0 * atan2(y0, x0) + float(rootIndex) * 2.1);
     
-    float3 color = background + rootColor * brightness;
+    float3 base = newtonPopRootColor(uniforms.fractalPalette, rootIndex);
+    float3 next = newtonPopRootColor(uniforms.fractalPalette, rootIndex + 1);
+    float mixAmount = 0.12 + 0.28 * pow(angle, 2.0) * boundary;
+    float3 color = mix(base, next, mixAmount);
+    
+    float bright = 0.40 + 0.92 * convergence + 0.35 * pow(rings, 5.0) * boundary;
+    color *= bright;
+    
+    float ink = pow(boundary, 1.85) * (0.42 + 0.30 * (1.0 - fine));
+    color *= (1.0 - ink);
+    
+    float goldEdge = pow(rings, 10.0) * boundary * 0.48;
+    float whiteSpark = pow(fine, 18.0) * boundary * 0.25;
+    color += float3(0.95, 0.74, 0.18) * goldEdge + float3(1.0) * whiteSpark;
     
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }
@@ -508,7 +520,7 @@ static float mandelbulbDE(float3 p) {
     float r = 0.0;
     float power = 8.0;
     
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 9; i++) {
         r = length(z);
         
         if (r > 2.0) {
@@ -678,137 +690,6 @@ static float4 renderRaymarched3D(
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }
 
-
-static float hash21(float2 p) {
-    p = fract(p * float2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-}
-
-static float2 rotate2(float2 p, float a) {
-    float c = cos(a);
-    float s = sin(a);
-    return float2(c * p.x - s * p.y, s * p.x + c * p.y);
-}
-
-static float3 flamePalette(float t, uint palette) {
-    float3 a = paletteColor(fract(t + 0.05), 0.85, 0.65, palette);
-    float3 b = paletteColor(fract(t + 0.36), 0.55, 0.80, palette);
-    float3 pastel = mix(a, b, 0.45);
-    return mix(pastel, float3(1.0, 0.86, 0.98), 0.18);
-}
-
-static float4 renderFlameSpiral(float2 uv, constant Uniforms& uniforms) {
-    float2 p;
-    p.x = (uv.x - 0.5) * uniforms.scale * uniforms.aspectRatio + uniforms.centerX;
-    p.y = (0.5 - uv.y) * uniforms.scale + uniforms.centerY;
-
-    // “Flame Flow” preview:
-    // no polar sector folding, no fmod, no angle-based petals.
-    // Pixel-shader approximation, not yet a true stochastic IFS flame renderer.
-    p *= 2.75;
-
-    float2 z = p;
-    float density = 0.0;
-    float glow = 0.0;
-    float veins = 0.0;
-    float colorSeed = 0.0;
-
-    float iterPhase = clamp(float(uniforms.maxIterations) / 50000.0, 0.0, 1.0);
-
-    for (int i = 0; i < 12; i++) {
-        float fi = float(i);
-
-        float r = length(z) + 0.001;
-        float rot = 0.85 / (0.38 + r) + 0.28 * sin(3.4 * z.x - 2.9 * z.y + fi * 0.71);
-        z = rotate2(z, rot);
-
-        float2 w;
-        w.x = sin(3.20 * z.y + 0.92 * sin(3.7 * z.x + fi * 0.63));
-        w.y = cos(3.05 * z.x - 0.86 * cos(3.5 * z.y - fi * 0.58));
-
-        float2 q;
-        q.x = sin(4.10 * z.x + 1.35 * w.x + fi * 0.37);
-        q.y = cos(3.85 * z.y - 1.25 * w.y - fi * 0.41);
-
-        z += 0.105 * w + 0.045 * q;
-
-        float inv = 1.0 / (0.35 + dot(z, z));
-        z = mix(z, z * inv, 0.105);
-
-        z = z * (0.86 + 0.028 * sin(fi + r * 2.4))
-          + 0.026 * float2(sin(fi * 1.31), cos(fi * 1.47));
-
-        float rr = length(z) + 0.001;
-        float mist = exp(-0.82 * rr);
-
-        float field1 = sin(5.0 * z.x + 2.2 * sin(2.7 * z.y) + fi * 0.51);
-        float field2 = cos(4.6 * z.y - 2.0 * sin(2.3 * z.x) - fi * 0.43);
-        float field3 = sin(3.1 * (z.x + z.y) + 1.7 * cos(2.0 * (z.x - z.y)) + fi);
-
-        float veinLine = exp(-55.0 * abs(field1 * field2));
-        float softLine = pow(0.5 + 0.5 * field3, 11.0);
-
-        density += mist * (0.030 + 0.010 * fi);
-        veins += veinLine * mist * (0.95 + 0.080 * fi);
-        glow += softLine * mist * (0.58 - 0.018 * fi);
-
-        float grain = hash21(floor((z + fi) * 380.0)) * 0.018;
-        colorSeed += (0.09 + 0.015 * fi) * (0.5 + 0.5 * field3) + grain;
-    }
-
-    float r0 = length(p) + 0.001;
-
-    float centerHole = smoothstep(0.045, 0.185, r0);
-    float outerFade = exp(-0.070 * r0 * r0);
-
-    float bodyFlow =
-        0.5
-        + 0.22 * sin(2.1 * p.x + 1.4 * sin(2.0 * p.y))
-        + 0.18 * cos(2.0 * p.y - 1.2 * cos(1.8 * p.x))
-        + 0.10 * sin(1.4 * (p.x + p.y));
-
-    bodyFlow = clamp(bodyFlow, 0.0, 1.0);
-
-    float finalDensity =
-        (0.04 * density + 1.25 * glow + 3.20 * veins)
-        * centerHole
-        * outerFade
-        * (0.32 + 1.05 * bodyFlow);
-
-    float t = fract(
-        0.12
-        + 0.28 * colorSeed
-        + 0.22 * r0
-        + 0.13 * sin(1.7 * p.x - 1.3 * p.y)
-        + 0.18 * iterPhase
-    );
-
-    // Sharper pearlescent flame palette with real color separation.
-    float3 c1 = flamePalette(t + 0.00, uniforms.fractalPalette);
-    float3 c2 = flamePalette(t + 0.31 + 0.22 * sin(4.0 * p.x), uniforms.fractalPalette);
-    float3 c3 = flamePalette(t + 0.62 + 0.18 * cos(3.6 * p.y), uniforms.fractalPalette);
-
-    float colorSplit = clamp(0.45 * veins + 0.35 * glow + 0.20 * bodyFlow, 0.0, 1.0);
-    float3 flame = mix(c1, c2, smoothstep(0.08, 0.75, colorSplit));
-    flame = mix(flame, c3, 0.45 * smoothstep(0.18, 1.10, veins));
-
-    float3 bg = float3(0.010, 0.014, 0.020);
-    float3 smoke = flamePalette(t + 0.42, uniforms.fractalPalette) * 0.13;
-    bg = mix(bg, smoke, clamp(density * 0.18, 0.0, 0.45));
-
-    float3 color = bg + flame * finalDensity * 3.40;
-    color += float3(0.70, 0.90, 1.00) * pow(clamp(glow * centerHole, 0.0, 1.0), 1.25) * 0.32;
-
-    float core = 1.0 - smoothstep(0.045, 0.175, r0);
-    color = mix(color, float3(0.0, 0.0, 0.0), core * 0.88);
-
-    color = 1.0 - exp(-color * 1.85);
-    color = pow(clamp(color, 0.0, 1.0), float3(0.82));
-
-    return float4(clamp(color, 0.0, 1.0), 1.0);
-}
-
 fragment float4 fractal_fragment(
     VertexOut in [[stage_in]],
     constant Uniforms& uniforms [[buffer(0)]]
@@ -827,10 +708,6 @@ fragment float4 fractal_fragment(
     
     if (uniforms.fractalMode == 8) {
         return renderNewton(in.uv, uniforms);
-    }
-    
-    if (uniforms.fractalMode == 9) {
-        return renderFlameSpiral(in.uv, uniforms);
     }
     
     float2 uv = in.uv;
