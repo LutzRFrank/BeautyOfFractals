@@ -9,8 +9,13 @@ struct MandelbrotExplorerApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.dark)
+                .onAppear {
+                    DispatchQueue.main.async {
+                        AppDelegate.resizeMainWindowToAppStoreSize()
+                    }
+                }
         }
-        .defaultSize(width: 1440, height: 900)
+        .defaultSize(width: 1280, height: 800)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("Fractal") {
@@ -55,6 +60,22 @@ struct MandelbrotExplorerApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+    
+    static func resizeMainWindowToAppStoreSize() {
+        guard let window = NSApplication.shared.windows.first else { return }
+        
+        let targetSize = NSSize(width: 1280, height: 800)
+        let currentFrame = window.frame
+        
+        let newOrigin = NSPoint(
+            x: currentFrame.midX - targetSize.width / 2.0,
+            y: currentFrame.midY - targetSize.height / 2.0
+        )
+        
+        let newFrame = NSRect(origin: newOrigin, size: targetSize)
+        window.setFrame(newFrame, display: true, animate: false)
+        window.center()
     }
 }
 
