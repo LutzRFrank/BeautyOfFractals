@@ -1,0 +1,4 @@
+[submodule "BeautyOfFractals-iOS"]
+	path = BeautyOfFractals-iOS
+	url = git@github.com:LutzRFrank/BeautyOfFractals-iOS.git
+	branch = main
