@@ -1,0 +1,13 @@
+{
+  "id" : "aa947fd2-bf11-43c0-8cb1-3c77fc5991f4",
+  "targets" : [
+    {
+      "id" : "834862de-11eb-40ce-85f5-992f44bd762d",
+      "name" : "BeautyOfFractals"
+    },
+    {
+      "id" : "45c5f6cb-468c-480a-b3df-d4f18bb2fcaf",
+      "name" : "BeautyOfFractals iOS"
+    }
+  ]
+}
