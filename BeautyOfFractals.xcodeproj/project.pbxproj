@@ -25,7 +25,7 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* BeautyOfFractals.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeautyOfFractals.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		55E4664B2FE1155C00DC3CA5 /* BeautOfFractals iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautOfFractals iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		55E4664B2FE1155C00DC3CA5 /* BeautyOfFractals iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautyOfFractals iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E466572FE1155F00DC3CA5 /* BeautOfFractalsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeautOfFractalsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E466612FE1155F00DC3CA5 /* BeautOfFractalsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeautOfFractalsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -38,12 +38,12 @@
 			);
 			target = 000000000000000100000000 /* BeautyOfFractals */;
 		};
-		55E4667D2FE11A0F00DC3CA5 /* Exceptions for "BeautyOfFractals" folder in "BeautOfFractals iOS" target */ = {
+		55E4667D2FE11A0F00DC3CA5 /* Exceptions for "BeautyOfFractals" folder in "BeautyOfFractals iOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				MandelbrotShader.metal,
 			);
-			target = 55E4664A2FE1155C00DC3CA5 /* BeautOfFractals iOS */;
+			target = 55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -52,7 +52,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				55AF5E5C2FDC4C6A0009491D /* Exceptions for "BeautyOfFractals" folder in "BeautyOfFractals" target */,
-				55E4667D2FE11A0F00DC3CA5 /* Exceptions for "BeautyOfFractals" folder in "BeautOfFractals iOS" target */,
+				55E4667D2FE11A0F00DC3CA5 /* Exceptions for "BeautyOfFractals" folder in "BeautyOfFractals iOS" target */,
 			);
 			path = BeautyOfFractals;
 			sourceTree = "<group>";
@@ -121,7 +121,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* BeautyOfFractals.app */,
-				55E4664B2FE1155C00DC3CA5 /* BeautOfFractals iOS.app */,
+				55E4664B2FE1155C00DC3CA5 /* BeautyOfFractals iOS.app */,
 				55E466572FE1155F00DC3CA5 /* BeautOfFractalsTests.xctest */,
 				55E466612FE1155F00DC3CA5 /* BeautOfFractalsUITests.xctest */,
 			);
@@ -153,9 +153,9 @@
 			productReference = 000000000000000000000120 /* BeautyOfFractals.app */;
 			productType = "com.apple.product-type.application";
 		};
-		55E4664A2FE1155C00DC3CA5 /* BeautOfFractals iOS */ = {
+		55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 55E4666D2FE1155F00DC3CA5 /* Build configuration list for PBXNativeTarget "BeautOfFractals iOS" */;
+			buildConfigurationList = 55E4666D2FE1155F00DC3CA5 /* Build configuration list for PBXNativeTarget "BeautyOfFractals iOS" */;
 			buildPhases = (
 				55E466472FE1155C00DC3CA5 /* Sources */,
 				55E466482FE1155C00DC3CA5 /* Frameworks */,
@@ -168,11 +168,11 @@
 			fileSystemSynchronizedGroups = (
 				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,
 			);
-			name = "BeautOfFractals iOS";
+			name = "BeautyOfFractals iOS";
 			packageProductDependencies = (
 			);
 			productName = BeautOfFractals;
-			productReference = 55E4664B2FE1155C00DC3CA5 /* BeautOfFractals iOS.app */;
+			productReference = 55E4664B2FE1155C00DC3CA5 /* BeautyOfFractals iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 		55E466562FE1155F00DC3CA5 /* BeautOfFractalsTests */ = {
@@ -262,7 +262,7 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* BeautyOfFractals */,
-				55E4664A2FE1155C00DC3CA5 /* BeautOfFractals iOS */,
+				55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */,
 				55E466562FE1155F00DC3CA5 /* BeautOfFractalsTests */,
 				55E466602FE1155F00DC3CA5 /* BeautOfFractalsUITests */,
 			);
@@ -334,12 +334,12 @@
 /* Begin PBXTargetDependency section */
 		55E466592FE1155F00DC3CA5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 55E4664A2FE1155C00DC3CA5 /* BeautOfFractals iOS */;
+			target = 55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */;
 			targetProxy = 55E466582FE1155F00DC3CA5 /* PBXContainerItemProxy */;
 		};
 		55E466632FE1155F00DC3CA5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 55E4664A2FE1155C00DC3CA5 /* BeautOfFractals iOS */;
+			target = 55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */;
 			targetProxy = 55E466622FE1155F00DC3CA5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -777,7 +777,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		55E4666D2FE1155F00DC3CA5 /* Build configuration list for PBXNativeTarget "BeautOfFractals iOS" */ = {
+		55E4666D2FE1155F00DC3CA5 /* Build configuration list for PBXNativeTarget "BeautyOfFractals iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				55E466672FE1155F00DC3CA5 /* Debug */,
