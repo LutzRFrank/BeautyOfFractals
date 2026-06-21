@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		55E72B642FE7F621004B76DB /* BeautyFractals Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 55E72B5A2FE7F61E004B76DB /* BeautyFractals Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		55E466582FE1155F00DC3CA5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +25,35 @@
 			remoteGlobalIDString = 55E4664A2FE1155C00DC3CA5;
 			remoteInfo = BeautOfFractals;
 		};
+		55E72B622FE7F621004B76DB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 55E72B592FE7F61E004B76DB;
+			remoteInfo = "BeautyFractals Watch App";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		55E72B682FE7F621004B76DB /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				55E72B642FE7F621004B76DB /* BeautyFractals Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* BeautyOfFractals.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeautyOfFractals.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E4664B2FE1155C00DC3CA5 /* BeautyOfFractals iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautyOfFractals iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E466572FE1155F00DC3CA5 /* BeautOfFractalsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeautOfFractalsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E466612FE1155F00DC3CA5 /* BeautOfFractalsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeautOfFractalsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		55E72B5A2FE7F61E004B76DB /* BeautyFractals Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautyFractals Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -62,14 +88,9 @@
 			path = "BeautyOfFractals-iOS";
 			sourceTree = "<group>";
 		};
-		55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */ = {
+		55E72B5B2FE7F61E004B76DB /* BeautyFractals Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BeautyOfFractalsTests;
-			sourceTree = "<group>";
-		};
-		55E466642FE1155F00DC3CA5 /* BeautyOfFractalsUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BeautyOfFractalsUITests;
+			path = "BeautyFractals Watch App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -103,6 +124,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		55E72B572FE7F61E004B76DB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -111,8 +139,7 @@
 			children = (
 				000000000000000000000010 /* BeautyOfFractals */,
 				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,
-				55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */,
-				55E466642FE1155F00DC3CA5 /* BeautyOfFractalsUITests */,
+				55E72B5B2FE7F61E004B76DB /* BeautyFractals Watch App */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -124,6 +151,7 @@
 				55E4664B2FE1155C00DC3CA5 /* BeautyOfFractals iOS.app */,
 				55E466572FE1155F00DC3CA5 /* BeautOfFractalsTests.xctest */,
 				55E466612FE1155F00DC3CA5 /* BeautOfFractalsUITests.xctest */,
+				55E72B5A2FE7F61E004B76DB /* BeautyFractals Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -160,10 +188,12 @@
 				55E466472FE1155C00DC3CA5 /* Sources */,
 				55E466482FE1155C00DC3CA5 /* Frameworks */,
 				55E466492FE1155C00DC3CA5 /* Resources */,
+				55E72B682FE7F621004B76DB /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				55E72B632FE7F621004B76DB /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,
@@ -188,9 +218,6 @@
 			dependencies = (
 				55E466592FE1155F00DC3CA5 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				55E4665A2FE1155F00DC3CA5 /* BeautyOfFractalsTests */,
-			);
 			name = BeautOfFractalsTests;
 			packageProductDependencies = (
 			);
@@ -211,15 +238,34 @@
 			dependencies = (
 				55E466632FE1155F00DC3CA5 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				55E466642FE1155F00DC3CA5 /* BeautyOfFractalsUITests */,
-			);
 			name = BeautOfFractalsUITests;
 			packageProductDependencies = (
 			);
 			productName = BeautOfFractalsUITests;
 			productReference = 55E466612FE1155F00DC3CA5 /* BeautOfFractalsUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		55E72B592FE7F61E004B76DB /* BeautyFractals Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55E72B652FE7F621004B76DB /* Build configuration list for PBXNativeTarget "BeautyFractals Watch App" */;
+			buildPhases = (
+				55E72B562FE7F61E004B76DB /* Sources */,
+				55E72B572FE7F61E004B76DB /* Frameworks */,
+				55E72B582FE7F61E004B76DB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				55E72B5B2FE7F61E004B76DB /* BeautyFractals Watch App */,
+			);
+			name = "BeautyFractals Watch App";
+			packageProductDependencies = (
+			);
+			productName = "BeautyFractals Watch App";
+			productReference = 55E72B5A2FE7F61E004B76DB /* BeautyFractals Watch App.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -245,6 +291,9 @@
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 55E4664A2FE1155C00DC3CA5;
 					};
+					55E72B592FE7F61E004B76DB = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "BeautyOfFractals" */;
@@ -265,6 +314,7 @@
 				55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */,
 				55E466562FE1155F00DC3CA5 /* BeautOfFractalsTests */,
 				55E466602FE1155F00DC3CA5 /* BeautOfFractalsUITests */,
+				55E72B592FE7F61E004B76DB /* BeautyFractals Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -292,6 +342,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		55E4665F2FE1155F00DC3CA5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		55E72B582FE7F61E004B76DB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -329,6 +386,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		55E72B562FE7F61E004B76DB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -341,6 +405,11 @@
 			isa = PBXTargetDependency;
 			target = 55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */;
 			targetProxy = 55E466622FE1155F00DC3CA5 /* PBXContainerItemProxy */;
+		};
+		55E72B632FE7F621004B76DB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 55E72B592FE7F61E004B76DB /* BeautyFractals Watch App */;
+			targetProxy = 55E72B622FE7F621004B76DB /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -758,6 +827,74 @@
 			};
 			name = Release;
 		};
+		55E72B662FE7F621004B76DB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F26768E8SW;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = BeautyFractals;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.lutzrfrank.BeautyOfFractals-iOS";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lutzrfrank.BeautyOfFractals-iOS.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		55E72B672FE7F621004B76DB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F26768E8SW;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = BeautyFractals;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.lutzrfrank.BeautyOfFractals-iOS";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lutzrfrank.BeautyOfFractals-iOS.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -802,6 +939,15 @@
 			buildConfigurations = (
 				55E4666B2FE1155F00DC3CA5 /* Debug */,
 				55E4666C2FE1155F00DC3CA5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		55E72B652FE7F621004B76DB /* Build configuration list for PBXNativeTarget "BeautyFractals Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55E72B662FE7F621004B76DB /* Debug */,
+				55E72B672FE7F621004B76DB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
