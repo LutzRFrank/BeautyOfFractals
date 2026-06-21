@@ -5,8 +5,17 @@ import UniformTypeIdentifiers
 import simd
 
 private let highPrecisionScaleLimit: Double = 0.006
+
+// Below this scale a Float-based Metal preview can no longer reliably represent
+// the current viewport. Keep the last completed CPU image visible instead and
+// refine the new viewport in two CPU stages using the same Double coordinates.
+private let deepCPUPreviewScaleLimit: Double = 0.00001
+
 private let highPrecisionPreviewMaxPixelWidth: Int = 1800
 private let highPrecisionPreviewMaxPixelHeight: Int = 1200
+private let deepCPUPreviewMaxPixelWidth: Int = 720
+private let deepCPUPreviewMaxPixelHeight: Int = 480
+private let deepCPUPreviewIterationCap: Int = 2_500
 
 enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbrot = 0
@@ -293,6 +302,17 @@ struct ContentView: View {
     @State private var maxIterations: Int = 300
     @State private var isSavingSnapshot: Bool = false
     @State private var showHelp: Bool = false
+    @State private var navigationHistory: [ViewportSnapshot] = []
+    @State private var navigationRevision: UInt = 0
+
+    private let maximumNavigationHistory = 100
+
+    private struct ViewportSnapshot: Equatable {
+        let centerX: Double
+        let centerY: Double
+        let scale: Double
+        let maxIterations: Int
+    }
     
     private var effectiveIterations: Int {
         effectiveIterationCount(
@@ -330,7 +350,9 @@ struct ContentView: View {
                 centerY: $centerY,
                 scale: $scale,
                 maxIterations: $maxIterations,
-                renderQuality: renderQuality
+                renderQuality: renderQuality,
+                navigationStarted: recordNavigationStep,
+                navigationRevision: navigationRevision
             )
             .frame(minWidth: 900, minHeight: 650)
             .ignoresSafeArea()
@@ -453,6 +475,13 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .keyboardShortcut("+", modifiers: [])
                 .keyboardShortcut("=", modifiers: [])
                 
+                Button("Undo") {
+                    undoView()
+                }
+                .disabled(navigationHistory.isEmpty)
+                .keyboardShortcut("z", modifiers: .command)
+                .help("Undo last zoom, pan or reset")
+
                 Button("Reset") {
                     resetView()
                 }
@@ -539,25 +568,65 @@ The zoom factor overlay is only visible in the app and is not included in export
         .padding(.horizontal, 24)
     }
     
+    private func currentViewportSnapshot() -> ViewportSnapshot {
+        ViewportSnapshot(
+            centerX: centerX,
+            centerY: centerY,
+            scale: scale,
+            maxIterations: maxIterations
+        )
+    }
+
+    private func recordNavigationStep() {
+        let snapshot = currentViewportSnapshot()
+
+        guard navigationHistory.last != snapshot else { return }
+
+        navigationHistory.append(snapshot)
+        if navigationHistory.count > maximumNavigationHistory {
+            navigationHistory.removeFirst(navigationHistory.count - maximumNavigationHistory)
+        }
+    }
+
+    private func undoView() {
+        guard let previous = navigationHistory.popLast() else { return }
+
+        // Tell the live renderer to invalidate a pending debounce/CPU refinement
+        // before restoring the older viewport.
+        navigationRevision &+= 1
+        centerX = previous.centerX
+        centerY = previous.centerY
+        scale = previous.scale
+        maxIterations = previous.maxIterations
+    }
+
     private func setMode(_ mode: FractalMode) {
         fractalMode = mode
         centerX = mode.defaultCenterX
         centerY = mode.defaultCenterY
         scale = mode.defaultScale
         maxIterations = 300
+        navigationHistory.removeAll()
+        navigationRevision &+= 1
     }
     
     private func zoomIn() {
+        recordNavigationStep()
+        navigationRevision &+= 1
         scale *= 0.5
         increaseIterationsForZoom()
     }
     
     private func zoomOut() {
+        recordNavigationStep()
+        navigationRevision &+= 1
         scale *= 2.0
         decreaseIterationsForZoom()
     }
     
     private func resetView() {
+        recordNavigationStep()
+        navigationRevision &+= 1
         centerX = fractalMode.defaultCenterX
         centerY = fractalMode.defaultCenterY
         scale = fractalMode.defaultScale
@@ -703,6 +772,43 @@ The zoom factor overlay is only visible in the app and is not included in export
     }
 }
 
+struct HighPrecisionViewportState: Equatable {
+    let centerX: Double
+    let centerY: Double
+    let scale: Double
+    let iterations: Int
+}
+
+private struct FractalViewportTransform {
+    let centerX: Double
+    let centerY: Double
+    let scale: Double
+    let viewSize: CGSize
+
+    private var width: Double { max(Double(viewSize.width), 1.0) }
+    private var height: Double { max(Double(viewSize.height), 1.0) }
+    var aspectRatio: Double { width / height }
+
+    /// Converts a SwiftUI point (origin at the top-left) to the exact complex-plane
+    /// coordinate used by the live preview and high-precision renderer.
+    func complexPoint(at point: CGPoint) -> (x: Double, y: Double) {
+        (
+            centerX + (Double(point.x) / width - 0.5) * scale * aspectRatio,
+            centerY + (Double(point.y) / height - 0.5) * scale
+        )
+    }
+
+    func centerAfterPan(from start: CGPoint, to current: CGPoint) -> (x: Double, y: Double) {
+        let dx = Double(current.x - start.x)
+        let dy = Double(current.y - start.y)
+
+        return (
+            centerX - (dx / width) * scale * aspectRatio,
+            centerY - (dy / height) * scale
+        )
+    }
+}
+
 struct MandelbrotView: View {
     let fractalMode: FractalMode
     let fractalPalette: FractalPalette
@@ -712,6 +818,8 @@ struct MandelbrotView: View {
     @Binding var scale: Double
     @Binding var maxIterations: Int
     let renderQuality: RenderQuality
+    let navigationStarted: () -> Void
+    let navigationRevision: UInt
     
     @State private var dragStart: CGPoint?
     @State private var dragCurrent: CGPoint?
@@ -722,9 +830,27 @@ struct MandelbrotView: View {
     @State private var panStartCenterY: Double = 0.0
     
     @State private var keyMonitor: Any?
+    // Safe progressive rendering: keep the last completed high-precision image
+    // visible while panning instead of falling back to GPU at extreme zoom.
+    @State private var isInteractionPreviewActive: Bool = false
+    // The viewport of the CPU image that is actually on screen. It can be older
+    // than centerX/centerY/scale while a newer request is still rendering.
+    @State private var visibleHighPrecisionState: HighPrecisionViewportState?
+    @State private var frozenHighPrecisionState: HighPrecisionViewportState?
+    @State private var refineTask: Task<Void, Never>?
+    // Invalidates a pending high-precision worker when a new interaction starts.
+    @State private var highPrecisionRenderEpoch: UInt = 0
+
     
     private var useHighPrecisionPreview: Bool {
         fractalMode.supportsHighPrecisionPreview && scale < highPrecisionScaleLimit
+    }
+
+    /// At very deep zoom levels the Metal shader's Float uniforms are no longer
+    /// trustworthy as a live viewport preview. The CPU renderer then publishes a
+    /// quick Double-precision preview before its full refinement.
+    private var useDeepCPUPreview: Bool {
+        fractalMode.supportsHighPrecisionPreview && scale < deepCPUPreviewScaleLimit
     }
     
     private var magnificationFactor: Double {
@@ -740,6 +866,10 @@ struct MandelbrotView: View {
             return nil
         }
         
+        if useDeepCPUPreview {
+            return "High Precision · CPU Deep Zoom"
+        }
+
         if magnificationFactor >= 50_000_000_000 {
             return "High Precision · Extreme Zoom"
         }
@@ -764,42 +894,98 @@ struct MandelbrotView: View {
             cap: 50_000
         )
     }
+
+    private var interactionPreviewIterations: Int {
+        max(300, min(effectiveIterations, Int(Double(effectiveIterations) * 0.25)))
+    }
+
+    private var metalDisplayedIterations: Int {
+        isInteractionPreviewActive ? interactionPreviewIterations : effectiveIterations
+    }
+
+    private var currentViewportState: HighPrecisionViewportState {
+        HighPrecisionViewportState(
+            centerX: centerX,
+            centerY: centerY,
+            scale: scale,
+            iterations: effectiveIterations
+        )
+    }
+
+    private var highPrecisionDisplayState: HighPrecisionViewportState {
+        if isInteractionPreviewActive, let frozenHighPrecisionState {
+            return frozenHighPrecisionState
+        }
+
+        return currentViewportState
+    }
+
+    private var interactionStatusText: String? {
+        guard isInteractionPreviewActive else { return nil }
+
+        if useHighPrecisionPreview, frozenHighPrecisionState != nil {
+            return "Preview held · release to refine"
+        }
+
+        return "Preview · refining detail…"
+    }
     
     var body: some View {
         GeometryReader { geometry in
+            // One aspect ratio is shared by navigation, Metal and CPU refinement.
+            // This avoids a drift caused by independent rounding of the MTK drawable
+            // and the capped high-precision bitmap.
+            let viewportAspectRatio = Double(max(geometry.size.width, 1.0)) /
+                Double(max(geometry.size.height, 1.0))
+
             ZStack(alignment: .topTrailing) {
                 ZStack {
+                    // Keep Metal visible as the fallback while the first CPU frame is built.
+                    MetalMandelbrotView(
+                        fractalMode: fractalMode,
+                        fractalPalette: fractalPalette,
+                        centerX: centerX,
+                        centerY: centerY,
+                        scale: scale,
+                        maxIterations: metalDisplayedIterations,
+                        viewportAspectRatio: viewportAspectRatio
+                    )
+
                     if useHighPrecisionPreview {
+                        let state = highPrecisionDisplayState
+
                         HighPrecisionFractalPreview(
                             fractalMode: fractalMode,
                             fractalPalette: fractalPalette,
-                            centerX: centerX,
-                            centerY: centerY,
-                            scale: scale,
-                            maxIterations: effectiveIterations,
-                            viewSize: geometry.size
-                        )
-                    } else {
-                        MetalMandelbrotView(
-                            fractalMode: fractalMode,
-                            fractalPalette: fractalPalette,
-                            centerX: centerX,
-                            centerY: centerY,
-                            scale: scale,
-                            maxIterations: effectiveIterations
+                            centerX: state.centerX,
+                            centerY: state.centerY,
+                            scale: state.scale,
+                            maxIterations: state.iterations,
+                            viewSize: geometry.size,
+                            viewportAspectRatio: viewportAspectRatio,
+                            progressiveCPUPreview: useDeepCPUPreview,
+                            refinementEnabled: !isInteractionPreviewActive,
+                            renderEpoch: highPrecisionRenderEpoch,
+                            onImagePublished: { visibleState in
+                                // Navigation must be calculated against the frame the user
+                                // can actually see, not against a newer frame still rendering.
+                                visibleHighPrecisionState = visibleState
+                            }
                         )
                     }
                     
-                    if let rect = selectionRect, !isPanning {
-                        Rectangle()
-                            .stroke(Color.white, lineWidth: 2)
-                            .background(
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.15))
-                            )
-                            .frame(width: rect.width, height: rect.height)
-                            .position(x: rect.midX, y: rect.midY)
-                    }
+                }
+
+                if let rect = selectionRect, !isPanning {
+                    Rectangle()
+                        .stroke(Color.white, lineWidth: 2)
+                        .background(
+                            Rectangle()
+                                .fill(Color.white.opacity(0.15))
+                        )
+                        .frame(width: rect.width, height: rect.height)
+                        .position(x: rect.midX, y: rect.midY)
+                        .allowsHitTesting(false)
                 }
                 
                 HStack {
@@ -816,20 +1002,35 @@ struct MandelbrotView: View {
                     
                     Spacer()
                     
-                    if let precisionStatusText {
-                        Text(precisionStatusText)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .padding(.top, 16)
-                            .padding(.trailing, 18)
+                    VStack(alignment: .trailing, spacing: 8) {
+                        if let interactionStatusText {
+                            Text(interactionStatusText)
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.88))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Capsule())
+                        }
+
+                        if let precisionStatusText {
+                            Text(precisionStatusText)
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Capsule())
+                        }
                     }
+                    .padding(.top, 16)
+                    .padding(.trailing, 18)
                 }
             }
             .contentShape(Rectangle())
+            // Attach the drag recognizer to the stable parent ZStack. A transparent overlay
+            // can stop receiving mouse events after AppKit replaces a Metal/Image frame.
+            .gesture(selectionDragGesture(viewSize: geometry.size))
             .onAppear {
                 keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { event in
                     isOptionPressed = event.modifierFlags.contains(.option)
@@ -843,7 +1044,19 @@ struct MandelbrotView: View {
                     return event
                 }
             }
+            .onChange(of: navigationRevision) {
+                // External navigation (Undo, toolbar zoom, Reset or a mode change)
+                // must never allow a pending refinement for the former viewport to win.
+                refineTask?.cancel()
+                refineTask = nil
+                isInteractionPreviewActive = false
+                frozenHighPrecisionState = nil
+                highPrecisionRenderEpoch &+= 1
+            }
             .onDisappear {
+                refineTask?.cancel()
+                refineTask = nil
+
                 if let keyMonitor {
                     NSEvent.removeMonitor(keyMonitor)
                     self.keyMonitor = nil
@@ -860,60 +1073,110 @@ struct MandelbrotView: View {
                     NSCursor.pop()
                 }
             }
-            .gesture(
-                DragGesture(minimumDistance: 2)
-                    .onChanged { value in
-                        if dragStart == nil {
-                            dragStart = value.startLocation
-                            dragCurrent = value.location
-                            isPanning = isOptionPressed
-                            panStartCenterX = centerX
-                            panStartCenterY = centerY
-                        }
-                        
-                        guard let start = dragStart else {
-                            return
-                        }
-                        
-                        if isPanning {
-                            NSCursor.closedHand.set()
-                            panView(
-                                from: start,
-                                to: value.location,
-                                viewSize: geometry.size
-                            )
-                        } else {
-                            NSCursor.crosshair.set()
-                            dragCurrent = value.location
-                        }
-                    }
-                    .onEnded { value in
-                        defer {
-                            resetDragState()
-                        }
-                        
-                        guard let start = dragStart else {
-                            return
-                        }
-                        
-                        if isPanning {
-                            return
-                        }
-                        
-                        let end = value.location
-                        let rect = makeRect(from: start, to: end)
-                        
-                        if rect.width > 10 && rect.height > 10 {
-                            zoomToSelection(
-                                rect: rect,
-                                viewSize: geometry.size
-                            )
-                        }
-                    }
-            )
         }
     }
     
+    private func selectionDragGesture(viewSize: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 2)
+            .onChanged { value in
+                if dragStart == nil {
+                    // The CPU layer intentionally keeps its last complete image visible
+                    // while a newer frame is calculated. Before interpreting a new gesture,
+                    // reconcile the model with that visible image. This makes selection
+                    // during refinement WYSIWYG instead of applying it to an invisible,
+                    // pending viewport.
+                    beginInteractionPreview()
+
+                    dragStart = value.startLocation
+                    dragCurrent = value.location
+                    isPanning = isOptionPressed
+                    panStartCenterX = centerX
+                    panStartCenterY = centerY
+
+                    // A pan changes the viewport continuously, so record its starting
+                    // position exactly once when the drag begins.
+                    if isPanning {
+                        navigationStarted()
+                    }
+                }
+
+                guard let start = dragStart else { return }
+
+                if isPanning {
+                    NSCursor.closedHand.set()
+                    panView(from: start, to: value.location, viewSize: viewSize)
+                } else {
+                    // Update on every event; this keeps the frame live even while an
+                    // underlying refinement view publishes a completed image.
+                    dragCurrent = value.location
+                    NSCursor.crosshair.set()
+                }
+            }
+            .onEnded { value in
+                defer { resetDragState() }
+
+                guard let start = dragStart else { return }
+
+                if isPanning {
+                    finishInteractionPreview()
+                    return
+                }
+
+                let rect = makeRect(from: start, to: value.location)
+                guard rect.width > 10, rect.height > 10 else {
+                    finishInteractionPreview()
+                    return
+                }
+
+                // Selection zoom is a single completed navigation step. At this point
+                // center/scale already describe the frame shown beneath the selection.
+                navigationStarted()
+                zoomToSelection(rect: rect, viewSize: viewSize)
+                finishInteractionPreview()
+            }
+    }
+
+    private func beginInteractionPreview() {
+        refineTask?.cancel()
+        refineTask = nil
+
+        // Freeze once per gesture. If a completed CPU frame is still on screen,
+        // that frame is the only valid coordinate basis for the new gesture.
+        if !isInteractionPreviewActive {
+            highPrecisionRenderEpoch &+= 1
+
+            if useHighPrecisionPreview {
+                let visibleState = visibleHighPrecisionState ?? currentViewportState
+                frozenHighPrecisionState = visibleState
+
+                // A pending target may be newer than the picture on screen. Discard that
+                // invisible target so the rectangle maps exactly to what is visible.
+                centerX = visibleState.centerX
+                centerY = visibleState.centerY
+                scale = visibleState.scale
+            } else {
+                frozenHighPrecisionState = nil
+            }
+        }
+
+        isInteractionPreviewActive = true
+    }
+
+    private func finishInteractionPreview() {
+        refineTask?.cancel()
+
+        refineTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            guard !Task.isCancelled else { return }
+
+            // The final viewport becomes a new, single refinement request.
+            isInteractionPreviewActive = false
+            frozenHighPrecisionState = nil
+            highPrecisionRenderEpoch &+= 1
+            refineTask = nil
+        }
+    }
+
     private var selectionRect: CGRect? {
         guard let start = dragStart, let current = dragCurrent else {
             return nil
@@ -944,42 +1207,37 @@ struct MandelbrotView: View {
     }
     
     private func panView(from start: CGPoint, to current: CGPoint, viewSize: CGSize) {
-        let viewWidth = Double(viewSize.width)
-        let viewHeight = Double(viewSize.height)
-        let aspectRatio = viewWidth / viewHeight
-        
-        let dx = Double(current.x - start.x)
-        let dy = Double(current.y - start.y)
-        
-        centerX = panStartCenterX - (dx / viewWidth) * scale * aspectRatio
-        centerY = panStartCenterY - (dy / viewHeight) * scale
-        
+        let startViewport = FractalViewportTransform(
+            centerX: panStartCenterX,
+            centerY: panStartCenterY,
+            scale: scale,
+            viewSize: viewSize
+        )
+        let newCenter = startViewport.centerAfterPan(from: start, to: current)
+
+        centerX = newCenter.x
+        centerY = newCenter.y
         dragCurrent = current
     }
     
     private func zoomToSelection(rect: CGRect, viewSize: CGSize) {
-        let viewWidth = Double(viewSize.width)
-        let viewHeight = Double(viewSize.height)
-        let aspectRatio = viewWidth / viewHeight
-        
         let oldScale = scale
-        
-        let selectedCenterX = Double(rect.midX)
-        let selectedCenterY = Double(rect.midY)
-        
-        let newCenterX =
-            centerX + (selectedCenterX / viewWidth - 0.5) * oldScale * aspectRatio
-        
-        let newCenterY =
-            centerY + (selectedCenterY / viewHeight - 0.5) * oldScale
-        
+        let viewport = FractalViewportTransform(
+            centerX: centerX,
+            centerY: centerY,
+            scale: oldScale,
+            viewSize: viewSize
+        )
+        let newCenter = viewport.complexPoint(at: CGPoint(x: rect.midX, y: rect.midY))
+
+        let viewWidth = max(Double(viewSize.width), 1.0)
+        let viewHeight = max(Double(viewSize.height), 1.0)
         let zoomFactorX = Double(rect.width) / viewWidth
         let zoomFactorY = Double(rect.height) / viewHeight
-        
         let zoomFactor = max(zoomFactorX, zoomFactorY)
         
-        centerX = newCenterX
-        centerY = newCenterY
+        centerX = newCenter.x
+        centerY = newCenter.y
         scale = oldScale * zoomFactor
         increaseIterationsForZoom()
     }
@@ -1011,6 +1269,13 @@ struct HighPrecisionFractalPreview: View {
     let scale: Double
     let maxIterations: Int
     let viewSize: CGSize
+    let viewportAspectRatio: Double
+    /// Requests a fast CPU frame before the full CPU refinement. Both stages use
+    /// Double precision and therefore cannot jump relative to one another.
+    let progressiveCPUPreview: Bool
+    let refinementEnabled: Bool
+    let renderEpoch: UInt
+    let onImagePublished: (HighPrecisionViewportState) -> Void
     
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
@@ -1024,7 +1289,10 @@ struct HighPrecisionFractalPreview: View {
             String(format: "%.18f", scale),
             maxIterations.description,
             Int(viewSize.width).description,
-            Int(viewSize.height).description
+            Int(viewSize.height).description,
+            progressiveCPUPreview.description,
+            refinementEnabled.description,
+            renderEpoch.description
         ].joined(separator: "|")
     }
     
@@ -1034,11 +1302,11 @@ struct HighPrecisionFractalPreview: View {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.none)
-                    .scaledToFill()
+                    // The pixels encode the full mathematical viewport. Stretching this
+                    // capped bitmap to the SwiftUI bounds keeps its edges exactly aligned
+                    // with Metal instead of cropping a fraction of a source pixel.
                     .frame(width: viewSize.width, height: viewSize.height)
                     .clipped()
-            } else {
-                Color.black
             }
             
             if isRendering {
@@ -1062,54 +1330,165 @@ struct HighPrecisionFractalPreview: View {
     
     @MainActor
     private func renderPreview() async {
-        let size = cappedRenderSize(for: viewSize)
-        
-        guard size.width > 8, size.height > 8 else {
+        guard refinementEnabled else {
+            isRendering = false
             return
         }
-        
-        isRendering = true
-        
+
+        let requestID = renderID
         let mode = fractalMode
         let palette = fractalPalette
         let cx = centerX
         let cy = centerY
         let currentScale = scale
-        let iterations = maxIterations
-        
-        let cgImage = await Task.detached(priority: .userInitiated) {
-            renderFractal(
-                width: size.width,
-                height: size.height,
+        let fullIterations = maxIterations
+
+        isRendering = true
+
+        // At deep zoom, publish a quick Double-precision CPU frame first. It is
+        // intentionally lower-resolution/lower-iteration, but maps the exact same
+        // mathematical viewport as the subsequent full frame. The retained image
+        // never gets cleared, so there is no black frame or Metal-to-CPU jump.
+        if progressiveCPUPreview {
+            let previewSize = cappedRenderSize(
+                for: viewSize,
+                maxWidth: deepCPUPreviewMaxPixelWidth,
+                maxHeight: deepCPUPreviewMaxPixelHeight
+            )
+            let previewIterations = max(300, min(fullIterations, deepCPUPreviewIterationCap))
+
+            if let quickImage = await renderImage(
+                width: previewSize.width,
+                height: previewSize.height,
                 mode: mode,
                 palette: palette,
                 centerX: cx,
                 centerY: cy,
                 scale: currentScale,
-                maxIterations: iterations
-            )
-        }.value
-        
-        if let cgImage {
-            image = NSImage(cgImage: cgImage, size: NSSize(width: size.width, height: size.height))
+                maxIterations: previewIterations,
+                requestID: requestID
+            ) {
+                image = NSImage(
+                    cgImage: quickImage,
+                    size: NSSize(width: previewSize.width, height: previewSize.height)
+                )
+                onImagePublished(
+                    HighPrecisionViewportState(
+                        centerX: cx,
+                        centerY: cy,
+                        scale: currentScale,
+                        iterations: previewIterations
+                    )
+                )
+            }
+
+            guard !Task.isCancelled,
+                  refinementEnabled,
+                  requestID == renderID else {
+                return
+            }
         }
-        
+
+        let fullSize = cappedRenderSize(
+            for: viewSize,
+            maxWidth: highPrecisionPreviewMaxPixelWidth,
+            maxHeight: highPrecisionPreviewMaxPixelHeight
+        )
+
+        if let finalImage = await renderImage(
+            width: fullSize.width,
+            height: fullSize.height,
+            mode: mode,
+            palette: palette,
+            centerX: cx,
+            centerY: cy,
+            scale: currentScale,
+            maxIterations: fullIterations,
+            requestID: requestID
+        ) {
+            image = NSImage(
+                cgImage: finalImage,
+                size: NSSize(width: fullSize.width, height: fullSize.height)
+            )
+            onImagePublished(
+                HighPrecisionViewportState(
+                    centerX: cx,
+                    centerY: cy,
+                    scale: currentScale,
+                    iterations: fullIterations
+                )
+            )
+        }
+
+        guard !Task.isCancelled,
+              refinementEnabled,
+              requestID == renderID else {
+            return
+        }
+
         isRendering = false
     }
-    
-    private func cappedRenderSize(for viewSize: CGSize) -> (width: Int, height: Int) {
+
+    @MainActor
+    private func renderImage(
+        width: Int,
+        height: Int,
+        mode: FractalMode,
+        palette: FractalPalette,
+        centerX: Double,
+        centerY: Double,
+        scale: Double,
+        maxIterations: Int,
+        requestID: String
+    ) async -> CGImage? {
+        guard width > 8, height > 8 else { return nil }
+
+        let aspectRatio = viewportAspectRatio
+        let worker = Task.detached(priority: .userInitiated) {
+            renderFractal(
+                width: width,
+                height: height,
+                mode: mode,
+                palette: palette,
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                maxIterations: maxIterations,
+                viewportAspectRatio: aspectRatio
+            )
+        }
+
+        let cgImage = await withTaskCancellationHandler(
+            operation: { await worker.value },
+            onCancel: { worker.cancel() }
+        )
+
+        guard !Task.isCancelled,
+              refinementEnabled,
+              requestID == renderID else {
+            return nil
+        }
+
+        return cgImage
+    }
+
+    private func cappedRenderSize(
+        for viewSize: CGSize,
+        maxWidth: Int,
+        maxHeight: Int
+    ) -> (width: Int, height: Int) {
         let width = max(1.0, viewSize.width)
         let height = max(1.0, viewSize.height)
         let aspectRatio = width / height
-        
-        var targetWidth = min(Int(width.rounded()), highPrecisionPreviewMaxPixelWidth)
-        var targetHeight = Int(Double(targetWidth) / aspectRatio)
-        
-        if targetHeight > highPrecisionPreviewMaxPixelHeight {
-            targetHeight = highPrecisionPreviewMaxPixelHeight
-            targetWidth = Int(Double(targetHeight) * aspectRatio)
+
+        var targetWidth = min(Int(width.rounded()), maxWidth)
+        var targetHeight = Int((Double(targetWidth) / aspectRatio).rounded())
+
+        if targetHeight > maxHeight {
+            targetHeight = maxHeight
+            targetWidth = Int((Double(targetHeight) * aspectRatio).rounded())
         }
-        
+
         return (
             max(16, targetWidth),
             max(16, targetHeight)
@@ -1241,7 +1620,8 @@ nonisolated func renderFractal(
     centerX: Double,
     centerY: Double,
     scale: Double,
-    maxIterations: Int
+    maxIterations: Int,
+    viewportAspectRatio: Double? = nil
 ) -> CGImage? {
     
     let bytesPerPixel = 4
@@ -1250,13 +1630,22 @@ nonisolated func renderFractal(
     
     var pixels = [UInt8](repeating: 0, count: width * height * bytesPerPixel)
     
-    let aspectRatio = Double(width) / Double(height)
+    // The preview can be rendered at a capped bitmap size. Its mathematical
+    // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
+    let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
     
     for py in 0..<height {
+        // The high-precision worker is cancelled as soon as a new drag begins.
+        if Task.isCancelled { return nil }
+
         for px in 0..<width {
-            
-            let x0 = centerX + (Double(px) / Double(width) - 0.5) * scale * aspectRatio
-            let y0 = centerY + (Double(py) / Double(height) - 0.5) * scale
+            if px.isMultiple(of: 64), Task.isCancelled { return nil }
+
+            // Sample at the centre of the same raster pixel represented by Metal.
+            // CGImage row 0 is the top edge, which corresponds to uv.y == 1 in
+            // the fullscreen Metal triangle and therefore to the negative Y half-plane.
+            let x0 = centerX + ((Double(px) + 0.5) / Double(width) - 0.5) * scale * aspectRatio
+            let y0 = centerY + ((Double(py) + 0.5) / Double(height) - 0.5) * scale
             
             let color: (r: Double, g: Double, b: Double)
             

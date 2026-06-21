@@ -9,6 +9,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
     let centerY: Double
     let scale: Double
     let maxIterations: Int
+    /// Shared with SwiftUI navigation and CPU refinement. This must not be derived
+    /// independently from the rounded MTK drawable size.
+    let viewportAspectRatio: Double
     
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -44,6 +47,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
         context.coordinator.centerY = Float(centerY)
         context.coordinator.scale = Float(scale)
         context.coordinator.maxIterations = UInt32(maxIterations)
+        context.coordinator.viewportAspectRatio = Float(viewportAspectRatio)
         
         nsView.setNeedsDisplay(nsView.bounds)
     }
@@ -59,6 +63,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
         var centerY: Float = 0.0
         var scale: Float = 3.0
         var maxIterations: UInt32 = 300
+        var viewportAspectRatio: Float = 1.0
         
         struct Uniforms {
             var centerX: Float
@@ -109,9 +114,10 @@ struct MetalMandelbrotView: NSViewRepresentable {
                 return
             }
             
-            let width = max(Float(view.drawableSize.width), 1.0)
-            let height = max(Float(view.drawableSize.height), 1.0)
-            let aspectRatio = width / height
+            // The SwiftUI geometry value is deliberately used here instead of
+            // drawableSize. On Retina displays drawableSize may be rounded by a pixel,
+            // which used to make the Metal and CPU viewports subtly diverge at deep zoom.
+            let aspectRatio = max(viewportAspectRatio, 0.000_001)
             
             var uniforms = Uniforms(
                 centerX: centerX,
