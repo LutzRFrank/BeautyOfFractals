@@ -320,7 +320,7 @@ struct ContentView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: 80_000
+            cap: renderQuality == .deep ? 100_000 : 80_000
         )
     }
     
@@ -330,7 +330,7 @@ struct ContentView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: 80_000
+            cap: renderQuality == .deep ? 100_000 : 80_000
         )
     }
     
