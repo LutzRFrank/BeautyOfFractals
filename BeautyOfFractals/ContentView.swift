@@ -1569,7 +1569,9 @@ struct HighPrecisionFractalPreview: View {
             centerY: cy,
             scale: currentScale,
             maxIterations: fullIterations,
-            requestID: requestID
+            requestID: requestID,
+            progressStart: 0.82,
+            progressEnd: 0.995
         ) {
             image = NSImage(
                 cgImage: finalImage,
@@ -1607,7 +1609,9 @@ struct HighPrecisionFractalPreview: View {
         centerY: Double,
         scale: Double,
         maxIterations: Int,
-        requestID: String
+        requestID: String,
+        progressStart: Double? = nil,
+        progressEnd: Double? = nil
     ) async -> CGImage? {
         guard width > 8, height > 8 else { return nil }
 
@@ -1622,7 +1626,17 @@ struct HighPrecisionFractalPreview: View {
                 centerY: centerY,
                 scale: scale,
                 maxIterations: maxIterations,
-                viewportAspectRatio: aspectRatio
+                viewportAspectRatio: aspectRatio,
+                progressCallback: { progress in
+                    guard let progressStart, let progressEnd else { return }
+                    Task { @MainActor in
+                        guard !Task.isCancelled, requestID == renderID else { return }
+                        renderProgress = max(
+                            renderProgress,
+                            progressStart + (progressEnd - progressStart) * progress
+                        )
+                    }
+                }
             )
         }
 
@@ -1789,7 +1803,8 @@ nonisolated func renderFractal(
     centerY: Double,
     scale: Double,
     maxIterations: Int,
-    viewportAspectRatio: Double? = nil
+    viewportAspectRatio: Double? = nil,
+    progressCallback: ((Double) -> Void)? = nil
 ) -> CGImage? {
     
     let bytesPerPixel = 4
@@ -1805,6 +1820,10 @@ nonisolated func renderFractal(
     for py in 0..<height {
         // The high-precision worker is cancelled as soon as a new drag begins.
         if Task.isCancelled { return nil }
+
+        if py.isMultiple(of: 8) {
+            progressCallback?(Double(py) / Double(max(height - 1, 1)))
+        }
 
         for px in 0..<width {
             if px.isMultiple(of: 64), Task.isCancelled { return nil }
