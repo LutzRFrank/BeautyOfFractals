@@ -1295,6 +1295,7 @@ struct HighPrecisionFractalPreview: View {
             progressiveCPUPreview.description,
             refinementEnabled.description,
             renderEpoch.description,
+            renderQualityKey,
             renderQualityKey
         ].joined(separator: "|")
     }
