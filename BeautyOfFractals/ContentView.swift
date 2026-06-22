@@ -1742,17 +1742,33 @@ nonisolated func renderFractal(
                     maxIterations: maxIterations
                 )
             } else {
-                let iteration = calculateFractalIteration(
+                var localMaxIterations = maxIterations
+                var iteration = calculateFractalIteration(
                     mode: mode,
                     x0: x0,
                     y0: y0,
-                    maxIterations: maxIterations
+                    maxIterations: localMaxIterations
                 )
+
+                if shouldApplyAdaptiveIterationRefinement(
+                    mode: mode,
+                    width: width,
+                    maxIterations: maxIterations,
+                    iteration: iteration
+                ) {
+                    localMaxIterations = min(maxIterations + maxIterations / 2, 120_000)
+                    iteration = calculateFractalIteration(
+                        mode: mode,
+                        x0: x0,
+                        y0: y0,
+                        maxIterations: localMaxIterations
+                    )
+                }
                 
-                if iteration == maxIterations {
+                if iteration == localMaxIterations {
                     color = insideColor(mode: mode, palette: palette)
                 } else {
-                    let t = Double(iteration) / Double(maxIterations)
+                    let t = Double(iteration) / Double(localMaxIterations)
                     color = cpuPaletteColor(
                         t: t,
                         mode: mode,
@@ -2263,6 +2279,28 @@ nonisolated private func calculateNewtonColor(
         clamp01(b + 0.18 * goldEdge + whiteSpark)
     )
 }
+
+
+nonisolated private func shouldApplyAdaptiveIterationRefinement(
+    mode: FractalMode,
+    width: Int,
+    maxIterations: Int,
+    iteration: Int
+) -> Bool {
+    guard mode == .mandelbrot || mode == .mandelbrotRelief || mode == .burningShip || mode == .tricorn else {
+        return false
+    }
+
+    // Keep early previews fast. Adaptive refinement is mainly useful for final
+    // high-precision CPU passes where boundary pixels otherwise blur into black.
+    guard width >= 512, maxIterations >= 8_000 else {
+        return false
+    }
+
+    // Only spend extra work near the escape boundary / near-inside regions.
+    return iteration >= Int(Double(maxIterations) * 0.72)
+}
+
 
 nonisolated private func calculateFractalIteration(
     mode: FractalMode,
