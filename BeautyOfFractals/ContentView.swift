@@ -292,7 +292,7 @@ private func effectiveIterationCount(
 
 struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
-    @State private var fractalPalette: FractalPalette = .ocean
+    @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
     
     @State private var centerX: Double = FractalMode.mandelbrot.defaultCenterX
@@ -1349,41 +1349,122 @@ struct HighPrecisionFractalPreview: View {
 
         isRendering = true
 
-        // At deep zoom, publish a quick Double-precision CPU frame first. It is
-        // intentionally lower-resolution/lower-iteration, but maps the exact same
-        // mathematical viewport as the subsequent full frame. The retained image
-        // never gets cleared, so there is no black frame or Metal-to-CPU jump.
+        // At deep zoom, publish a small pyramid of CPU previews before the full
+        // refinement. This avoids a single huge block preview followed by a long
+        // wait, while keeping every stage mapped to the exact same viewport.
         if progressiveCPUPreview {
-            let previewSize = cappedRenderSize(
-                for: viewSize,
-                maxWidth: deepCPUPreviewMaxPixelWidth,
-                maxHeight: deepCPUPreviewMaxPixelHeight
-            )
-            let previewIterations = max(300, min(fullIterations, deepCPUPreviewIterationCap))
+            let zoomLevel = fractalMode.defaultScale / max(scale, 1e-18)
+            let previewStages: [(width: Int, height: Int, iterationScale: Double)]
 
-            if let quickImage = await renderImage(
-                width: previewSize.width,
-                height: previewSize.height,
-                mode: mode,
-                palette: palette,
-                centerX: cx,
-                centerY: cy,
-                scale: currentScale,
-                maxIterations: previewIterations,
-                requestID: requestID
-            ) {
-                image = NSImage(
-                    cgImage: quickImage,
-                    size: NSSize(width: previewSize.width, height: previewSize.height)
+            if zoomLevel > 1_000_000_000_000 {
+                previewStages = [
+                    (48, 30, 0.025),
+                    (64, 40, 0.035),
+                    (80, 50, 0.045),
+                    (96, 60, 0.055),
+                    (112, 70, 0.070),
+                    (128, 80, 0.085),
+                    (160, 100, 0.110),
+                    (192, 120, 0.140),
+                    (256, 160, 0.180),
+                    (320, 200, 0.230),
+                    (400, 250, 0.300),
+                    (512, 320, 0.390),
+                    (640, 400, 0.500),
+                    (800, 500, 0.620),
+                    (1024, 640, 0.760),
+                    (deepCPUPreviewMaxPixelWidth, deepCPUPreviewMaxPixelHeight, 0.880)
+                ]
+            } else if zoomLevel > 200_000_000 {
+                previewStages = [
+                    (64, 40, 0.035),
+                    (88, 55, 0.050),
+                    (112, 70, 0.065),
+                    (144, 90, 0.085),
+                    (180, 113, 0.110),
+                    (230, 144, 0.145),
+                    (300, 188, 0.190),
+                    (390, 244, 0.250),
+                    (500, 313, 0.330),
+                    (640, 400, 0.430),
+                    (800, 500, 0.550),
+                    (960, 600, 0.680),
+                    (deepCPUPreviewMaxPixelWidth, deepCPUPreviewMaxPixelHeight, 0.820)
+                ]
+            } else if zoomLevel > 20_000_000 {
+                previewStages = [
+                    (64, 40, 0.04),
+                    (96, 60, 0.06),
+                    (128, 80, 0.08),
+                    (160, 100, 0.10),
+                    (220, 138, 0.14),
+                    (300, 188, 0.20),
+                    (400, 250, 0.28),
+                    (540, 338, 0.38),
+                    (720, 450, 0.52),
+                    (900, 563, 0.66),
+                    (deepCPUPreviewMaxPixelWidth, deepCPUPreviewMaxPixelHeight, 0.78)
+                ]
+            } else {
+                previewStages = [
+                    (96, 60, 0.06),
+                    (160, 100, 0.10),
+                    (240, 150, 0.16),
+                    (360, 225, 0.24),
+                    (540, 338, 0.36),
+                    (720, 450, 0.50),
+                    (deepCPUPreviewMaxPixelWidth, deepCPUPreviewMaxPixelHeight, 0.70)
+                ]
+            }
+
+            for stage in previewStages {
+                guard !Task.isCancelled,
+                      refinementEnabled,
+                      requestID == renderID else {
+                    return
+                }
+
+                let previewSize = cappedRenderSize(
+                    for: viewSize,
+                    maxWidth: stage.width,
+                    maxHeight: stage.height
                 )
-                onImagePublished(
-                    HighPrecisionViewportState(
-                        centerX: cx,
-                        centerY: cy,
-                        scale: currentScale,
-                        iterations: previewIterations
+
+                let previewIterations = max(
+                    300,
+                    min(
+                        fullIterations,
+                        min(
+                            deepCPUPreviewIterationCap,
+                            Int(Double(fullIterations) * stage.iterationScale)
+                        )
                     )
                 )
+
+                if let quickImage = await renderImage(
+                    width: previewSize.width,
+                    height: previewSize.height,
+                    mode: mode,
+                    palette: palette,
+                    centerX: cx,
+                    centerY: cy,
+                    scale: currentScale,
+                    maxIterations: previewIterations,
+                    requestID: requestID
+                ) {
+                    image = NSImage(
+                        cgImage: quickImage,
+                        size: NSSize(width: previewSize.width, height: previewSize.height)
+                    )
+                    onImagePublished(
+                        HighPrecisionViewportState(
+                            centerX: cx,
+                            centerY: cy,
+                            scale: currentScale,
+                            iterations: previewIterations
+                        )
+                    )
+                }
             }
 
             guard !Task.isCancelled,
