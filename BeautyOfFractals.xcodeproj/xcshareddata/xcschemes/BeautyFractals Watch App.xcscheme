@@ -30,6 +30,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "55E4664A2FE1155C00DC3CA5"
                BuildableName = "BeautyOfFractals iOS.app"
+               BlueprintName = "BeautyOfFractals iOS"
                ReferencedContainer = "container:BeautyOfFractals.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
