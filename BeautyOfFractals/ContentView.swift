@@ -966,6 +966,7 @@ struct MandelbrotView: View {
                             progressiveCPUPreview: useDeepCPUPreview,
                             refinementEnabled: !isInteractionPreviewActive,
                             renderEpoch: highPrecisionRenderEpoch,
+                            renderQualityKey: renderQuality.rawValue,
                             onImagePublished: { visibleState in
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
@@ -1275,6 +1276,7 @@ struct HighPrecisionFractalPreview: View {
     let progressiveCPUPreview: Bool
     let refinementEnabled: Bool
     let renderEpoch: UInt
+    let renderQualityKey: String
     let onImagePublished: (HighPrecisionViewportState) -> Void
     
     @State private var image: NSImage?
@@ -1292,7 +1294,8 @@ struct HighPrecisionFractalPreview: View {
             Int(viewSize.height).description,
             progressiveCPUPreview.description,
             refinementEnabled.description,
-            renderEpoch.description
+            renderEpoch.description,
+            renderQualityKey
         ].joined(separator: "|")
     }
     
