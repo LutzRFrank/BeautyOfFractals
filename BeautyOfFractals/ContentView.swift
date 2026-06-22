@@ -1281,6 +1281,8 @@ struct HighPrecisionFractalPreview: View {
     
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
+    @State private var renderProgress: Double = 0.0
+    @State private var renderStartDate: Date?
     
     private var renderID: String {
         [
@@ -1300,6 +1302,27 @@ struct HighPrecisionFractalPreview: View {
         ].joined(separator: "|")
     }
     
+    private var clampedRenderProgress: Double {
+        min(max(renderProgress, 0.0), 1.0)
+    }
+
+    private var renderPercentText: String {
+        "\(Int((clampedRenderProgress * 100.0).rounded()))%"
+    }
+
+    private var renderIterationText: String {
+        let current = Int(Double(maxIterations) * clampedRenderProgress)
+        return "\(current.formatted()) / \(maxIterations.formatted())"
+    }
+
+    private func elapsedText(at date: Date) -> String {
+        guard let renderStartDate else { return "00:00.0" }
+        let elapsed = max(0, date.timeIntervalSince(renderStartDate))
+        let minutes = Int(elapsed) / 60
+        let seconds = elapsed.truncatingRemainder(dividingBy: 60)
+        return String(format: "%02d:%04.1f", minutes, seconds)
+    }
+
     var body: some View {
         ZStack {
             if let image {
@@ -1314,17 +1337,60 @@ struct HighPrecisionFractalPreview: View {
             }
             
             if isRendering {
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Rendering high precision…")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                TimelineView(.periodic(from: .now, by: 0.25)) { timeline in
+                    VStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .stroke(.white.opacity(0.16), lineWidth: 14)
+
+                            Circle()
+                                .trim(from: 0, to: clampedRenderProgress)
+                                .stroke(
+                                    AngularGradient(
+                                        colors: [
+                                            .cyan,
+                                            .blue,
+                                            .cyan
+                                        ],
+                                        center: .center
+                                    ),
+                                    style: StrokeStyle(lineWidth: 14, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+
+                            VStack(spacing: 5) {
+                                Text("Rendering…")
+                                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.82))
+
+                                Text(renderPercentText)
+                                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+
+                                Text(renderIterationText)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.78))
+
+                                Text("Iterations")
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.62))
+                            }
+                        }
+                        .frame(width: 158, height: 158)
+
+                        Text("Elapsed: \(elapsedText(at: timeline.date))")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.78))
+                    }
+                    .padding(22)
+                    .frame(width: 230)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .shadow(color: .black.opacity(0.32), radius: 24, x: 0, y: 12)
+                    .padding(.leading, 28)
+                    .padding(.top, 72)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .foregroundStyle(.white.opacity(0.8))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         }
         .task(id: renderID) {
@@ -1347,6 +1413,8 @@ struct HighPrecisionFractalPreview: View {
         let currentScale = scale
         let fullIterations = maxIterations
 
+        renderProgress = 0.01
+        renderStartDate = Date()
         isRendering = true
 
         // At deep zoom, publish a small pyramid of CPU previews before the full
@@ -1417,12 +1485,17 @@ struct HighPrecisionFractalPreview: View {
                 ]
             }
 
-            for stage in previewStages {
+            for (stageIndex, stage) in previewStages.enumerated() {
                 guard !Task.isCancelled,
                       refinementEnabled,
                       requestID == renderID else {
                     return
                 }
+
+                renderProgress = max(
+                    renderProgress,
+                    0.04 + 0.72 * (Double(stageIndex) / Double(max(previewStages.count, 1)))
+                )
 
                 let previewSize = cappedRenderSize(
                     for: viewSize,
@@ -1464,6 +1537,11 @@ struct HighPrecisionFractalPreview: View {
                             iterations: previewIterations
                         )
                     )
+
+                    renderProgress = max(
+                        renderProgress,
+                        0.04 + 0.72 * (Double(stageIndex + 1) / Double(max(previewStages.count, 1)))
+                    )
                 }
             }
 
@@ -1479,6 +1557,8 @@ struct HighPrecisionFractalPreview: View {
             maxWidth: highPrecisionPreviewMaxPixelWidth,
             maxHeight: highPrecisionPreviewMaxPixelHeight
         )
+
+        renderProgress = max(renderProgress, 0.82)
 
         if let finalImage = await renderImage(
             width: fullSize.width,
@@ -1503,6 +1583,9 @@ struct HighPrecisionFractalPreview: View {
                     iterations: fullIterations
                 )
             )
+
+            renderProgress = 1.0
+            do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { }
         }
 
         guard !Task.isCancelled,
