@@ -173,9 +173,9 @@ enum FractalMode: Int, CaseIterable, Identifiable {
     
     var supportsHighPrecisionPreview: Bool {
         switch self {
-        case .mandelbrot, .mandelbrotRelief, .julia, .burningShip, .tricorn, .kleinian, .newton:
+        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton:
             return true
-        case .mandelbulb3D, .mandelbox3D:
+        case .mandelbrotRelief, .mandelbulb3D, .mandelbox3D:
             return false
         }
     }
@@ -1059,6 +1059,34 @@ The zoom factor overlay is only visible in the app and is not included in export
         }
     }
 
+
+    private func currentHighPrecisionThumbnailForFavorite() -> Data? {
+        guard fractalMode.supportsHighPrecisionPreview else {
+            return nil
+        }
+
+        return latestHighPrecisionThumbnailPNG
+    }
+
+
+
+    private func fallbackThumbnailForCurrentFavorite() -> Data? {
+        switch fractalMode {
+        case .mandelbrot, .julia, .burningShip, .tricorn, .newton:
+            return makeFavoriteThumbnailPNG(
+                mode: fractalMode,
+                palette: fractalPalette,
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                iterations: maxIterations
+            )
+        case .kleinian, .mandelbulb3D, .mandelbrotRelief, .mandelbox3D:
+            return nil
+        }
+    }
+
+
     private func saveCurrentFavorite() {
         let trimmed = favoriteName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -1072,14 +1100,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                 centerY: centerY,
                 scale: scale,
                 iterations: maxIterations,
-                thumbnailPNG: latestHighPrecisionThumbnailPNG ?? makeFavoriteThumbnailPNG(
-                    mode: fractalMode,
-                    palette: fractalPalette,
-                    centerX: centerX,
-                    centerY: centerY,
-                    scale: scale,
-                    iterations: maxIterations
-                )
+                thumbnailPNG: fractalMode == .mandelbrotRelief ? nil : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite())
             )
         )
 
