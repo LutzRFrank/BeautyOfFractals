@@ -3,6 +3,7 @@ import CoreGraphics
 import AppKit
 import UniformTypeIdentifiers
 import simd
+import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
 
@@ -290,6 +291,174 @@ private func effectiveIterationCount(
     return min(max(Int(value.rounded()), 300), cap)
 }
 
+
+struct FavoriteSpot: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var name: String
+    var modeRawValue: Int
+    var paletteRawValue: Int
+    var centerX: Double
+    var centerY: Double
+    var scale: Double
+    var iterations: Int
+    var created: Date = Date()
+    var thumbnailPNG: Data? = nil
+    var usageCount: Int = 0
+
+    var mode: FractalMode {
+        FractalMode(rawValue: modeRawValue) ?? .mandelbrot
+    }
+
+    var palette: FractalPalette {
+        FractalPalette(rawValue: paletteRawValue) ?? .deepBlue
+    }
+
+    var zoomText: String {
+        formatMagnification(mode.defaultScale / max(scale, 1e-18))
+    }
+}
+
+@MainActor
+final class FavoritesStore: ObservableObject {
+    @Published private(set) var spots: [FavoriteSpot] = []
+
+    private var fileURL: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let folder = base.appendingPathComponent("BeautyOfFractals", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent("FavoriteSpots.json")
+    }
+
+    init() {
+        load()
+    }
+
+    func spots(for mode: FractalMode) -> [FavoriteSpot] {
+        spots.filter { $0.mode == mode }
+            .sorted { $0.created > $1.created }
+    }
+
+    func add(_ spot: FavoriteSpot) {
+        spots.insert(spot, at: 0)
+        save()
+    }
+
+    func delete(_ spot: FavoriteSpot) {
+        spots.removeAll { $0.id == spot.id }
+        save()
+    }
+
+    func incrementUsage(for spot: FavoriteSpot) {
+        guard let index = spots.firstIndex(where: { $0.id == spot.id }) else {
+            return
+        }
+
+        spots[index].usageCount += 1
+        save()
+    }
+
+    private func load() {
+        guard let data = try? Data(contentsOf: fileURL),
+              let decoded = try? JSONDecoder().decode([FavoriteSpot].self, from: data) else {
+            spots = []
+            return
+        }
+        spots = decoded
+    }
+
+    private func save() {
+        guard let data = try? JSONEncoder().encode(spots) else { return }
+        try? data.write(to: fileURL, options: .atomic)
+    }
+}
+
+
+
+
+private func makeFavoriteThumbnailPNG(from image: CGImage) -> Data? {
+    let sourceWidth = image.width
+    let sourceHeight = image.height
+    let targetWidth = 220
+    let targetHeight = 138
+
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    guard let context = CGContext(
+        data: nil,
+        width: targetWidth,
+        height: targetHeight,
+        bitsPerComponent: 8,
+        bytesPerRow: targetWidth * 4,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else {
+        return nil
+    }
+
+    context.interpolationQuality = .high
+
+    let sourceAspect = CGFloat(sourceWidth) / CGFloat(max(sourceHeight, 1))
+    let targetAspect = CGFloat(targetWidth) / CGFloat(targetHeight)
+
+    var drawRect = CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight)
+
+    if sourceAspect > targetAspect {
+        let drawHeight = CGFloat(targetHeight)
+        let drawWidth = drawHeight * sourceAspect
+        drawRect = CGRect(x: (CGFloat(targetWidth) - drawWidth) / 2, y: 0, width: drawWidth, height: drawHeight)
+    } else {
+        let drawWidth = CGFloat(targetWidth)
+        let drawHeight = drawWidth / max(sourceAspect, 0.0001)
+        drawRect = CGRect(x: 0, y: (CGFloat(targetHeight) - drawHeight) / 2, width: drawWidth, height: drawHeight)
+    }
+
+    context.draw(image, in: drawRect)
+
+    guard let thumb = context.makeImage() else { return nil }
+    let bitmap = NSBitmapImageRep(cgImage: thumb)
+    return bitmap.representation(using: .png, properties: [:])
+}
+
+
+private func makeFavoriteThumbnailPNG(
+    mode: FractalMode,
+    palette: FractalPalette,
+    centerX: Double,
+    centerY: Double,
+    scale: Double,
+    iterations: Int,
+    viewportAspectRatio: Double = 16.0 / 10.0
+) -> Data? {
+    guard let image = renderFractal(
+        width: 220,
+        height: 138,
+        mode: mode,
+        palette: palette,
+        centerX: centerX,
+        centerY: centerY,
+        scale: scale,
+        maxIterations: max(300, min(iterations, 3_000)),
+        viewportAspectRatio: viewportAspectRatio
+    ) else {
+        return nil
+    }
+
+    let bitmap = NSBitmapImageRep(cgImage: image)
+    return bitmap.representation(using: .png, properties: [:])
+}
+
+
+
+enum FavoriteSort: String, CaseIterable, Identifiable {
+    case newest = "Newest"
+    case mostUsed = "Most Used"
+    case name = "Name A–Z"
+    case zoom = "Zoom Level"
+    case iterations = "Iterations"
+
+    var id: String { rawValue }
+}
+
+
 struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
     @State private var fractalPalette: FractalPalette = .deepBlue
@@ -302,6 +471,11 @@ struct ContentView: View {
     @State private var maxIterations: Int = 300
     @State private var isSavingSnapshot: Bool = false
     @State private var showHelp: Bool = false
+    @State private var showFavoritesPanel: Bool = false
+    @State private var favoriteName: String = ""
+    @State private var favoriteSort: FavoriteSort = .newest
+    @StateObject private var favoritesStore = FavoritesStore()
+    @State private var latestHighPrecisionThumbnailPNG: Data?
     @State private var navigationHistory: [ViewportSnapshot] = []
     @State private var navigationRevision: UInt = 0
 
@@ -352,14 +526,24 @@ struct ContentView: View {
                 maxIterations: $maxIterations,
                 renderQuality: renderQuality,
                 navigationStarted: recordNavigationStep,
-                navigationRevision: navigationRevision
+                navigationRevision: navigationRevision,
+                latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG
             )
-            .frame(minWidth: 900, minHeight: 650)
+            .frame(minWidth: 760, minHeight: 650)
             .ignoresSafeArea()
-            
+            .overlay(alignment: .topTrailing) {
+                if showFavoritesPanel {
+                    favoritesPanel
+                        .padding(.trailing, 28)
+                        .padding(.top, 72)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+
             controlsOverlay
                 .padding(.bottom, 26)
         }
+        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: showFavoritesPanel)
         .background(Color.black)
         .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: .exportDefaultFractal)) { _ in
@@ -530,6 +714,14 @@ The zoom factor overlay is only visible in the app and is not included in export
                 }
                 .disabled(isSavingSnapshot)
                 
+                Button {
+                    showFavoritesPanel.toggle()
+                } label: {
+                    Image(systemName: showFavoritesPanel ? "star.fill" : "star")
+                        .frame(width: 20)
+                }
+                .help("Favorite Spots")
+
                 Button("?") {
                     showHelp = true
                 }
@@ -545,7 +737,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
                     .monospacedDigit()
-                    .frame(width: 150, alignment: .trailing)
+                    .frame(width: 130, alignment: .trailing)
                 
                 Slider(
                     value: Binding(
@@ -558,7 +750,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                     ),
                     in: 300...24000
                 )
-                .frame(width: 280)
+                .frame(width: 220)
                 
                 Stepper(
                     "",
@@ -583,6 +775,271 @@ The zoom factor overlay is only visible in the app and is not included in export
         .padding(.horizontal, 24)
     }
     
+
+    private var favoritesPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Favorite Spots", systemImage: "star.fill")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+
+                Spacer()
+
+                Button {
+                    showFavoritesPanel = false
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("Close")
+            }
+
+            HStack {
+                Text(fractalMode.displayName)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Menu {
+                    ForEach(FavoriteSort.allCases) { sort in
+                        Button {
+                            favoriteSort = sort
+                        } label: {
+                            Text("\(favoriteSort == sort ? "✓ " : "   ")\(sort.rawValue)")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(favoriteSort.rawValue)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9))
+                    }
+                }
+                .help("Sort favorites")
+            }
+
+            HStack(spacing: 8) {
+                TextField("Name this view", text: $favoriteName)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        saveCurrentFavorite()
+                    }
+
+                Button {
+                    saveCurrentFavorite()
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(favoriteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .help("Save Current View")
+            }
+
+            Divider()
+
+            let modeSpots = favoritesStore.spots(for: fractalMode)
+            let sortedSpots = sortedFavoriteSpots(modeSpots)
+
+            if sortedSpots.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.secondary)
+
+                    Text("No saved spots yet")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+
+                    Text("Zoom into a beautiful region and save it here.")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(sortedSpots) { spot in
+                            favoriteSpotRow(spot)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .frame(maxHeight: 360)
+            }
+        }
+        .padding(18)
+        .frame(width: 320)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.32), radius: 28, x: 0, y: 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+    }
+
+
+    private func sortedFavoriteSpots(_ spots: [FavoriteSpot]) -> [FavoriteSpot] {
+        switch favoriteSort {
+        case .newest:
+            return spots.sorted { $0.created > $1.created }
+        case .mostUsed:
+            return spots.sorted {
+                if $0.usageCount == $1.usageCount {
+                    return $0.created > $1.created
+                }
+                return $0.usageCount > $1.usageCount
+            }
+        case .name:
+            return spots.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+        case .zoom:
+            return spots.sorted { $0.scale < $1.scale }
+        case .iterations:
+            return spots.sorted {
+                if $0.iterations == $1.iterations {
+                    return $0.created > $1.created
+                }
+                return $0.iterations > $1.iterations
+            }
+        }
+    }
+
+
+    private func favoriteSpotRow(_ spot: FavoriteSpot) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                .cyan.opacity(0.42),
+                                .blue.opacity(0.24),
+                                .black.opacity(0.18)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                if let thumbnailPNG = spot.thumbnailPNG,
+                   let thumbnail = NSImage(data: thumbnailPNG) {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 82, height: 54)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                } else {
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+            }
+            .frame(width: 82, height: 54)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(spot.name)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+
+                Text("Zoom \(spot.zoomText)")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+
+                Text("\(spot.iterations.formatted()) iterations")
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                if spot.usageCount > 0 {
+                    Text("Opened \(spot.usageCount)x")
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            VStack(spacing: 6) {
+                Button {
+                    loadFavorite(spot)
+                } label: {
+                    Image(systemName: "arrow.right.circle.fill")
+                }
+                .buttonStyle(.borderless)
+                .help("Load Favorite")
+
+                Button {
+                    favoritesStore.delete(spot)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.red.opacity(0.85))
+                .help("Delete Favorite")
+            }
+        }
+        .padding(10)
+        .background(.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .onTapGesture(count: 2) {
+            loadFavorite(spot)
+        }
+        .help("Double-click to load this favorite")
+        .contextMenu {
+            Button("Load") {
+                loadFavorite(spot)
+            }
+
+            Divider()
+
+            Button("Delete", role: .destructive) {
+                favoritesStore.delete(spot)
+            }
+        }
+    }
+
+    private func saveCurrentFavorite() {
+        let trimmed = favoriteName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        favoritesStore.add(
+            FavoriteSpot(
+                name: trimmed,
+                modeRawValue: fractalMode.rawValue,
+                paletteRawValue: fractalPalette.rawValue,
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                iterations: maxIterations,
+                thumbnailPNG: latestHighPrecisionThumbnailPNG ?? makeFavoriteThumbnailPNG(
+                    mode: fractalMode,
+                    palette: fractalPalette,
+                    centerX: centerX,
+                    centerY: centerY,
+                    scale: scale,
+                    iterations: maxIterations
+                )
+            )
+        )
+
+        favoriteName = ""
+    }
+
+    private func loadFavorite(_ spot: FavoriteSpot) {
+        recordNavigationStep()
+        fractalMode = spot.mode
+        fractalPalette = spot.palette
+        centerX = spot.centerX
+        centerY = spot.centerY
+        scale = spot.scale
+        maxIterations = spot.iterations
+        navigationRevision &+= 1
+        favoritesStore.incrementUsage(for: spot)
+    }
+
+
     private func currentViewportSnapshot() -> ViewportSnapshot {
         ViewportSnapshot(
             centerX: centerX,
@@ -792,6 +1249,7 @@ struct HighPrecisionViewportState: Equatable {
     let centerY: Double
     let scale: Double
     let iterations: Int
+    let thumbnailPNG: Data? = nil
 }
 
 private struct FractalViewportTransform {
@@ -835,6 +1293,7 @@ struct MandelbrotView: View {
     let renderQuality: RenderQuality
     let navigationStarted: () -> Void
     let navigationRevision: UInt
+    @Binding var latestHighPrecisionThumbnailPNG: Data?
     
     @State private var dragStart: CGPoint?
     @State private var dragCurrent: CGPoint?
@@ -987,6 +1446,9 @@ struct MandelbrotView: View {
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
                                 visibleHighPrecisionState = visibleState
+                            },
+                            onThumbnailPublished: { thumbnailPNG in
+                                latestHighPrecisionThumbnailPNG = thumbnailPNG
                             }
                         )
                     }
@@ -1295,6 +1757,7 @@ struct HighPrecisionFractalPreview: View {
     let renderEpoch: UInt
     let renderQualityKey: String
     let onImagePublished: (HighPrecisionViewportState) -> Void
+    let onThumbnailPublished: (Data?) -> Void
     
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
@@ -1603,6 +2066,7 @@ struct HighPrecisionFractalPreview: View {
                     iterations: fullIterations
                 )
             )
+            onThumbnailPublished(makeFavoriteThumbnailPNG(from: finalImage))
 
             renderProgress = 1.0
             do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { }
