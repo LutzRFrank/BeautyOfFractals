@@ -587,8 +587,13 @@ Drag: select an area and zoom in
 + / -: zoom in and out
 
 ⌘R: reset view
+⌘⇧P: show / hide render status
 
 ⌘S: export 2560 × 1600 PNG
+
+Favorites:
+Use the star button to open Favorite Spots.
+Save Current View stores the current location with a thumbnail.
 
 Deep 2D zooms automatically use High Precision Preview.
 At very deep zooms the app shows Near Limit or Extreme Zoom so precision artifacts are easier to recognize.
@@ -1842,6 +1847,7 @@ struct HighPrecisionFractalPreview: View {
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
     @State private var renderProgress: Double = 0.0
+    @State private var showRenderStatus: Bool = false
     @State private var renderStartDate: Date?
     
     private var renderID: String {
@@ -1897,7 +1903,7 @@ struct HighPrecisionFractalPreview: View {
                     .clipped()
             }
             
-            if isRendering {
+            if isRendering || showRenderStatus {
                 TimelineView(.periodic(from: .now, by: 0.25)) { timeline in
                     VStack(spacing: 14) {
                         ZStack {
@@ -1920,7 +1926,7 @@ struct HighPrecisionFractalPreview: View {
                                 .rotationEffect(.degrees(-90))
 
                             VStack(spacing: 5) {
-                                Text("Rendering…")
+                                Text(isRendering ? "Rendering…" : "Render Status")
                                     .font(.system(size: 13, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.82))
 
@@ -1939,7 +1945,7 @@ struct HighPrecisionFractalPreview: View {
                         }
                         .frame(width: 158, height: 158)
 
-                        Text("Elapsed: \(elapsedText(at: timeline.date))")
+                        Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : "Ready")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.78))
                     }
@@ -1953,6 +1959,9 @@ struct HighPrecisionFractalPreview: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleRenderStatus)) { _ in
+            showRenderStatus.toggle()
         }
         .task(id: renderID) {
             await renderPreview()
