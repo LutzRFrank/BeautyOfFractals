@@ -906,7 +906,7 @@ struct MandelbrotView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: 50_000
+            cap: renderQuality == .deep ? 100_000 : 80_000
         )
     }
 
@@ -976,6 +976,7 @@ struct MandelbrotView: View {
                             centerY: state.centerY,
                             scale: state.scale,
                             maxIterations: state.iterations,
+                            displayIterations: effectiveIterations,
                             viewSize: geometry.size,
                             viewportAspectRatio: viewportAspectRatio,
                             progressiveCPUPreview: useDeepCPUPreview,
@@ -1284,6 +1285,7 @@ struct HighPrecisionFractalPreview: View {
     let centerY: Double
     let scale: Double
     let maxIterations: Int
+    let displayIterations: Int
     let viewSize: CGSize
     let viewportAspectRatio: Double
     /// Requests a fast CPU frame before the full CPU refinement. Both stages use
@@ -1307,6 +1309,7 @@ struct HighPrecisionFractalPreview: View {
             String(format: "%.18f", centerY),
             String(format: "%.18f", scale),
             maxIterations.description,
+            displayIterations.description,
             Int(viewSize.width).description,
             Int(viewSize.height).description,
             progressiveCPUPreview.description,
@@ -1326,8 +1329,8 @@ struct HighPrecisionFractalPreview: View {
     }
 
     private var renderIterationText: String {
-        let current = Int(Double(maxIterations) * clampedRenderProgress)
-        return "\(current.formatted()) / \(maxIterations.formatted())"
+        let current = Int(Double(displayIterations) * clampedRenderProgress)
+        return "\(current.formatted()) / \(displayIterations.formatted())"
     }
 
     private func elapsedText(at date: Date) -> String {
