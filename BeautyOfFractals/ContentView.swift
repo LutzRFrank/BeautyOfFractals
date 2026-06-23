@@ -474,6 +474,7 @@ struct ContentView: View {
     @State private var showFavoritesPanel: Bool = false
     @State private var favoriteName: String = ""
     @State private var favoriteSort: FavoriteSort = .newest
+    @State private var hoveredFavoriteSpot: FavoriteSpot?
     @StateObject private var favoritesStore = FavoritesStore()
     @State private var latestHighPrecisionThumbnailPNG: Data?
     @State private var navigationHistory: [ViewportSnapshot] = []
@@ -874,6 +875,14 @@ The zoom factor overlay is only visible in the app and is not included in export
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: .black.opacity(0.32), radius: 28, x: 0, y: 14)
+        .overlay(alignment: .leading) {
+            if let hoveredFavoriteSpot {
+                favoriteHoverPreview(hoveredFavoriteSpot)
+                    .offset(x: -300, y: 86)
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.16), value: hoveredFavoriteSpot?.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 
@@ -903,6 +912,53 @@ The zoom factor overlay is only visible in the app and is not included in export
                 return $0.iterations > $1.iterations
             }
         }
+    }
+
+
+
+    private func favoriteHoverPreview(_ spot: FavoriteSpot) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let thumbnailPNG = spot.thumbnailPNG,
+               let thumbnail = NSImage(data: thumbnailPNG) {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 260, height: 162)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.white.opacity(0.08))
+                    .overlay(
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.white.opacity(0.7))
+                    )
+                    .frame(width: 260, height: 162)
+            }
+
+            Text(spot.name)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .lineLimit(1)
+
+            HStack {
+                Text("Zoom \(spot.zoomText)")
+                Spacer()
+                Text("\(spot.iterations.formatted()) iterations")
+            }
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(.secondary)
+
+            if spot.usageCount > 0 {
+                Text("Opened \(spot.usageCount)x")
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(width: 288)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 14)
     }
 
 
@@ -987,6 +1043,9 @@ The zoom factor overlay is only visible in the app and is not included in export
             loadFavorite(spot)
         }
         .help("Double-click to load this favorite")
+        .onHover { isHovering in
+            hoveredFavoriteSpot = isHovering ? spot : nil
+        }
         .contextMenu {
             Button("Load") {
                 loadFavorite(spot)
