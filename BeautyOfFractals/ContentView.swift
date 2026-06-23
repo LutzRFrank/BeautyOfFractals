@@ -1849,6 +1849,8 @@ struct HighPrecisionFractalPreview: View {
     @State private var renderProgress: Double = 0.0
     @State private var showRenderStatus: Bool = false
     @State private var renderStartDate: Date?
+    @State private var renderStatusOffset: CGSize = .zero
+    @State private var renderStatusDragStartOffset: CGSize = .zero
     
     private var renderID: String {
         [
@@ -1956,6 +1958,19 @@ struct HighPrecisionFractalPreview: View {
                     .shadow(color: .black.opacity(0.32), radius: 24, x: 0, y: 12)
                     .padding(.leading, 28)
                     .padding(.top, 72)
+                    .offset(renderStatusOffset)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                renderStatusOffset = CGSize(
+                                    width: renderStatusDragStartOffset.width + value.translation.width,
+                                    height: renderStatusDragStartOffset.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                renderStatusDragStartOffset = renderStatusOffset
+                            }
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
