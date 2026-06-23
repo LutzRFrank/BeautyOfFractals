@@ -464,28 +464,43 @@ The zoom factor overlay is only visible in the app and is not included in export
                 }
                 .help("Choose render quality")
                 
-                Button("Zoom -") {
+                Button {
                     zoomOut()
+                } label: {
+                    Image(systemName: "minus.magnifyingglass")
+                        .frame(width: 20)
                 }
                 .keyboardShortcut("-", modifiers: [])
+                .help("Zoom Out")
                 
-                Button("Zoom +") {
+                Button {
                     zoomIn()
+                } label: {
+                    Image(systemName: "plus.magnifyingglass")
+                        .frame(width: 20)
                 }
                 .keyboardShortcut("+", modifiers: [])
                 .keyboardShortcut("=", modifiers: [])
+                .help("Zoom In")
                 
-                Button("Undo") {
+                Button {
                     undoView()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .frame(width: 20)
                 }
                 .disabled(navigationHistory.isEmpty)
                 .keyboardShortcut("z", modifiers: .command)
                 .help("Undo last zoom, pan or reset")
 
-                Button("Reset") {
+                Button {
                     resetView()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .frame(width: 20)
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reset View")
                 
                 Menu(isSavingSnapshot ? "Rendering…" : "Export") {
                     Button("Export 1440 × 900 PNG") {
