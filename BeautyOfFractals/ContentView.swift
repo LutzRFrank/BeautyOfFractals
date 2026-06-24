@@ -348,6 +348,17 @@ final class FavoritesStore: ObservableObject {
         save()
     }
 
+    func rename(_ spot: FavoriteSpot, to newName: String) {
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty,
+              let index = spots.firstIndex(where: { $0.id == spot.id }) else {
+            return
+        }
+
+        spots[index].name = trimmedName
+        save()
+    }
+
     func incrementUsage(for spot: FavoriteSpot) {
         guard let index = spots.firstIndex(where: { $0.id == spot.id }) else {
             return
@@ -475,6 +486,8 @@ struct ContentView: View {
     @State private var favoriteName: String = ""
     @State private var favoriteSort: FavoriteSort = .newest
     @State private var hoveredFavoriteSpot: FavoriteSpot?
+    @State private var spotToRename: FavoriteSpot?
+    @State private var renameFavoriteText: String = ""
     @StateObject private var favoritesStore = FavoritesStore()
     @State private var latestHighPrecisionThumbnailPNG: Data?
     @State private var navigationHistory: [ViewportSnapshot] = []
@@ -567,6 +580,27 @@ struct ContentView: View {
             zoomOut: zoomOut,
             reset: resetView
         ))
+        .alert("Rename Favorite", isPresented: Binding(
+            get: { spotToRename != nil },
+            set: { if !$0 { spotToRename = nil } }
+        )) {
+            TextField("Name", text: $renameFavoriteText)
+
+            Button("Cancel", role: .cancel) {
+                spotToRename = nil
+                renameFavoriteText = ""
+            }
+
+            Button("Save") {
+                if let spotToRename {
+                    favoritesStore.rename(spotToRename, to: renameFavoriteText)
+                }
+                spotToRename = nil
+                renameFavoriteText = ""
+            }
+        } message: {
+            Text("Enter a new name for this favorite spot.")
+        }
         .alert("Controls", isPresented: $showHelp) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -1032,6 +1066,15 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Load Favorite")
 
                 Button {
+                    spotToRename = spot
+                    renameFavoriteText = spot.name
+                } label: {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.borderless)
+                .help("Rename Favorite")
+
+                Button {
                     favoritesStore.delete(spot)
                 } label: {
                     Image(systemName: "trash")
@@ -1054,6 +1097,11 @@ The zoom factor overlay is only visible in the app and is not included in export
         .contextMenu {
             Button("Load") {
                 loadFavorite(spot)
+            }
+
+            Button("Rename") {
+                spotToRename = spot
+                renameFavoriteText = spot.name
             }
 
             Divider()
