@@ -563,6 +563,7 @@
 				);
 				MARKETING_VERSION = 2.0;
 				ONLY_ACTIVE_ARCH = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lutzrfrank.BeautyOfFractals-iOS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -599,6 +600,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 2.0;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lutzrfrank.BeautyOfFractals-iOS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -632,6 +634,7 @@
 				);
 				MARKETING_VERSION = 2.0;
 				ONLY_ACTIVE_ARCH = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lutzrfrank.BeautyOfFractals-iOS.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -665,6 +668,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 2.0;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lutzrfrank.BeautyOfFractals-iOS.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
