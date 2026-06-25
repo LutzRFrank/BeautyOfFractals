@@ -302,6 +302,9 @@ struct FavoriteSpot: Identifiable, Codable, Equatable {
     var scale: Double
     var iterations: Int
     var created: Date = Date()
+    var updated: Date = Date()
+    var deleted: Bool = false
+    var schemaVersion: Int = 1
     var thumbnailPNG: Data? = nil
     var usageCount: Int = 0
 
@@ -339,7 +342,13 @@ final class FavoritesStore: ObservableObject {
     }
 
     func add(_ spot: FavoriteSpot) {
-        spots.insert(spot, at: 0)
+        var newSpot = spot
+        let now = Date()
+        newSpot.created = now
+        newSpot.updated = now
+        newSpot.deleted = false
+        newSpot.schemaVersion = 1
+        spots.insert(newSpot, at: 0)
         save()
     }
 
@@ -356,6 +365,7 @@ final class FavoritesStore: ObservableObject {
         }
 
         spots[index].name = trimmedName
+        spots[index].updated = Date()
         save()
     }
 
@@ -365,6 +375,7 @@ final class FavoritesStore: ObservableObject {
         }
 
         spots[index].usageCount += 1
+        spots[index].updated = Date()
         save()
     }
 
