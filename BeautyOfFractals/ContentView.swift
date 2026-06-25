@@ -1005,11 +1005,15 @@ The zoom factor overlay is only visible in the app and is not included in export
                     isSyncingFavorites = true
                     _ = favoritesStore.syncWithCloud()
 
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                         _ = favoritesStore.syncWithCloud()
                     }
 
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        _ = favoritesStore.syncWithCloud()
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
                         isSyncingFavorites = false
                     }
                 } label: {
