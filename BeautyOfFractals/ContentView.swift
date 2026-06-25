@@ -321,6 +321,12 @@ struct FavoriteSpot: Identifiable, Codable, Equatable {
     }
 }
 
+struct FavoriteSpotsCloudFile: Codable {
+    var schemaVersion: Int = 1
+    var updated: Date = Date()
+    var favorites: [FavoriteSpot]
+}
+
 @MainActor
 final class FavoritesStore: ObservableObject {
     @Published private(set) var spots: [FavoriteSpot] = []
@@ -332,12 +338,25 @@ final class FavoritesStore: ObservableObject {
         return folder.appendingPathComponent("FavoriteSpots.json")
     }
 
+    
+    private var cloudFileURL: URL? {
+        guard let containerURL = FileManager.default.url(
+            forUbiquityContainerIdentifier: "iCloud.com.lutzrfrank.BeautyOfFractals"
+        ) else {
+            return nil
+        }
+
+        let documentsURL = containerURL.appendingPathComponent("Documents", isDirectory: true)
+        try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+        return documentsURL.appendingPathComponent("FavoriteSpotsCloud.json")
+    }
+
     init() {
         load()
     }
 
     func spots(for mode: FractalMode) -> [FavoriteSpot] {
-        spots.filter { $0.mode == mode }
+        spots.filter { $0.mode == mode && !$0.deleted }
             .sorted { $0.created > $1.created }
     }
 
@@ -353,7 +372,12 @@ final class FavoritesStore: ObservableObject {
     }
 
     func delete(_ spot: FavoriteSpot) {
-        spots.removeAll { $0.id == spot.id }
+        guard let index = spots.firstIndex(where: { $0.id == spot.id }) else {
+            return
+        }
+
+        spots[index].deleted = true
+        spots[index].updated = Date()
         save()
     }
 
@@ -388,9 +412,63 @@ final class FavoritesStore: ObservableObject {
         spots = decoded
     }
 
+    func syncWithCloud() {
+        guard let cloudFileURL else {
+            return
+        }
+
+        let cloudSpots: [FavoriteSpot]
+        if let data = try? Data(contentsOf: cloudFileURL),
+           let cloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data) {
+            cloudSpots = cloudFile.favorites
+        } else {
+            cloudSpots = []
+        }
+
+        var mergedByID: [UUID: FavoriteSpot] = [:]
+
+        for spot in spots {
+            mergedByID[spot.id] = spot
+        }
+
+        for cloudSpot in cloudSpots {
+            if let localSpot = mergedByID[cloudSpot.id] {
+                mergedByID[cloudSpot.id] = cloudSpot.updated > localSpot.updated ? cloudSpot : localSpot
+            } else {
+                mergedByID[cloudSpot.id] = cloudSpot
+            }
+        }
+
+        spots = Array(mergedByID.values)
+            .sorted { $0.created > $1.created }
+
+        saveLocalOnly()
+        saveCloudOnly()
+    }
+
     private func save() {
+        saveLocalOnly()
+        saveCloudOnly()
+    }
+
+    private func saveLocalOnly() {
         guard let data = try? JSONEncoder().encode(spots) else { return }
         try? data.write(to: fileURL, options: .atomic)
+    }
+
+    private func saveCloudOnly() {
+        guard let cloudFileURL else {
+            return
+        }
+
+        let cloudFile = FavoriteSpotsCloudFile(
+            schemaVersion: 1,
+            updated: Date(),
+            favorites: spots
+        )
+
+        guard let data = try? JSONEncoder().encode(cloudFile) else { return }
+        try? data.write(to: cloudFileURL, options: .atomic)
     }
 }
 
