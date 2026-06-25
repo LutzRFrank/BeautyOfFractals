@@ -412,17 +412,28 @@ final class FavoritesStore: ObservableObject {
         spots = decoded
     }
 
-    func syncWithCloud() {
+    func syncWithCloud() -> Bool {
         guard let cloudFileURL else {
-            return
+            print("☁️ Favorites iCloud: container unavailable")
+            return false
         }
 
+        print("☁️ Favorites iCloud file:", cloudFileURL.path)
+
         let cloudSpots: [FavoriteSpot]
+        let cloudReadSucceeded: Bool
         if let data = try? Data(contentsOf: cloudFileURL),
            let cloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data) {
             cloudSpots = cloudFile.favorites
+            cloudReadSucceeded = true
         } else {
             cloudSpots = []
+            cloudReadSucceeded = false
+        }
+
+        if spots.isEmpty && cloudSpots.isEmpty && !cloudReadSucceeded {
+            print("☁️ Favorites iCloud skipped empty overwrite because cloud read failed")
+            return false
         }
 
         var mergedByID: [UUID: FavoriteSpot] = [:]
@@ -443,7 +454,14 @@ final class FavoritesStore: ObservableObject {
             .sorted { $0.created > $1.created }
 
         saveLocalOnly()
-        saveCloudOnly()
+
+        if !spots.isEmpty || cloudReadSucceeded {
+            saveCloudOnly()
+        } else {
+            print("☁️ Favorites iCloud skipped cloud write because local store is empty")
+        }
+
+        return true
     }
 
     private func save() {
@@ -468,7 +486,12 @@ final class FavoritesStore: ObservableObject {
         )
 
         guard let data = try? JSONEncoder().encode(cloudFile) else { return }
-        try? data.write(to: cloudFileURL, options: .atomic)
+        do {
+            try data.write(to: cloudFileURL, options: .atomic)
+            print("☁️ Favorites iCloud wrote", spots.count, "spots to", cloudFileURL.path)
+        } catch {
+            print("☁️ Favorites iCloud write failed:", error)
+        }
     }
 }
 
@@ -962,6 +985,14 @@ The zoom factor overlay is only visible in the app and is not included in export
                 }
                 .disabled(favoriteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .help("Save Current View")
+                
+                Button {
+                    _ = favoritesStore.syncWithCloud()
+                } label: {
+                    Image(systemName: "icloud.and.arrow.down")
+                }
+                .buttonStyle(.borderless)
+                .help("Sync with iCloud")
             }
 
             Divider()
