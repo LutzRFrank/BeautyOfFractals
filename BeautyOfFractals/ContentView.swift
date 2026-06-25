@@ -470,45 +470,9 @@ final class FavoritesStore: ObservableObject {
                 self.saveLocalOnly()
             }
 
-            if !mergedSpots.isEmpty || cloudReadSucceeded {
-                do {
-                    var finalByID: [UUID: FavoriteSpot] = [:]
-
-                    for spot in mergedSpots {
-                        finalByID[spot.id] = spot
-                    }
-
-                    if let existingData = try? Data(contentsOf: cloudFileURL),
-                       let existingCloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: existingData) {
-                        for existingSpot in existingCloudFile.favorites {
-                            if let candidate = finalByID[existingSpot.id] {
-                                finalByID[existingSpot.id] = existingSpot.updated > candidate.updated ? existingSpot : candidate
-                            } else {
-                                finalByID[existingSpot.id] = existingSpot
-                            }
-                        }
-                    }
-
-                    let finalSpots = Array(finalByID.values)
-                        .sorted { $0.created > $1.created }
-
-                    let finalCloudFile = FavoriteSpotsCloudFile(
-                        schemaVersion: 1,
-                        updated: Date(),
-                        favorites: finalSpots
-                    )
-
-                    let data = try JSONEncoder().encode(finalCloudFile)
-                    try data.write(to: cloudFileURL, options: .atomic)
-                    #if DEBUG
-                    print("☁️ Favorites iCloud wrote", mergedSpots.count, "spots to", cloudFileURL.path)
-                    #endif
-                } catch {
-                    #if DEBUG
-                    print("☁️ Favorites iCloud write failed:", error)
-                    #endif
-                }
-            }
+            #if DEBUG
+            print("☁️ Favorites iCloud merged", mergedSpots.count, "spots")
+            #endif
         }
 
         return true
@@ -646,6 +610,7 @@ struct ContentView: View {
     @State private var showHelp: Bool = false
     @State private var showFavoritesPanel: Bool = false
     @State private var favoriteName: String = ""
+    @State private var isSyncingFavorites: Bool = false
     @State private var favoriteSort: FavoriteSort = .newest
     @State private var hoveredFavoriteSpot: FavoriteSpot?
     @State private var spotToRename: FavoriteSpot?
@@ -1037,12 +1002,17 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Save Current View")
                 
                 Button {
+                    isSyncingFavorites = true
                     _ = favoritesStore.syncWithCloud()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        isSyncingFavorites = false
+                    }
                 } label: {
-                    Image(systemName: "icloud.and.arrow.down")
+                    Image(systemName: isSyncingFavorites ? "icloud" : "icloud.and.arrow.down")
                 }
                 .buttonStyle(.borderless)
-                .help("Sync with iCloud")
+                .disabled(isSyncingFavorites)
+                .help(isSyncingFavorites ? "Syncing…" : "Sync with iCloud")
             }
 
             Divider()
