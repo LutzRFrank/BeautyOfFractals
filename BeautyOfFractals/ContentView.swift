@@ -292,7 +292,7 @@ private func effectiveIterationCount(
 }
 
 
-struct FavoriteSpot: Identifiable, Codable, Equatable {
+struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     var id: UUID = UUID()
     var name: String
     var modeRawValue: Int
@@ -321,7 +321,7 @@ struct FavoriteSpot: Identifiable, Codable, Equatable {
     }
 }
 
-struct FavoriteSpotsCloudFile: Codable {
+nonisolated struct FavoriteSpotsCloudFile: Codable, Sendable {
     var schemaVersion: Int = 1
     var updated: Date = Date()
     var favorites: [FavoriteSpot]
@@ -414,51 +414,101 @@ final class FavoritesStore: ObservableObject {
 
     func syncWithCloud() -> Bool {
         guard let cloudFileURL else {
+            #if DEBUG
             print("☁️ Favorites iCloud: container unavailable")
+            #endif
             return false
         }
 
-        print("☁️ Favorites iCloud file:", cloudFileURL.path)
+        let localSnapshot = spots
 
-        let cloudSpots: [FavoriteSpot]
-        let cloudReadSucceeded: Bool
-        if let data = try? Data(contentsOf: cloudFileURL),
-           let cloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data) {
-            cloudSpots = cloudFile.favorites
-            cloudReadSucceeded = true
-        } else {
-            cloudSpots = []
-            cloudReadSucceeded = false
-        }
+        Task.detached(priority: .utility) {
+            #if DEBUG
+            print("☁️ Favorites iCloud file:", cloudFileURL.path)
+            #endif
 
-        if spots.isEmpty && cloudSpots.isEmpty && !cloudReadSucceeded {
-            print("☁️ Favorites iCloud skipped empty overwrite because cloud read failed")
-            return false
-        }
+            try? FileManager.default.startDownloadingUbiquitousItem(at: cloudFileURL)
 
-        var mergedByID: [UUID: FavoriteSpot] = [:]
+            let cloudSpots: [FavoriteSpot]
+            let cloudReadSucceeded: Bool
 
-        for spot in spots {
-            mergedByID[spot.id] = spot
-        }
-
-        for cloudSpot in cloudSpots {
-            if let localSpot = mergedByID[cloudSpot.id] {
-                mergedByID[cloudSpot.id] = cloudSpot.updated > localSpot.updated ? cloudSpot : localSpot
+            if let data = try? Data(contentsOf: cloudFileURL),
+               let cloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data) {
+                cloudSpots = cloudFile.favorites
+                cloudReadSucceeded = true
             } else {
-                mergedByID[cloudSpot.id] = cloudSpot
+                cloudSpots = []
+                cloudReadSucceeded = false
             }
-        }
 
-        spots = Array(mergedByID.values)
-            .sorted { $0.created > $1.created }
+            if localSnapshot.isEmpty && cloudSpots.isEmpty && !cloudReadSucceeded {
+                #if DEBUG
+                print("☁️ Favorites iCloud skipped empty overwrite because cloud read failed")
+                #endif
+                return
+            }
 
-        saveLocalOnly()
+            var mergedByID: [UUID: FavoriteSpot] = [:]
 
-        if !spots.isEmpty || cloudReadSucceeded {
-            saveCloudOnly()
-        } else {
-            print("☁️ Favorites iCloud skipped cloud write because local store is empty")
+            for spot in localSnapshot {
+                mergedByID[spot.id] = spot
+            }
+
+            for cloudSpot in cloudSpots {
+                if let localSpot = mergedByID[cloudSpot.id] {
+                    mergedByID[cloudSpot.id] = cloudSpot.updated > localSpot.updated ? cloudSpot : localSpot
+                } else {
+                    mergedByID[cloudSpot.id] = cloudSpot
+                }
+            }
+
+            let mergedSpots = Array(mergedByID.values)
+                .sorted { $0.created > $1.created }
+
+            await MainActor.run {
+                self.spots = mergedSpots
+                self.saveLocalOnly()
+            }
+
+            if !mergedSpots.isEmpty || cloudReadSucceeded {
+                do {
+                    var finalByID: [UUID: FavoriteSpot] = [:]
+
+                    for spot in mergedSpots {
+                        finalByID[spot.id] = spot
+                    }
+
+                    if let existingData = try? Data(contentsOf: cloudFileURL),
+                       let existingCloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: existingData) {
+                        for existingSpot in existingCloudFile.favorites {
+                            if let candidate = finalByID[existingSpot.id] {
+                                finalByID[existingSpot.id] = existingSpot.updated > candidate.updated ? existingSpot : candidate
+                            } else {
+                                finalByID[existingSpot.id] = existingSpot
+                            }
+                        }
+                    }
+
+                    let finalSpots = Array(finalByID.values)
+                        .sorted { $0.created > $1.created }
+
+                    let finalCloudFile = FavoriteSpotsCloudFile(
+                        schemaVersion: 1,
+                        updated: Date(),
+                        favorites: finalSpots
+                    )
+
+                    let data = try JSONEncoder().encode(finalCloudFile)
+                    try data.write(to: cloudFileURL, options: .atomic)
+                    #if DEBUG
+                    print("☁️ Favorites iCloud wrote", mergedSpots.count, "spots to", cloudFileURL.path)
+                    #endif
+                } catch {
+                    #if DEBUG
+                    print("☁️ Favorites iCloud write failed:", error)
+                    #endif
+                }
+            }
         }
 
         return true
