@@ -2395,7 +2395,7 @@ struct HighPrecisionFractalPreview: View {
             return
         }
 
-        if let renderStartDate {
+        if renderStartDate != nil {
             lastRenderDurationText = elapsedText(at: Date())
         }
         isRendering = false
