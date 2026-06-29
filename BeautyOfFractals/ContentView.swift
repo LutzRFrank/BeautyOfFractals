@@ -2052,6 +2052,7 @@ struct HighPrecisionFractalPreview: View {
     @State private var renderProgress: Double = 0.0
     @State private var showRenderStatus: Bool = false
     @State private var renderStartDate: Date?
+    @State private var lastRenderDurationText: String?
     @State private var renderStatusOffset: CGSize = .zero
     @State private var renderStatusDragStartOffset: CGSize = .zero
     
@@ -2150,9 +2151,17 @@ struct HighPrecisionFractalPreview: View {
                         }
                         .frame(width: 158, height: 158)
 
-                        Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : "Ready")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.78))
+                        VStack(spacing: 2) {
+                            Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : "Ready")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.78))
+
+                            if !isRendering, let lastRenderDurationText {
+                                Text("Time: \(lastRenderDurationText)")
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.58))
+                            }
+                        }
                     }
                     .padding(22)
                     .frame(width: 230)
@@ -2203,6 +2212,7 @@ struct HighPrecisionFractalPreview: View {
 
         renderProgress = 0.01
         renderStartDate = Date()
+        lastRenderDurationText = nil
         isRendering = true
 
         // At deep zoom, publish a small pyramid of CPU previews before the full
@@ -2385,6 +2395,9 @@ struct HighPrecisionFractalPreview: View {
             return
         }
 
+        if let renderStartDate {
+            lastRenderDurationText = elapsedText(at: Date())
+        }
         isRendering = false
     }
 
