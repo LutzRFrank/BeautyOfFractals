@@ -6,6 +6,12 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
+#if DEBUG
+nonisolated private let experimentalPerturbationCPUEnabled = true
+#else
+nonisolated private let experimentalPerturbationCPUEnabled = false
+#endif
+
 
 // Below this scale a Float-based Metal preview can no longer reliably represent
 // the current viewport. Keep the last completed CPU image visible instead and
@@ -2599,6 +2605,21 @@ nonisolated func renderFractal(
     // The preview can be rendered at a capped bitmap size. Its mathematical
     // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
+
+    let perturbationReferences: [PerturbationReference]
+    if experimentalPerturbationCPUEnabled,
+       mode == .mandelbrot,
+       scale < 1e-9 {
+        perturbationReferences = PerturbationEngine.makeReferenceGrid(
+            centerX: centerX,
+            centerY: centerY,
+            scale: scale,
+            aspectRatio: aspectRatio,
+            maxIterations: maxIterations
+        )
+    } else {
+        perturbationReferences = []
+    }
     
     for py in 0..<height {
         // The high-precision worker is cancelled as soon as a new drag begins.
@@ -2628,12 +2649,28 @@ nonisolated func renderFractal(
                 )
             } else {
                 var localMaxIterations = maxIterations
-                var iteration = calculateFractalIteration(
-                    mode: mode,
-                    x0: x0,
-                    y0: y0,
-                    maxIterations: localMaxIterations
-                )
+                var iteration: Int
+
+                if !perturbationReferences.isEmpty,
+                   let reference = PerturbationEngine.nearestReference(
+                        forX: x0,
+                        y: y0,
+                        references: perturbationReferences
+                   ) {
+                    iteration = PerturbationEngine.perturbationIteration(
+                        x0: x0,
+                        y0: y0,
+                        reference: reference,
+                        maxIterations: localMaxIterations
+                    )
+                } else {
+                    iteration = calculateFractalIteration(
+                        mode: mode,
+                        x0: x0,
+                        y0: y0,
+                        maxIterations: localMaxIterations
+                    )
+                }
 
                 if shouldApplyAdaptiveIterationRefinement(
                     mode: mode,

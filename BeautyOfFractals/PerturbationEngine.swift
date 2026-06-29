@@ -1,9 +1,23 @@
 import Foundation
 
-struct PerturbationOrbit {
+nonisolated struct PerturbationOrbit {
     let x: [Double]
     let y: [Double]
     let escapedAt: Int
+}
+
+nonisolated 
+struct PerturbationState {
+    var zx: Double = 0.0
+    var zy: Double = 0.0
+    var iteration: Int = 0
+    var reference: PerturbationReference
+}
+
+struct PerturbationStepResult {
+    let escaped: Bool
+    let shouldRebase: Bool
+    let iteration: Int
 }
 
 struct PerturbationReference {
@@ -12,7 +26,7 @@ struct PerturbationReference {
     let orbit: PerturbationOrbit
 }
 
-enum PerturbationEngine {
+nonisolated enum PerturbationEngine {
     static func makeReferenceOrbit(
         centerX: Double,
         centerY: Double,
@@ -81,6 +95,71 @@ enum PerturbationEngine {
             let db = squaredDistance(x, y, $1.centerX, $1.centerY)
             return da < db
         }
+    }
+
+
+    static func step(
+        state: inout PerturbationState,
+        targetX: Double,
+        targetY: Double,
+        maxIterations: Int
+    ) -> PerturbationStepResult {
+        let orbit = state.reference.orbit
+        guard state.iteration < maxIterations,
+              state.iteration < orbit.x.count,
+              state.iteration < orbit.y.count else {
+            return PerturbationStepResult(
+                escaped: false,
+                shouldRebase: false,
+                iteration: maxIterations
+            )
+        }
+
+        let deltaX = targetX - state.reference.centerX
+        let deltaY = targetY - state.reference.centerY
+
+        let rx = orbit.x[state.iteration]
+        let ry = orbit.y[state.iteration]
+
+        let nextZX = 2.0 * (rx * state.zx - ry * state.zy)
+            + (state.zx * state.zx - state.zy * state.zy)
+            + deltaX
+        let nextZY = 2.0 * (rx * state.zy + ry * state.zx)
+            + 2.0 * state.zx * state.zy
+            + deltaY
+
+        state.zx = nextZX
+        state.zy = nextZY
+        state.iteration += 1
+
+        let fullX = rx + state.zx
+        let fullY = ry + state.zy
+        let magnitude2 = fullX * fullX + fullY * fullY
+
+        if magnitude2 > 4.0 {
+            return PerturbationStepResult(
+                escaped: true,
+                shouldRebase: false,
+                iteration: state.iteration
+            )
+        }
+
+        let deltaMagnitude2 = state.zx * state.zx + state.zy * state.zy
+        let shouldRebase = deltaMagnitude2 > 0.000001
+
+        if state.iteration >= orbit.escapedAt {
+            return PerturbationStepResult(
+                escaped: true,
+                shouldRebase: false,
+                iteration: orbit.escapedAt
+            )
+        }
+
+        return PerturbationStepResult(
+            escaped: false,
+            shouldRebase: shouldRebase,
+            iteration: state.iteration
+        )
     }
 
     static func perturbationIteration(
