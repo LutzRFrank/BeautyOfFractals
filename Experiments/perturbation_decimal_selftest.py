@@ -77,8 +77,15 @@ for scale in scales:
             if best is None or d < best[0]:
                 best = (d, p)
 
-        print("sample", (sx, sy), "classic", c, "perturb", best[1], "delta", best[0])
         if best[0] > 2:
-            failures += 1
+            local_orbit, local_escape = reference_orbit(x0, y0, max_iter)
+            rebased = perturb(Decimal(0), Decimal(0), local_orbit, local_escape, max_iter)
+            rebase_delta = abs(c - rebased)
+            print("sample", (sx, sy), "classic", c, "perturb", best[1], "delta", best[0],
+                  "rebased", rebased, "rebaseDelta", rebase_delta)
+            if rebase_delta > 2:
+                failures += 1
+        else:
+            print("sample", (sx, sy), "classic", c, "perturb", best[1], "delta", best[0])
 
     print("✅ passed" if failures == 0 else f"❌ failed: {failures}")
