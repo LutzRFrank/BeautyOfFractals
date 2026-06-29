@@ -24,7 +24,6 @@ func makeReferenceOrbit(centerX: Double, centerY: Double, maxIterations: Int) ->
 
     for iteration in 0..<maxIterations {
         orbit.append((x, y))
-
         let nextX = x * x - y * y + centerX
         let nextY = 2.0 * x * y + centerY
         x = nextX
@@ -78,6 +77,13 @@ func perturbationIteration(
     return maxIterations
 }
 
+struct Reference {
+    let x: Double
+    let y: Double
+    let orbit: [(x: Double, y: Double)]
+    let escapedAt: Int
+}
+
 let centerX = -0.743643887037151
 let centerY = 0.131825904205330
 let scales = [1e-6, 1e-9, 1e-12, 1e-15]
@@ -93,10 +99,21 @@ let samples: [(Double, Double)] = [
     (-0.45, -0.1)
 ]
 
-
 for scale in scales {
-    let reference = makeReferenceOrbit(centerX: centerX, centerY: centerY, maxIterations: maxIterations)
-    print("\nScale:", scale, "reference escaped at:", reference.escapedAt)
+    let referenceOffsets = [
+        (-0.5, -0.5), (0.0, -0.5), (0.5, -0.5),
+        (-0.5,  0.0), (0.0,  0.0), (0.5,  0.0),
+        (-0.5,  0.5), (0.0,  0.5), (0.5,  0.5)
+    ]
+
+    let references: [Reference] = referenceOffsets.map { offset in
+        let rx = centerX + offset.0 * scale
+        let ry = centerY + offset.1 * scale
+        let ref = makeReferenceOrbit(centerX: rx, centerY: ry, maxIterations: maxIterations)
+        return Reference(x: rx, y: ry, orbit: ref.orbit, escapedAt: ref.escapedAt)
+    }
+
+    print("\nScale:", scale, "references:", references.count)
 
     var failures = 0
 
@@ -105,16 +122,32 @@ for scale in scales {
         let y0 = centerY + sample.1 * scale
 
         let classic = classicMandelbrotIteration(x0: x0, y0: y0, maxIterations: maxIterations)
-        let perturb = perturbationIteration(
-            deltaX: x0 - centerX,
-            deltaY: y0 - centerY,
-            referenceOrbit: reference.orbit,
-            referenceEscapedAt: reference.escapedAt,
-            maxIterations: maxIterations
-        )
 
-        let delta = abs(classic - perturb)
-        print("sample", sample, "classic", classic, "perturb", perturb, "delta", delta)
+        var bestPerturb = 0
+        var bestDelta = Int.max
+        var bestReferenceDistance = Double.infinity
+
+        for reference in references {
+            let perturb = perturbationIteration(
+                deltaX: x0 - reference.x,
+                deltaY: y0 - reference.y,
+                referenceOrbit: reference.orbit,
+                referenceEscapedAt: reference.escapedAt,
+                maxIterations: maxIterations
+            )
+
+            let delta = abs(classic - perturb)
+            let distance = hypot(x0 - reference.x, y0 - reference.y)
+
+            if delta < bestDelta || (delta == bestDelta && distance < bestReferenceDistance) {
+                bestDelta = delta
+                bestPerturb = perturb
+                bestReferenceDistance = distance
+            }
+        }
+
+        let delta = bestDelta
+        print("sample", sample, "classic", classic, "bestPerturb", bestPerturb, "delta", delta, "refDistance", bestReferenceDistance)
 
         if delta > 2 {
             failures += 1
