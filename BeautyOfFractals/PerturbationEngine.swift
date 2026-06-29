@@ -26,6 +26,46 @@ struct PerturbationReference {
     let orbit: PerturbationOrbit
 }
 
+
+struct PerturbationReferenceCache {
+    private(set) var references: [PerturbationReference]
+
+    init(references: [PerturbationReference]) {
+        self.references = references
+    }
+
+    mutating func nearestReference(
+        forX x: Double,
+        y: Double
+    ) -> PerturbationReference? {
+        PerturbationEngine.nearestReference(
+            forX: x,
+            y: y,
+            references: references
+        )
+    }
+
+    mutating func addLocalReference(
+        centerX: Double,
+        centerY: Double,
+        maxIterations: Int
+    ) -> PerturbationReference {
+        let reference = PerturbationReference(
+            centerX: centerX,
+            centerY: centerY,
+            orbit: PerturbationEngine.makeReferenceOrbit(
+                centerX: centerX,
+                centerY: centerY,
+                maxIterations: maxIterations
+            )
+        )
+
+        references.append(reference)
+        return reference
+    }
+}
+
+
 nonisolated enum PerturbationEngine {
     static func makeReferenceOrbit(
         centerX: Double,
