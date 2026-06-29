@@ -168,38 +168,22 @@ nonisolated enum PerturbationEngine {
         reference: PerturbationReference,
         maxIterations: Int
     ) -> Int {
-        var zx = 0.0
-        var zy = 0.0
+        var state = PerturbationState(reference: reference)
 
-        let orbit = reference.orbit
-        let limit = min(maxIterations, orbit.x.count, orbit.y.count)
+        while state.iteration < maxIterations {
+            let result = step(
+                state: &state,
+                targetX: x0,
+                targetY: y0,
+                maxIterations: maxIterations
+            )
 
-        let deltaX = x0 - reference.centerX
-        let deltaY = y0 - reference.centerY
-
-        for iteration in 0..<limit {
-            let rx = orbit.x[iteration]
-            let ry = orbit.y[iteration]
-
-            let nextZX = 2.0 * (rx * zx - ry * zy)
-                + (zx * zx - zy * zy)
-                + deltaX
-            let nextZY = 2.0 * (rx * zy + ry * zx)
-                + 2.0 * zx * zy
-                + deltaY
-
-            zx = nextZX
-            zy = nextZY
-
-            let fullX = rx + zx
-            let fullY = ry + zy
-
-            if fullX * fullX + fullY * fullY > 4.0 {
-                return iteration + 1
+            if result.escaped {
+                return result.iteration
             }
 
-            if iteration + 1 >= orbit.escapedAt {
-                return orbit.escapedAt
+            if result.iteration >= maxIterations {
+                return maxIterations
             }
         }
 
