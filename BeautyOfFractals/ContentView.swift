@@ -2606,22 +2606,21 @@ nonisolated func renderFractal(
     // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
 
-    var perturbationReferenceCache: PerturbationReferenceCache?
-    if experimentalPerturbationCPUEnabled,
-       mode == .mandelbrot,
-       scale < 1e-9 {
-        perturbationReferenceCache = PerturbationReferenceCache(
-            references: PerturbationEngine.makeReferenceGrid(
+    let usePerturbation = experimentalPerturbationCPUEnabled &&
+        mode == .mandelbrot &&
+        scale < 1e-9
+
+    var perturbationReferenceCache = PerturbationReferenceCache(
+        references: usePerturbation
+            ? PerturbationEngine.makeReferenceGrid(
                 centerX: centerX,
                 centerY: centerY,
                 scale: scale,
                 aspectRatio: aspectRatio,
                 maxIterations: maxIterations
             )
-        )
-    } else {
-        perturbationReferenceCache = nil
-    }
+            : []
+    )
     
     for py in 0..<height {
         // The high-precision worker is cancelled as soon as a new drag begins.
@@ -2653,16 +2652,13 @@ nonisolated func renderFractal(
                 var localMaxIterations = maxIterations
                 var iteration: Int
 
-                if var cache = perturbationReferenceCache,
-                   let reference = cache.nearestReference(
-                        forX: x0,
-                        y: y0
-                   ) {
-                    iteration = PerturbationEngine.perturbationIteration(
+                if perturbationReferenceCache.count > 0 {
+                    iteration = PerturbationEngine.perturbationIterationWithCachedRebase(
                         x0: x0,
                         y0: y0,
-                        reference: reference,
-                        maxIterations: localMaxIterations
+                        cache: &perturbationReferenceCache,
+                        maxIterations: localMaxIterations,
+                        maxAdditionalReferences: 4
                     )
                 } else {
                     iteration = calculateFractalIteration(

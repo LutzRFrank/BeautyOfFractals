@@ -30,6 +30,10 @@ struct PerturbationReference {
 nonisolated struct PerturbationReferenceCache {
     private(set) var references: [PerturbationReference]
 
+    var count: Int {
+        references.count
+    }
+
     init(references: [PerturbationReference]) {
         self.references = references
     }
@@ -200,6 +204,48 @@ nonisolated enum PerturbationEngine {
             shouldRebase: shouldRebase,
             iteration: state.iteration
         )
+    }
+
+
+    static func perturbationIterationWithCachedRebase(
+        x0: Double,
+        y0: Double,
+        cache: inout PerturbationReferenceCache,
+        maxIterations: Int,
+        maxAdditionalReferences: Int
+    ) -> Int {
+        guard let initialReference = cache.nearestReference(forX: x0, y: y0) else {
+            return maxIterations
+        }
+
+        let initialReferenceCount = cache.count
+        var state = PerturbationState(reference: initialReference)
+
+        while state.iteration < maxIterations {
+            let result = step(
+                state: &state,
+                targetX: x0,
+                targetY: y0,
+                maxIterations: maxIterations
+            )
+
+            if result.escaped {
+                return result.iteration
+            }
+
+            if result.shouldRebase,
+               cache.count < initialReferenceCount + maxAdditionalReferences {
+                let localReference = cache.addLocalReference(
+                    centerX: x0,
+                    centerY: y0,
+                    maxIterations: maxIterations
+                )
+
+                state = PerturbationState(reference: localReference)
+            }
+        }
+
+        return maxIterations
     }
 
     static func perturbationIteration(
