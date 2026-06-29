@@ -2606,19 +2606,21 @@ nonisolated func renderFractal(
     // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
 
-    let perturbationReferences: [PerturbationReference]
+    var perturbationReferenceCache: PerturbationReferenceCache?
     if experimentalPerturbationCPUEnabled,
        mode == .mandelbrot,
        scale < 1e-9 {
-        perturbationReferences = PerturbationEngine.makeReferenceGrid(
-            centerX: centerX,
-            centerY: centerY,
-            scale: scale,
-            aspectRatio: aspectRatio,
-            maxIterations: maxIterations
+        perturbationReferenceCache = PerturbationReferenceCache(
+            references: PerturbationEngine.makeReferenceGrid(
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                aspectRatio: aspectRatio,
+                maxIterations: maxIterations
+            )
         )
     } else {
-        perturbationReferences = []
+        perturbationReferenceCache = nil
     }
     
     for py in 0..<height {
@@ -2651,11 +2653,10 @@ nonisolated func renderFractal(
                 var localMaxIterations = maxIterations
                 var iteration: Int
 
-                if !perturbationReferences.isEmpty,
-                   let reference = PerturbationEngine.nearestReference(
+                if var cache = perturbationReferenceCache,
+                   let reference = cache.nearestReference(
                         forX: x0,
-                        y: y0,
-                        references: perturbationReferences
+                        y: y0
                    ) {
                     iteration = PerturbationEngine.perturbationIteration(
                         x0: x0,

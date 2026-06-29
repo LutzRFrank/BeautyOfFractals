@@ -27,7 +27,7 @@ struct PerturbationReference {
 }
 
 
-struct PerturbationReferenceCache {
+nonisolated struct PerturbationReferenceCache {
     private(set) var references: [PerturbationReference]
 
     init(references: [PerturbationReference]) {
