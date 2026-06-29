@@ -29,6 +29,7 @@ struct PerturbationReference {
 
 nonisolated struct PerturbationReferenceCache {
     private(set) var references: [PerturbationReference]
+    private(set) var addedLocalReferenceCount: Int = 0
 
     var count: Int {
         references.count
@@ -65,6 +66,7 @@ nonisolated struct PerturbationReferenceCache {
         )
 
         references.append(reference)
+        addedLocalReferenceCount += 1
         return reference
     }
 }
