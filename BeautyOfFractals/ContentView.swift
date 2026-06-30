@@ -2483,7 +2483,7 @@ struct HighPrecisionFractalPreview: View {
 }
 
 
-private final class DirectRenderPixelStorage: @unchecked Sendable {
+nonisolated private final class DirectRenderPixelStorage: @unchecked Sendable {
     let pointer: UnsafeMutablePointer<UInt8>
     let byteCount: Int
 
