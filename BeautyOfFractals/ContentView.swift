@@ -2502,6 +2502,30 @@ nonisolated private final class DirectRenderPixelStorage: @unchecked Sendable {
     }
 }
 
+nonisolated private final class DirectRenderBandProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private let totalBands: Int
+    private var completedBands = 0
+    private let report: @Sendable (Double) -> Void
+
+    init(
+        totalBands: Int,
+        report: @escaping @Sendable (Double) -> Void
+    ) {
+        self.totalBands = max(totalBands, 1)
+        self.report = report
+    }
+
+    func finishBand() {
+        lock.lock()
+        completedBands += 1
+        let progress = Double(completedBands) / Double(totalBands)
+        lock.unlock()
+
+        report(progress)
+    }
+}
+
 nonisolated func renderFractalSupersampled(
     width: Int,
     height: Int,
@@ -2627,7 +2651,8 @@ nonisolated private func renderDirectMandelbrotParallel(
     centerY: Double,
     scale: Double,
     maxIterations: Int,
-    viewportAspectRatio: Double
+    viewportAspectRatio: Double,
+    progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     let bytesPerPixel = 4
     let bytesPerRow = width * bytesPerPixel
@@ -2641,6 +2666,9 @@ nonisolated private func renderDirectMandelbrotParallel(
     let processorCount = max(1, ProcessInfo.processInfo.activeProcessorCount)
     let bandCount = min(height, max(2, processorCount * 3))
     let rowsPerBand = (height + bandCount - 1) / bandCount
+    let bandProgress = progressCallback.map {
+        DirectRenderBandProgress(totalBands: bandCount, report: $0)
+    }
 
     DispatchQueue.concurrentPerform(iterations: bandCount) { bandIndex in
         let startRow = bandIndex * rowsPerBand
@@ -2712,6 +2740,8 @@ nonisolated private func renderDirectMandelbrotParallel(
                 storage.pointer[offset + 3] = 255
             }
         }
+
+        bandProgress?.finishBand()
     }
 
     guard !Task.isCancelled else {
@@ -2745,7 +2775,7 @@ nonisolated func renderFractal(
     scale: Double,
     maxIterations: Int,
     viewportAspectRatio: Double? = nil,
-    progressCallback: ((Double) -> Void)? = nil
+    progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     
     let bytesPerPixel = 4
@@ -2779,7 +2809,8 @@ nonisolated func renderFractal(
             centerY: centerY,
             scale: scale,
             maxIterations: maxIterations,
-            viewportAspectRatio: aspectRatio
+            viewportAspectRatio: aspectRatio,
+            progressCallback: progressCallback
         )
     }
 
