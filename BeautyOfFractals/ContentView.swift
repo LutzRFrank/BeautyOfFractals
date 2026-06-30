@@ -2393,7 +2393,6 @@ struct HighPrecisionFractalPreview: View {
             onThumbnailPublished(makeFavoriteThumbnailPNG(from: finalImage))
 
             renderProgress = 1.0
-            do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { }
         }
 
         guard !Task.isCancelled,
