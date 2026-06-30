@@ -1,4 +1,6 @@
 import SwiftUI
+import Foundation
+import Dispatch
 import CoreGraphics
 import AppKit
 import UniformTypeIdentifiers
@@ -6,6 +8,12 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
+#if DEBUG
+nonisolated private let experimentalPerturbationCPUEnabled = true
+#else
+nonisolated private let experimentalPerturbationCPUEnabled = false
+#endif
+
 
 // Below this scale a Float-based Metal preview can no longer reliably represent
 // the current viewport. Keep the last completed CPU image visible instead and
@@ -17,6 +25,11 @@ private let highPrecisionPreviewMaxPixelHeight: Int = 1200
 private let deepCPUPreviewMaxPixelWidth: Int = 720
 private let deepCPUPreviewMaxPixelHeight: Int = 480
 private let deepCPUPreviewIterationCap: Int = 2_500
+
+// The direct renderer is beneficial before the perturbation experiment's
+// tighter threshold. This includes roughly 1.5 billion-times magnification
+// for Mandelbrot's default scale of 3.0.
+nonisolated private let directDeepMandelbrotScaleLimit: Double = 2e-9
 
 enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbrot = 0
@@ -1623,7 +1636,14 @@ struct MandelbrotView: View {
         }
         
         if useDeepCPUPreview {
-            return "High Precision · CPU Deep Zoom"
+            let usesPerturbation =
+                experimentalPerturbationCPUEnabled &&
+                fractalMode == .mandelbrot &&
+                scale < 1e-9
+
+            return usesPerturbation
+                ? "High Precision · CPU Deep Zoom · Perturbation"
+                : "High Precision · CPU Deep Zoom"
         }
 
         if magnificationFactor >= 50_000_000_000 {
@@ -2046,6 +2066,7 @@ struct HighPrecisionFractalPreview: View {
     @State private var renderProgress: Double = 0.0
     @State private var showRenderStatus: Bool = false
     @State private var renderStartDate: Date?
+    @State private var lastRenderDurationText: String?
     @State private var renderStatusOffset: CGSize = .zero
     @State private var renderStatusDragStartOffset: CGSize = .zero
     
@@ -2144,9 +2165,17 @@ struct HighPrecisionFractalPreview: View {
                         }
                         .frame(width: 158, height: 158)
 
-                        Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : "Ready")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.78))
+                        VStack(spacing: 2) {
+                            Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : "Ready")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.78))
+
+                            if !isRendering, let lastRenderDurationText {
+                                Text("Time: \(lastRenderDurationText)")
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.58))
+                            }
+                        }
                     }
                     .padding(22)
                     .frame(width: 230)
@@ -2197,6 +2226,7 @@ struct HighPrecisionFractalPreview: View {
 
         renderProgress = 0.01
         renderStartDate = Date()
+        lastRenderDurationText = nil
         isRendering = true
 
         // At deep zoom, publish a small pyramid of CPU previews before the full
@@ -2370,7 +2400,6 @@ struct HighPrecisionFractalPreview: View {
             onThumbnailPublished(makeFavoriteThumbnailPNG(from: finalImage))
 
             renderProgress = 1.0
-            do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { }
         }
 
         guard !Task.isCancelled,
@@ -2379,6 +2408,9 @@ struct HighPrecisionFractalPreview: View {
             return
         }
 
+        if renderStartDate != nil {
+            lastRenderDurationText = elapsedText(at: Date())
+        }
         isRendering = false
     }
 
@@ -2458,6 +2490,45 @@ struct HighPrecisionFractalPreview: View {
             max(16, targetWidth),
             max(16, targetHeight)
         )
+    }
+}
+
+
+nonisolated private final class DirectRenderPixelStorage: @unchecked Sendable {
+    let pointer: UnsafeMutablePointer<UInt8>
+    let byteCount: Int
+
+    init(byteCount: Int) {
+        self.byteCount = byteCount
+        self.pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: byteCount)
+    }
+
+    deinit {
+        pointer.deallocate()
+    }
+}
+
+nonisolated private final class DirectRenderBandProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private let totalBands: Int
+    private var completedBands = 0
+    private let report: @Sendable (Double) -> Void
+
+    init(
+        totalBands: Int,
+        report: @escaping @Sendable (Double) -> Void
+    ) {
+        self.totalBands = max(totalBands, 1)
+        self.report = report
+    }
+
+    func finishBand() {
+        lock.lock()
+        completedBands += 1
+        let progress = Double(completedBands) / Double(totalBands)
+        lock.unlock()
+
+        report(progress)
     }
 }
 
@@ -2577,6 +2648,109 @@ nonisolated func renderFractalSupersampled(
     )
 }
 
+
+nonisolated private func renderDirectMandelbrotParallel(
+    width: Int,
+    height: Int,
+    palette: FractalPalette,
+    centerX: Double,
+    centerY: Double,
+    scale: Double,
+    maxIterations: Int,
+    viewportAspectRatio: Double,
+    progressCallback: (@Sendable (Double) -> Void)? = nil
+) -> CGImage? {
+    let bytesPerPixel = 4
+    let bytesPerRow = width * bytesPerPixel
+    let bitsPerComponent = 8
+    let byteCount = width * height * bytesPerPixel
+
+    let storage = DirectRenderPixelStorage(byteCount: byteCount)
+
+    // Use more bands than performance cores so uneven boundary-heavy regions
+    // do not leave one worker with all of the expensive pixels.
+    let processorCount = max(1, ProcessInfo.processInfo.activeProcessorCount)
+    let bandCount = min(height, max(2, processorCount * 3))
+    let rowsPerBand = (height + bandCount - 1) / bandCount
+    let bandProgress = progressCallback.map {
+        DirectRenderBandProgress(totalBands: bandCount, report: $0)
+    }
+
+    DispatchQueue.concurrentPerform(iterations: bandCount) { bandIndex in
+        let startRow = bandIndex * rowsPerBand
+        let endRow = min(startRow + rowsPerBand, height)
+
+        guard startRow < endRow else { return }
+
+        for py in startRow..<endRow {
+            if Task.isCancelled { return }
+
+            for px in 0..<width {
+                if px.isMultiple(of: 64), Task.isCancelled { return }
+
+                let x0 = centerX
+                    + ((Double(px) + 0.5) / Double(width) - 0.5)
+                    * scale
+                    * viewportAspectRatio
+
+                let y0 = centerY
+                    + ((Double(py) + 0.5) / Double(height) - 0.5)
+                    * scale
+
+                let localMaxIterations = maxIterations
+                let iteration = calculateFractalIteration(
+                    mode: .mandelbrot,
+                    x0: x0,
+                    y0: y0,
+                    maxIterations: localMaxIterations
+                )
+
+                let color: (r: Double, g: Double, b: Double)
+
+                if iteration == localMaxIterations {
+                    color = insideColor(mode: .mandelbrot, palette: palette)
+                } else {
+                    let t = Double(iteration) / Double(localMaxIterations)
+                    color = cpuPaletteColor(
+                        t: t,
+                        mode: .mandelbrot,
+                        palette: palette
+                    )
+                }
+
+                let offset = (py * width + px) * bytesPerPixel
+
+                storage.pointer[offset + 0] = UInt8(clamp01(color.r) * 255.0)
+                storage.pointer[offset + 1] = UInt8(clamp01(color.g) * 255.0)
+                storage.pointer[offset + 2] = UInt8(clamp01(color.b) * 255.0)
+                storage.pointer[offset + 3] = 255
+            }
+        }
+
+        bandProgress?.finishBand()
+    }
+
+    guard !Task.isCancelled else {
+        return nil
+    }
+
+    let pixels = Array(
+        UnsafeBufferPointer(
+            start: storage.pointer,
+            count: storage.byteCount
+        )
+    )
+
+    return makeCGImage(
+        pixels: pixels,
+        width: width,
+        height: height,
+        bytesPerRow: bytesPerRow,
+        bitsPerComponent: bitsPerComponent,
+        bytesPerPixel: bytesPerPixel
+    )
+}
+
 nonisolated func renderFractal(
     width: Int,
     height: Int,
@@ -2587,7 +2761,7 @@ nonisolated func renderFractal(
     scale: Double,
     maxIterations: Int,
     viewportAspectRatio: Double? = nil,
-    progressCallback: ((Double) -> Void)? = nil
+    progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     
     let bytesPerPixel = 4
@@ -2599,6 +2773,51 @@ nonisolated func renderFractal(
     // The preview can be rendered at a capped bitmap size. Its mathematical
     // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
+
+    let usePerturbation = experimentalPerturbationCPUEnabled &&
+        mode == .mandelbrot &&
+        scale < 1e-9
+
+    // Release deep zoom currently uses the proven direct Double renderer.
+    // Split only this expensive exact path across CPU cores; all other modes,
+    // normal zoom levels, and experimental perturbation remain unchanged.
+    if !usePerturbation,
+       mode == .mandelbrot,
+       scale < directDeepMandelbrotScaleLimit,
+       width >= 512,
+       height >= 256,
+       maxIterations >= 8_000 {
+        return renderDirectMandelbrotParallel(
+            width: width,
+            height: height,
+            palette: palette,
+            centerX: centerX,
+            centerY: centerY,
+            scale: scale,
+            maxIterations: maxIterations,
+            viewportAspectRatio: aspectRatio,
+            progressCallback: progressCallback
+        )
+    }
+
+    var perturbationReferenceCache = PerturbationReferenceCache(
+        references: usePerturbation
+            ? PerturbationEngine.makeReferenceGrid(
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                aspectRatio: aspectRatio,
+                maxIterations: maxIterations
+            )
+            : []
+    )
+
+    // The reference grid starts with nine entries. Local rebases are shared
+    // across the complete render, but must stay bounded: otherwise every pixel
+    // can append more full reference orbits and make nearest-reference lookup
+    // progressively slower.
+    let maximumCachedPerturbationReferences =
+        perturbationReferenceCache.count + 64
     
     for py in 0..<height {
         // The high-precision worker is cancelled as soon as a new drag begins.
@@ -2628,12 +2847,24 @@ nonisolated func renderFractal(
                 )
             } else {
                 var localMaxIterations = maxIterations
-                var iteration = calculateFractalIteration(
-                    mode: mode,
-                    x0: x0,
-                    y0: y0,
-                    maxIterations: localMaxIterations
-                )
+                var iteration: Int
+
+                if perturbationReferenceCache.count > 0 {
+                    iteration = PerturbationEngine.perturbationIterationWithCachedRebase(
+                        x0: x0,
+                        y0: y0,
+                        cache: &perturbationReferenceCache,
+                        maxIterations: localMaxIterations,
+                        maximumCachedReferences: maximumCachedPerturbationReferences
+                    )
+                } else {
+                    iteration = calculateFractalIteration(
+                        mode: mode,
+                        x0: x0,
+                        y0: y0,
+                        maxIterations: localMaxIterations
+                    )
+                }
 
                 if shouldApplyAdaptiveIterationRefinement(
                     mode: mode,
