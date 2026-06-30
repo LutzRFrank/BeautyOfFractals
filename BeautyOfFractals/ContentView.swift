@@ -26,11 +26,6 @@ private let deepCPUPreviewMaxPixelWidth: Int = 720
 private let deepCPUPreviewMaxPixelHeight: Int = 480
 private let deepCPUPreviewIterationCap: Int = 2_500
 
-// The specialized direct deep-Mandelbrot renderer stays within its selected
-// iteration budget. Boundary refinement remains available in the general CPU
-// renderer, but is intentionally skipped here to keep deep navigation responsive.
-private let directDeepMandelbrotUsesAdaptiveRefinement = false
-
 enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbrot = 0
     case julia = 1
@@ -2697,26 +2692,6 @@ nonisolated private func renderDirectMandelbrotParallel(
                     y0: y0,
                     maxIterations: localMaxIterations
                 )
-
-                if directDeepMandelbrotUsesAdaptiveRefinement,
-                   shouldApplyAdaptiveIterationRefinement(
-                    mode: .mandelbrot,
-                    width: width,
-                    maxIterations: maxIterations,
-                    iteration: iteration
-                   ) {
-                    localMaxIterations = min(
-                        maxIterations + maxIterations / 2,
-                        120_000
-                    )
-
-                    iteration = calculateFractalIteration(
-                        mode: .mandelbrot,
-                        x0: x0,
-                        y0: y0,
-                        maxIterations: localMaxIterations
-                    )
-                }
 
                 let color: (r: Double, g: Double, b: Double)
 
