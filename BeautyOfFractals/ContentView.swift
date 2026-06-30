@@ -2634,6 +2634,13 @@ nonisolated func renderFractal(
             )
             : []
     )
+
+    // The reference grid starts with nine entries. Local rebases are shared
+    // across the complete render, but must stay bounded: otherwise every pixel
+    // can append more full reference orbits and make nearest-reference lookup
+    // progressively slower.
+    let maximumCachedPerturbationReferences =
+        perturbationReferenceCache.count + 64
     
     for py in 0..<height {
         // The high-precision worker is cancelled as soon as a new drag begins.
@@ -2671,7 +2678,7 @@ nonisolated func renderFractal(
                         y0: y0,
                         cache: &perturbationReferenceCache,
                         maxIterations: localMaxIterations,
-                        maxAdditionalReferences: 4
+                        maximumCachedReferences: maximumCachedPerturbationReferences
                     )
                 } else {
                     iteration = calculateFractalIteration(

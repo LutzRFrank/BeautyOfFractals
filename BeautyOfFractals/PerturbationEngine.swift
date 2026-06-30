@@ -214,13 +214,12 @@ nonisolated enum PerturbationEngine {
         y0: Double,
         cache: inout PerturbationReferenceCache,
         maxIterations: Int,
-        maxAdditionalReferences: Int
+        maximumCachedReferences: Int
     ) -> Int {
         guard let initialReference = cache.nearestReference(forX: x0, y: y0) else {
             return maxIterations
         }
 
-        let initialReferenceCount = cache.count
         var state = PerturbationState(reference: initialReference)
 
         while state.iteration < maxIterations {
@@ -236,7 +235,7 @@ nonisolated enum PerturbationEngine {
             }
 
             if result.shouldRebase,
-               cache.count < initialReferenceCount + maxAdditionalReferences {
+               cache.count < maximumCachedReferences {
                 let localReference = cache.addLocalReference(
                     centerX: x0,
                     centerY: y0,
