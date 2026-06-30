@@ -1636,7 +1636,14 @@ struct MandelbrotView: View {
         }
         
         if useDeepCPUPreview {
-            return "High Precision · CPU Deep Zoom"
+            let usesPerturbation =
+                experimentalPerturbationCPUEnabled &&
+                fractalMode == .mandelbrot &&
+                scale < 1e-9
+
+            return usesPerturbation
+                ? "High Precision · CPU Deep Zoom · Perturbation"
+                : "High Precision · CPU Deep Zoom"
         }
 
         if magnificationFactor >= 50_000_000_000 {
