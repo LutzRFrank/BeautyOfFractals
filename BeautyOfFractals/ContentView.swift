@@ -26,6 +26,11 @@ private let deepCPUPreviewMaxPixelWidth: Int = 720
 private let deepCPUPreviewMaxPixelHeight: Int = 480
 private let deepCPUPreviewIterationCap: Int = 2_500
 
+// The direct renderer is beneficial before the perturbation experiment's
+// tighter threshold. This includes roughly 1.5 billion-times magnification
+// for Mandelbrot's default scale of 3.0.
+nonisolated private let directDeepMandelbrotScaleLimit: Double = 2e-9
+
 enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbrot = 0
     case julia = 1
@@ -2685,8 +2690,8 @@ nonisolated private func renderDirectMandelbrotParallel(
                     + ((Double(py) + 0.5) / Double(height) - 0.5)
                     * scale
 
-                var localMaxIterations = maxIterations
-                var iteration = calculateFractalIteration(
+                let localMaxIterations = maxIterations
+                let iteration = calculateFractalIteration(
                     mode: .mandelbrot,
                     x0: x0,
                     y0: y0,
@@ -2771,7 +2776,7 @@ nonisolated func renderFractal(
     // normal zoom levels, and experimental perturbation remain unchanged.
     if !usePerturbation,
        mode == .mandelbrot,
-       scale < 1e-9,
+       scale < directDeepMandelbrotScaleLimit,
        width >= 512,
        height >= 256,
        maxIterations >= 8_000 {
