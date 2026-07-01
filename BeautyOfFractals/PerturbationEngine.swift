@@ -14,6 +14,12 @@ struct PerturbationState {
     var reference: PerturbationReference
 }
 
+struct PerturbationIterationResult {
+    let iteration: Int
+    let reliable: Bool
+    let rebaseCount: Int
+}
+
 struct PerturbationStepResult {
     let escaped: Bool
     let shouldRebase: Bool
@@ -48,6 +54,15 @@ nonisolated struct PerturbationReferenceCache {
             y: y,
             references: references
         )
+    }
+
+    func nearestReferenceDistanceSquared(
+        forX x: Double,
+        y: Double
+    ) -> Double {
+        references
+            .map { PerturbationEngine.squaredDistance(x, y, $0.centerX, $0.centerY) }
+            .min() ?? .greatestFiniteMagnitude
     }
 
     mutating func addLocalReference(
@@ -215,12 +230,17 @@ nonisolated enum PerturbationEngine {
         cache: inout PerturbationReferenceCache,
         maxIterations: Int,
         maximumCachedReferences: Int
-    ) -> Int {
+    ) -> PerturbationIterationResult {
         guard let initialReference = cache.nearestReference(forX: x0, y: y0) else {
-            return maxIterations
+            return PerturbationIterationResult(
+                iteration: maxIterations,
+                reliable: false,
+                rebaseCount: 0
+            )
         }
 
         var state = PerturbationState(reference: initialReference)
+        var rebaseCount = 0
 
         while state.iteration < maxIterations {
             let result = step(
@@ -231,11 +251,16 @@ nonisolated enum PerturbationEngine {
             )
 
             if result.escaped {
-                return result.iteration
+                return PerturbationIterationResult(
+                    iteration: result.iteration,
+                    reliable: rebaseCount <= 4,
+                    rebaseCount: rebaseCount
+                )
             }
 
             if result.shouldRebase,
                cache.count < maximumCachedReferences {
+                rebaseCount += 1
                 let localReference = cache.addLocalReference(
                     centerX: x0,
                     centerY: y0,
@@ -246,7 +271,11 @@ nonisolated enum PerturbationEngine {
             }
         }
 
-        return maxIterations
+        return PerturbationIterationResult(
+            iteration: maxIterations,
+            reliable: rebaseCount <= 4,
+            rebaseCount: rebaseCount
+        )
     }
 
     static func perturbationIteration(
@@ -277,7 +306,7 @@ nonisolated enum PerturbationEngine {
         return maxIterations
     }
 
-    private static func squaredDistance(
+    static func squaredDistance(
         _ ax: Double,
         _ ay: Double,
         _ bx: Double,

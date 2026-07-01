@@ -8,11 +8,7 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
-#if DEBUG
 nonisolated private let experimentalPerturbationCPUEnabled = true
-#else
-nonisolated private let experimentalPerturbationCPUEnabled = false
-#endif
 
 
 // Below this scale a Float-based Metal preview can no longer reliably represent
@@ -613,6 +609,7 @@ struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
     @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
+    @State private var perturbationEnabled: Bool = true
     
     @State private var centerX: Double = FractalMode.mandelbrot.defaultCenterX
     @State private var centerY: Double = FractalMode.mandelbrot.defaultCenterY
@@ -679,6 +676,7 @@ struct ContentView: View {
                 scale: $scale,
                 maxIterations: $maxIterations,
                 renderQuality: renderQuality,
+                perturbationEnabled: perturbationEnabled,
                 navigationStarted: recordNavigationStep,
                 navigationRevision: navigationRevision,
                 latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG
@@ -827,6 +825,15 @@ The zoom factor overlay is only visible in the app and is not included in export
                         .frame(width: 104, alignment: .leading)
                 }
                 .help("Choose render quality")
+
+                Menu {
+                    Toggle("Perturbation", isOn: $perturbationEnabled)
+                        .disabled(fractalMode != .mandelbrot)
+                } label: {
+                    Text("Ex…")
+                        .frame(width: 44)
+                }
+                .help("Experimental render options")
                 
                 Button {
                     zoomOut()
@@ -1586,6 +1593,7 @@ struct MandelbrotView: View {
     @Binding var scale: Double
     @Binding var maxIterations: Int
     let renderQuality: RenderQuality
+    let perturbationEnabled: Bool
     let navigationStarted: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
@@ -1744,6 +1752,7 @@ struct MandelbrotView: View {
                             refinementEnabled: !isInteractionPreviewActive,
                             renderEpoch: highPrecisionRenderEpoch,
                             renderQualityKey: renderQuality.rawValue,
+                            perturbationEnabled: perturbationEnabled,
                             onImagePublished: { visibleState in
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
@@ -2058,6 +2067,7 @@ struct HighPrecisionFractalPreview: View {
     let refinementEnabled: Bool
     let renderEpoch: UInt
     let renderQualityKey: String
+    let perturbationEnabled: Bool
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
     
@@ -2085,7 +2095,7 @@ struct HighPrecisionFractalPreview: View {
             refinementEnabled.description,
             renderEpoch.description,
             renderQualityKey,
-            renderQualityKey
+            perturbationEnabled.description
         ].joined(separator: "|")
     }
     
@@ -2335,7 +2345,8 @@ struct HighPrecisionFractalPreview: View {
                     centerY: cy,
                     scale: currentScale,
                     maxIterations: previewIterations,
-                    requestID: requestID
+                    requestID: requestID,
+                    perturbationEnabled: perturbationEnabled,
                 ) {
                     image = NSImage(
                         cgImage: quickImage,
@@ -2383,6 +2394,7 @@ struct HighPrecisionFractalPreview: View {
             maxIterations: fullIterations,
             requestID: requestID,
             progressStart: 0.82,
+            perturbationEnabled: perturbationEnabled,
             progressEnd: 0.995
         ) {
             image = NSImage(
@@ -2426,6 +2438,7 @@ struct HighPrecisionFractalPreview: View {
         maxIterations: Int,
         requestID: String,
         progressStart: Double? = nil,
+        perturbationEnabled: Bool,
         progressEnd: Double? = nil
     ) async -> CGImage? {
         guard width > 8, height > 8 else { return nil }
@@ -2442,6 +2455,7 @@ struct HighPrecisionFractalPreview: View {
                 scale: scale,
                 maxIterations: maxIterations,
                 viewportAspectRatio: aspectRatio,
+                perturbationEnabled: perturbationEnabled,
                 progressCallback: { progress in
                     guard let progressStart, let progressEnd else { return }
                     Task { @MainActor in
@@ -2761,6 +2775,7 @@ nonisolated func renderFractal(
     scale: Double,
     maxIterations: Int,
     viewportAspectRatio: Double? = nil,
+    perturbationEnabled: Bool = true,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     
@@ -2774,7 +2789,8 @@ nonisolated func renderFractal(
     // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
 
-    let usePerturbation = experimentalPerturbationCPUEnabled &&
+    let usePerturbation = perturbationEnabled &&
+        experimentalPerturbationCPUEnabled &&
         mode == .mandelbrot &&
         scale < 1e-9
 
@@ -2850,13 +2866,42 @@ nonisolated func renderFractal(
                 var iteration: Int
 
                 if perturbationReferenceCache.count > 0 {
-                    iteration = PerturbationEngine.perturbationIterationWithCachedRebase(
-                        x0: x0,
-                        y0: y0,
-                        cache: &perturbationReferenceCache,
-                        maxIterations: localMaxIterations,
-                        maximumCachedReferences: maximumCachedPerturbationReferences
+                    let referenceDistance2 = perturbationReferenceCache.nearestReferenceDistanceSquared(
+                        forX: x0,
+                        y: y0
                     )
+
+                    let pixelScale = scale / Double(max(width, height))
+                    let maxReferenceDistance = pixelScale * 48.0
+                    let maxReferenceDistance2 = maxReferenceDistance * maxReferenceDistance
+
+                    if referenceDistance2 <= maxReferenceDistance2 {
+                        let perturbationResult = PerturbationEngine.perturbationIterationWithCachedRebase(
+                            x0: x0,
+                            y0: y0,
+                            cache: &perturbationReferenceCache,
+                            maxIterations: localMaxIterations,
+                            maximumCachedReferences: maximumCachedPerturbationReferences
+                        )
+
+                        if perturbationResult.reliable {
+                            iteration = perturbationResult.iteration
+                        } else {
+                            iteration = calculateFractalIteration(
+                                mode: mode,
+                                x0: x0,
+                                y0: y0,
+                                maxIterations: localMaxIterations
+                            )
+                        }
+                    } else {
+                        iteration = calculateFractalIteration(
+                            mode: mode,
+                            x0: x0,
+                            y0: y0,
+                            maxIterations: localMaxIterations
+                        )
+                    }
                 } else {
                     iteration = calculateFractalIteration(
                         mode: mode,
