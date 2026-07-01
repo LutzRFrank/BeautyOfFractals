@@ -8,7 +8,6 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
-nonisolated private let experimentalPerturbationCPUEnabled = true
 nonisolated private let perturbationCoverageRadiusPixels = 512.0
 
 
@@ -1805,7 +1804,6 @@ struct MandelbrotView: View {
         if useDeepCPUPreview {
             let usesPerturbation =
                 perturbationEnabled &&
-                experimentalPerturbationCPUEnabled &&
                 fractalMode == .mandelbrot &&
                 scale < 1e-9
 
@@ -2351,6 +2349,18 @@ struct HighPrecisionFractalPreview: View {
                     }
                     .padding(22)
                     .frame(width: 230)
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            showRenderStatus.toggle()
+                        } label: {
+                            Image(systemName: showRenderStatus ? "pin.fill" : "pin")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white.opacity(showRenderStatus ? 0.9 : 0.45))
+                                .padding(10)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Toggle Render Status")
+                    }
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .shadow(color: .black.opacity(0.32), radius: 24, x: 0, y: 12)
@@ -2965,7 +2975,6 @@ nonisolated func renderFractal(
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
 
     let usePerturbation = perturbationEnabled &&
-        experimentalPerturbationCPUEnabled &&
         mode == .mandelbrot &&
         scale < 1e-9
 
@@ -3175,6 +3184,9 @@ nonisolated func renderFractal(
         statsCallback?("""
         Coverage  \(bar(coverage)) \(String(format: "%.1f", coverage))%
         Stability \(bar(stability)) \(String(format: "%.1f", stability))%
+
+        Iterations:   \(maxIterations)
+        Size:         \(width) × \(height)
 
         Perturbation: \(perturbationPixels) / \(totalPixels)
         Direct CPU:    \(fallbackPixels)
