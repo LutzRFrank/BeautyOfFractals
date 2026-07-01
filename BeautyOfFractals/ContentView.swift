@@ -610,6 +610,10 @@ struct ContentView: View {
     @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
     @State private var perturbationEnabled: Bool = true
+    @State private var showPerturbationStats: Bool = false
+    @State private var lastPerturbationStatsText: String? = "No render statistics captured yet.\nRun a deep Mandelbrot CPU render with Perturbation enabled."
+    @State private var perturbationStatsOffset: CGSize = .zero
+    @State private var perturbationStatsDragStartOffset: CGSize = .zero
     
     @State private var centerX: Double = FractalMode.mandelbrot.defaultCenterX
     @State private var centerY: Double = FractalMode.mandelbrot.defaultCenterY
@@ -679,7 +683,8 @@ struct ContentView: View {
                 perturbationEnabled: perturbationEnabled,
                 navigationStarted: recordNavigationStep,
                 navigationRevision: navigationRevision,
-                latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG
+                latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG,
+                onPerturbationStatsPublished: { lastPerturbationStatsText = $0 }
             )
             .frame(minWidth: 760, minHeight: 650)
             .ignoresSafeArea()
@@ -690,6 +695,14 @@ struct ContentView: View {
                         .padding(.top, 72)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
+            }
+
+            if showPerturbationStats {
+                perturbationStatsPanel
+                    .padding(.leading, 28)
+                    .padding(.bottom, 120)
+                    .offset(perturbationStatsOffset)
+                    .transition(.scale.combined(with: .opacity))
             }
 
             controlsOverlay
@@ -781,6 +794,48 @@ The zoom factor overlay is only visible in the app and is not included in export
         }
     }
     
+    private var perturbationStatsPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Perturbation Stats", systemImage: "waveform.path.ecg")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+
+                Spacer()
+
+                Button {
+                    showPerturbationStats = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text(lastPerturbationStatsText ?? "No perturbation statistics available yet.")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.82))
+                .textSelection(.enabled)
+        }
+        .foregroundStyle(.white)
+        .padding(18)
+        .frame(width: 330, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.32), radius: 24, x: 0, y: 12)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    perturbationStatsOffset = CGSize(
+                        width: perturbationStatsDragStartOffset.width + value.translation.width,
+                        height: perturbationStatsDragStartOffset.height + value.translation.height
+                    )
+                }
+                .onEnded { _ in
+                    perturbationStatsDragStartOffset = perturbationStatsOffset
+                }
+        )
+    }
+
     private var controlsOverlay: some View {
         HStack(spacing: 14) {
             HStack(spacing: 10) {
@@ -829,11 +884,16 @@ The zoom factor overlay is only visible in the app and is not included in export
                 Menu {
                     Toggle("Perturbation", isOn: $perturbationEnabled)
                         .disabled(fractalMode != .mandelbrot)
+
+                    Button("Show Last Stats") {
+                        showPerturbationStats = true
+                    }
+                    .disabled(lastPerturbationStatsText == nil)
                 } label: {
-                    Text("Ex…")
-                        .frame(width: 44)
+                    Image(systemName: "waveform.path.ecg")
+                        .frame(width: 22)
                 }
-                .help("Experimental render options")
+                .help("Perturbation diagnostics")
                 
                 Button {
                     zoomOut()
@@ -1597,6 +1657,7 @@ struct MandelbrotView: View {
     let navigationStarted: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
+    let onPerturbationStatsPublished: (String?) -> Void
     
     @State private var dragStart: CGPoint?
     @State private var dragCurrent: CGPoint?
@@ -1760,7 +1821,8 @@ struct MandelbrotView: View {
                             },
                             onThumbnailPublished: { thumbnailPNG in
                                 latestHighPrecisionThumbnailPNG = thumbnailPNG
-                            }
+                            },
+                            onPerturbationStatsPublished: onPerturbationStatsPublished
                         )
                     }
                     
@@ -2070,6 +2132,7 @@ struct HighPrecisionFractalPreview: View {
     let perturbationEnabled: Bool
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
+    let onPerturbationStatsPublished: (String?) -> Void
     
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
@@ -2395,7 +2458,12 @@ struct HighPrecisionFractalPreview: View {
             requestID: requestID,
             progressStart: 0.82,
             perturbationEnabled: perturbationEnabled,
-            progressEnd: 0.995
+            progressEnd: 0.995,
+            statsCallback: { stats in
+                Task { @MainActor in
+                    onPerturbationStatsPublished(stats)
+                }
+            }
         ) {
             image = NSImage(
                 cgImage: finalImage,
@@ -2439,7 +2507,8 @@ struct HighPrecisionFractalPreview: View {
         requestID: String,
         progressStart: Double? = nil,
         perturbationEnabled: Bool,
-        progressEnd: Double? = nil
+        progressEnd: Double? = nil,
+        statsCallback: (@MainActor @Sendable (String?) -> Void)? = nil
     ) async -> CGImage? {
         guard width > 8, height > 8 else { return nil }
 
@@ -2456,6 +2525,12 @@ struct HighPrecisionFractalPreview: View {
                 maxIterations: maxIterations,
                 viewportAspectRatio: aspectRatio,
                 perturbationEnabled: perturbationEnabled,
+                statsCallback: { stats in
+                    Task { @MainActor in
+                        guard requestID == renderID else { return }
+                        statsCallback?(stats)
+                    }
+                },
                 progressCallback: { progress in
                     guard let progressStart, let progressEnd else { return }
                     Task { @MainActor in
@@ -2776,6 +2851,7 @@ nonisolated func renderFractal(
     maxIterations: Int,
     viewportAspectRatio: Double? = nil,
     perturbationEnabled: Bool = true,
+    statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     
@@ -2834,6 +2910,12 @@ nonisolated func renderFractal(
     // progressively slower.
     let maximumCachedPerturbationReferences =
         perturbationReferenceCache.count + 64
+
+    let perturbationRadiusPixels = 128.0
+    var perturbationPixels = 0
+    var fallbackPixels = 0
+    var unreliablePerturbationPixels = 0
+    let initialPerturbationReferenceCount = perturbationReferenceCache.count
     
     for py in 0..<height {
         // The high-precision worker is cancelled as soon as a new drag begins.
@@ -2872,7 +2954,7 @@ nonisolated func renderFractal(
                     )
 
                     let pixelScale = scale / Double(max(width, height))
-                    let maxReferenceDistance = pixelScale * 48.0
+                    let maxReferenceDistance = pixelScale * perturbationRadiusPixels
                     let maxReferenceDistance2 = maxReferenceDistance * maxReferenceDistance
 
                     if referenceDistance2 <= maxReferenceDistance2 {
@@ -2885,8 +2967,11 @@ nonisolated func renderFractal(
                         )
 
                         if perturbationResult.reliable {
+                            perturbationPixels += 1
                             iteration = perturbationResult.iteration
                         } else {
+                            unreliablePerturbationPixels += 1
+                            fallbackPixels += 1
                             iteration = calculateFractalIteration(
                                 mode: mode,
                                 x0: x0,
@@ -2895,6 +2980,7 @@ nonisolated func renderFractal(
                             )
                         }
                     } else {
+                        fallbackPixels += 1
                         iteration = calculateFractalIteration(
                             mode: mode,
                             x0: x0,
@@ -2903,6 +2989,9 @@ nonisolated func renderFractal(
                         )
                     }
                 } else {
+                    if usePerturbation {
+                        fallbackPixels += 1
+                    }
                     iteration = calculateFractalIteration(
                         mode: mode,
                         x0: x0,
@@ -2945,6 +3034,24 @@ nonisolated func renderFractal(
             pixels[offset + 2] = UInt8(clamp01(color.b) * 255.0)
             pixels[offset + 3] = 255
         }
+    }
+    
+    if usePerturbation {
+        let totalPixels = width * height
+        let cachedReferences = perturbationReferenceCache.count - initialPerturbationReferenceCount
+
+        statsCallback?("""
+        Perturbation: \(perturbationPixels) / \(totalPixels) pixels (\(String(format: "%.1f", 100.0 * Double(perturbationPixels) / Double(totalPixels)))%)
+
+        Direct fallback: \(fallbackPixels)
+        Unreliable perturbation: \(unreliablePerturbationPixels)
+
+        Initial references: \(initialPerturbationReferenceCount)
+        Cached rebases: +\(cachedReferences)
+        Radius: \(Int(perturbationRadiusPixels)) px
+        """)
+    } else {
+        statsCallback?(nil)
     }
     
     return makeCGImage(
