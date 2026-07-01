@@ -812,10 +812,15 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .buttonStyle(.plain)
             }
 
-            Text(lastPerturbationStatsText ?? "No perturbation statistics available yet.")
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.82))
-                .textSelection(.enabled)
+            if let stats = lastPerturbationStatsText,
+               let parsed = parsePerturbationStats(stats) {
+                perturbationStatsContent(parsed)
+            } else {
+                Text(lastPerturbationStatsText ?? "No perturbation statistics available yet.")
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .textSelection(.enabled)
+            }
         }
         .foregroundStyle(.white)
         .padding(18)
@@ -835,6 +840,90 @@ The zoom factor overlay is only visible in the app and is not included in export
                     perturbationStatsDragStartOffset = perturbationStatsOffset
                 }
         )
+    }
+
+
+    private struct ParsedPerturbationStats {
+        let coverage: Double
+        let stability: Double
+        let details: String
+    }
+
+    private func parsePerturbationStats(_ text: String) -> ParsedPerturbationStats? {
+        func value(after label: String) -> Double? {
+            guard let line = text.split(separator: "\n").first(where: { $0.contains(label) }) else {
+                return nil
+            }
+            guard let percentRange = line.range(of: "%") else { return nil }
+            let beforePercent = line[..<percentRange.lowerBound]
+            let number = beforePercent
+                .split(separator: " ")
+                .last
+                .map(String.init)?
+                .replacingOccurrences(of: ",", with: ".")
+            return number.flatMap(Double.init)
+        }
+
+        guard let coverage = value(after: "Coverage"),
+              let stability = value(after: "Stability") else {
+            return nil
+        }
+
+        let detailLines = text
+            .split(separator: "\n")
+            .filter { !$0.contains("Coverage") && !$0.contains("Stability") }
+            .joined(separator: "\n")
+
+        return ParsedPerturbationStats(
+            coverage: coverage,
+            stability: stability,
+            details: detailLines
+        )
+    }
+
+    private func perturbationStatsContent(_ stats: ParsedPerturbationStats) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            perturbationMetricRow(title: "Coverage", value: stats.coverage)
+            perturbationMetricRow(title: "Stability", value: stats.stability)
+
+            Text(stats.details)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.78))
+                .textSelection(.enabled)
+        }
+    }
+
+    private func perturbationMetricRow(title: String, value: Double) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                Spacer()
+                Text(String(format: "%.1f%%", value))
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+            }
+            .foregroundStyle(.white.opacity(0.86))
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(.white.opacity(0.14))
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.cyan, .blue, .cyan],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(
+                            width: geometry.size.width * min(max(value / 100.0, 0.0), 1.0)
+                        )
+                }
+            }
+            .frame(height: 8)
+        }
     }
 
     private var controlsOverlay: some View {
