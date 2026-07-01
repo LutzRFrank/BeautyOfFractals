@@ -9,6 +9,7 @@ import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
 nonisolated private let experimentalPerturbationCPUEnabled = true
+nonisolated private let perturbationCoverageRadiusPixels = 384.0
 
 
 // Below this scale a Float-based Metal preview can no longer reliably represent
@@ -2911,7 +2912,7 @@ nonisolated func renderFractal(
     let maximumCachedPerturbationReferences =
         perturbationReferenceCache.count + 64
 
-    let perturbationRadiusPixels = 384.0
+    let perturbationRadiusPixels = perturbationCoverageRadiusPixels
     var perturbationPixels = 0
     var fallbackPixels = 0
     var unreliablePerturbationPixels = 0
