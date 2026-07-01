@@ -80,8 +80,8 @@ nonisolated struct PerturbationReferenceCache {
             )
         )
 
-        references.append(reference)
-        addedLocalReferenceCount += 1
+        // references.append(reference)
+        // addedLocalReferenceCount += 1
         return reference
     }
 }

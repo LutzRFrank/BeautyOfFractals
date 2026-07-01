@@ -9,7 +9,7 @@ import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
 nonisolated private let experimentalPerturbationCPUEnabled = true
-nonisolated private let perturbationCoverageRadiusPixels = 384.0
+nonisolated private let perturbationCoverageRadiusPixels = 128.0
 
 
 // Below this scale a Float-based Metal preview can no longer reliably represent
@@ -883,8 +883,16 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Choose render quality")
 
                 Menu {
-                    Toggle("Perturbation", isOn: $perturbationEnabled)
-                        .disabled(fractalMode != .mandelbrot)
+                    Toggle("Perturbation", isOn: Binding(
+                        get: { perturbationEnabled },
+                        set: { newValue in
+                            perturbationEnabled = newValue
+                            latestHighPrecisionThumbnailPNG = nil
+                            lastPerturbationStatsText = nil
+                            navigationRevision &+= 1
+                        }
+                    ))
+                    .disabled(fractalMode != .mandelbrot)
 
                     Button("Show Last Stats") {
                         showPerturbationStats = true
@@ -1707,6 +1715,7 @@ struct MandelbrotView: View {
         
         if useDeepCPUPreview {
             let usesPerturbation =
+                perturbationEnabled &&
                 experimentalPerturbationCPUEnabled &&
                 fractalMode == .mandelbrot &&
                 scale < 1e-9
@@ -2968,8 +2977,30 @@ nonisolated func renderFractal(
                         )
 
                         if perturbationResult.reliable {
-                            perturbationPixels += 1
-                            iteration = perturbationResult.iteration
+                            let shouldPulseCheck =
+                                px.isMultiple(of: 32) &&
+                                py.isMultiple(of: 32)
+
+                            if shouldPulseCheck {
+                                let directIteration = calculateFractalIteration(
+                                    mode: mode,
+                                    x0: x0,
+                                    y0: y0,
+                                    maxIterations: localMaxIterations
+                                )
+
+                                if abs(directIteration - perturbationResult.iteration) > 8 {
+                                    unreliablePerturbationPixels += 1
+                                    fallbackPixels += 1
+                                    iteration = directIteration
+                                } else {
+                                    perturbationPixels += 1
+                                    iteration = perturbationResult.iteration
+                                }
+                            } else {
+                                perturbationPixels += 1
+                                iteration = perturbationResult.iteration
+                            }
                         } else {
                             unreliablePerturbationPixels += 1
                             fallbackPixels += 1
@@ -3041,15 +3072,27 @@ nonisolated func renderFractal(
         let totalPixels = width * height
         let cachedReferences = perturbationReferenceCache.count - initialPerturbationReferenceCount
 
+        let coverage = 100.0 * Double(perturbationPixels) / Double(totalPixels)
+        let checkedPerturbationPixels = max(perturbationPixels + unreliablePerturbationPixels, 1)
+        let stability = 100.0 * Double(perturbationPixels) / Double(checkedPerturbationPixels)
+
+        func bar(_ value: Double) -> String {
+            let filled = Int((value / 10.0).rounded())
+            let clamped = min(max(filled, 0), 10)
+            return String(repeating: "█", count: clamped)
+                + String(repeating: "░", count: 10 - clamped)
+        }
+
         statsCallback?("""
-        Perturbation: \(perturbationPixels) / \(totalPixels) pixels (\(String(format: "%.1f", 100.0 * Double(perturbationPixels) / Double(totalPixels)))%)
+        Coverage  \(bar(coverage)) \(String(format: "%.1f", coverage))%
+        Stability \(bar(stability)) \(String(format: "%.1f", stability))%
 
-        Direct fallback: \(fallbackPixels)
-        Unreliable perturbation: \(unreliablePerturbationPixels)
+        Perturbation: \(perturbationPixels) / \(totalPixels)
+        Direct CPU:    \(fallbackPixels)
+        Unreliable:    \(unreliablePerturbationPixels)
 
-        Initial references: \(initialPerturbationReferenceCount)
-        Cached rebases: +\(cachedReferences)
-        Radius: \(Int(perturbationRadiusPixels)) px
+        References:    \(initialPerturbationReferenceCount) + \(cachedReferences)
+        Radius:        \(Int(perturbationRadiusPixels)) px
         """)
     } else {
         statsCallback?(nil)
