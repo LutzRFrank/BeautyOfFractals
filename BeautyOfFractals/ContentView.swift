@@ -2911,7 +2911,7 @@ nonisolated func renderFractal(
     let maximumCachedPerturbationReferences =
         perturbationReferenceCache.count + 64
 
-    let perturbationRadiusPixels = 128.0
+    let perturbationRadiusPixels = 384.0
     var perturbationPixels = 0
     var fallbackPixels = 0
     var unreliablePerturbationPixels = 0
