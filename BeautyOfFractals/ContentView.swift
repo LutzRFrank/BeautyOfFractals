@@ -3036,7 +3036,7 @@ nonisolated func renderFractal(
     // This lets neighboring pixels reuse local reference orbits without
     // leaking them globally, which avoids the old bubble artifacts.
     let maximumRowLocalPerturbationReferences =
-        perturbationReferenceCache.count + 256
+        perturbationReferenceCache.count + 16
 
     let perturbationRadiusPixels = perturbationCoverageRadiusPixels(
         scale: scale,
