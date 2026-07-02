@@ -8,6 +8,10 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
+
+// Temporary comparison switch. This is intentionally opt-in while the
+// DoubleDouble renderer is validated against the existing direct CPU path.
+private let doubleDoubleDirectRendererEnabled = false
 nonisolated private func perturbationCoverageRadiusPixels(
     scale: Double,
     viewportWidth: Int
@@ -3169,6 +3173,27 @@ nonisolated func renderFractal(
     let usePerturbation = perturbationEnabled &&
         mode == .mandelbrot &&
         scale < 1e-9
+
+    // Temporary opt-in comparison path. The normal deep renderer remains
+    // Double unless this switch is enabled and a precise snapshot is available.
+    if doubleDoubleDirectRendererEnabled,
+       !usePerturbation,
+       mode == .mandelbrot,
+       let preciseViewport,
+       scale < directDeepMandelbrotScaleLimit,
+       width >= 512,
+       height >= 256,
+       maxIterations >= 8_000 {
+        return renderDirectMandelbrotDoubleDoubleParallel(
+            width: width,
+            height: height,
+            palette: palette,
+            preciseViewport: preciseViewport,
+            maxIterations: maxIterations,
+            viewportAspectRatio: aspectRatio,
+            progressCallback: progressCallback
+        )
+    }
 
     // Release deep zoom currently uses the proven direct Double renderer.
     // Split only this expensive exact path across CPU cores; all other modes,
