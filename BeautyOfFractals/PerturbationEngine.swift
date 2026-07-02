@@ -35,7 +35,6 @@ struct PerturbationReference {
 
 nonisolated struct PerturbationReferenceCache {
     private(set) var references: [PerturbationReference]
-    private(set) var addedLocalReferenceCount: Int = 0
 
     var count: Int {
         references.count
@@ -65,7 +64,7 @@ nonisolated struct PerturbationReferenceCache {
             .min() ?? .greatestFiniteMagnitude
     }
 
-    mutating func addLocalReference(
+    func makeLocalReference(
         centerX: Double,
         centerY: Double,
         maxIterations: Int
@@ -81,7 +80,6 @@ nonisolated struct PerturbationReferenceCache {
         )
 
         // references.append(reference)
-        // addedLocalReferenceCount += 1
         return reference
     }
 }
@@ -264,7 +262,7 @@ nonisolated enum PerturbationEngine {
             if result.shouldRebase,
                cache.count < maximumCachedReferences {
                 rebaseCount += 1
-                let localReference = cache.addLocalReference(
+                let localReference = cache.makeLocalReference(
                     centerX: x0,
                     centerY: y0,
                     maxIterations: maxIterations
