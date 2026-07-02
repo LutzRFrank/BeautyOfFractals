@@ -3054,6 +3054,10 @@ nonisolated func renderFractal(
     var localReferenceStartPixels = 0
     var localReferenceReusePixels = 0
     var localReferenceFallbackPixels = 0
+    var initialReferenceFirstRebaseCount = 0
+    var initialReferenceFirstRebaseIterationSum = 0
+    var localReferenceFirstRebaseCount = 0
+    var localReferenceFirstRebaseIterationSum = 0
     let initialPerturbationReferenceCount = perturbationReferenceCache.count
     
     for py in 0..<height {
@@ -3116,6 +3120,19 @@ nonisolated func renderFractal(
                             maxIterations: localMaxIterations,
                             maximumCachedReferences: maximumRowLocalPerturbationReferences
                         )
+
+                        if let firstRebaseIteration =
+                            perturbationResult.firstRebaseIteration {
+                            if startedFromLocalReference {
+                                localReferenceFirstRebaseCount += 1
+                                localReferenceFirstRebaseIterationSum +=
+                                    firstRebaseIteration
+                            } else {
+                                initialReferenceFirstRebaseCount += 1
+                                initialReferenceFirstRebaseIterationSum +=
+                                    firstRebaseIteration
+                            }
+                        }
 
                         if perturbationResult.reliable {
                             let shouldPulseCheck =
@@ -3259,6 +3276,22 @@ nonisolated func renderFractal(
             ? Double(totalRowLocalReferences) / Double(height)
             : 0.0
 
+        func averageIterationText(sum: Int, count: Int) -> String {
+            guard count > 0 else { return "none" }
+            return String(
+                Int((Double(sum) / Double(count)).rounded())
+            )
+        }
+
+        let initialReferenceFirstRebaseAverage = averageIterationText(
+            sum: initialReferenceFirstRebaseIterationSum,
+            count: initialReferenceFirstRebaseCount
+        )
+        let localReferenceFirstRebaseAverage = averageIterationText(
+            sum: localReferenceFirstRebaseIterationSum,
+            count: localReferenceFirstRebaseCount
+        )
+
         let coverage = 100.0 * Double(perturbationPixels) / Double(totalPixels)
         let checkedPerturbationPixels = max(perturbationPixels + unreliablePerturbationPixels, 1)
         let stability = 100.0 * Double(perturbationPixels) / Double(checkedPerturbationPixels)
@@ -3294,6 +3327,11 @@ nonisolated func renderFractal(
         Local starts:  \(localReferenceStartPixels)
         Local reuse:   \(localReferenceReusePixels)
         Local fallback:\(localReferenceFallbackPixels)
+
+        Grid 1st rb:   \(initialReferenceFirstRebaseAverage)
+        Grid rb px:    \(initialReferenceFirstRebaseCount)
+        Local 1st rb:  \(localReferenceFirstRebaseAverage)
+        Local rb px:   \(localReferenceFirstRebaseCount)
         Radius:        Auto \(Int(perturbationRadiusPixels)) px
         """)
     } else {
