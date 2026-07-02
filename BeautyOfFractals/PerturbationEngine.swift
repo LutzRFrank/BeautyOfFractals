@@ -126,7 +126,10 @@ nonisolated enum PerturbationEngine {
         aspectRatio: Double,
         maxIterations: Int
     ) -> [PerturbationReference] {
-        let offsets = [-0.5, 0.0, 0.5]
+        let zoom = 3.0 / max(scale, 1e-30)
+        let offsets = zoom >= 1e12
+            ? [-0.5, -0.25, 0.0, 0.25, 0.5]
+            : [-0.5, 0.0, 0.5]
 
         return offsets.flatMap { oy in
             offsets.map { ox in
