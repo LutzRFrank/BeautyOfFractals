@@ -842,6 +842,22 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .buttonStyle(.plain)
             }
 
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Precise Viewport")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+
+                Text(
+                    "X lo: \(String(format: "%+.17e", preciseViewport.centerX.lo))\n" +
+                    "Y lo: \(String(format: "%+.17e", preciseViewport.centerY.lo))\n" +
+                    "S lo: \(String(format: "%+.17e", preciseViewport.scale.lo))"
+                )
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.78))
+                .textSelection(.enabled)
+            }
+
             if let stats = lastPerturbationStatsText,
                let parsed = parsePerturbationStats(stats) {
                 perturbationStatsContent(parsed)
@@ -1016,7 +1032,6 @@ The zoom factor overlay is only visible in the app and is not included in export
                     Button("Show Last Stats") {
                         showPerturbationStats = true
                     }
-                    .disabled(lastPerturbationStatsText == nil)
                 } label: {
                     Image(systemName: "waveform.path.ecg")
                         .frame(width: 22)
