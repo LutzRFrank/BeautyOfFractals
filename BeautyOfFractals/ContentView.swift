@@ -629,9 +629,9 @@ struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
     @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
-    @State private var perturbationEnabled: Bool = true
+    @State private var perturbationEnabled: Bool = false
     @State private var showPerturbationStats: Bool = false
-    @State private var lastPerturbationStatsText: String? = "No render statistics captured yet.\nRun a deep Mandelbrot CPU render with Perturbation enabled."
+    @State private var lastPerturbationStatsText: String? = "No experimental Perturbation statistics captured yet.\nEnable Experimental Perturbation for a deep Mandelbrot CPU render."
     @State private var perturbationStatsOffset: CGSize = .zero
     @State private var perturbationStatsDragStartOffset: CGSize = .zero
     
@@ -991,7 +991,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Choose render quality")
 
                 Menu {
-                    Toggle("Perturbation", isOn: Binding(
+                    Toggle("Experimental Perturbation", isOn: Binding(
                         get: { perturbationEnabled },
                         set: { newValue in
                             perturbationEnabled = newValue
@@ -1010,7 +1010,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                     Image(systemName: "waveform.path.ecg")
                         .frame(width: 22)
                 }
-                .help("Perturbation diagnostics")
+                .help("Experimental Perturbation diagnostics")
                 
                 Button {
                     zoomOut()
@@ -2915,13 +2915,32 @@ nonisolated private func renderDirectMandelbrotParallel(
                     + ((Double(py) + 0.5) / Double(height) - 0.5)
                     * scale
 
-                let localMaxIterations = maxIterations
-                let iteration = calculateFractalIteration(
+                var localMaxIterations = maxIterations
+                var iteration = calculateFractalIteration(
                     mode: .mandelbrot,
                     x0: x0,
                     y0: y0,
                     maxIterations: localMaxIterations
                 )
+
+                if shouldApplyAdaptiveIterationRefinement(
+                    mode: .mandelbrot,
+                    width: width,
+                    maxIterations: maxIterations,
+                    iteration: iteration
+                ) {
+                    localMaxIterations = min(
+                        maxIterations + maxIterations / 2,
+                        120_000
+                    )
+
+                    iteration = calculateFractalIteration(
+                        mode: .mandelbrot,
+                        x0: x0,
+                        y0: y0,
+                        maxIterations: localMaxIterations
+                    )
+                }
 
                 let color: (r: Double, g: Double, b: Double)
 
