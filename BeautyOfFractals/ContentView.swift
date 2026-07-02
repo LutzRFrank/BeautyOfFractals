@@ -19,8 +19,6 @@ nonisolated private func perturbationCoverageRadiusPixels(
         return 256.0
     case ..<1e9:
         return 384.0
-    case ..<1e10:
-        return 512.0
     case ..<1e11:
         return 640.0
     case ..<1e12:
@@ -3048,6 +3046,8 @@ nonisolated func renderFractal(
     var perturbationPixels = 0
     var fallbackPixels = 0
     var unreliablePerturbationPixels = 0
+    var fallbackSumX = 0.0
+    var fallbackSumY = 0.0
     let initialPerturbationReferenceCount = perturbationReferenceCache.count
     
     for py in 0..<height {
@@ -3115,6 +3115,8 @@ nonisolated func renderFractal(
                                 if abs(directIteration - perturbationResult.iteration) > 8 {
                                     unreliablePerturbationPixels += 1
                                     fallbackPixels += 1
+                                    fallbackSumX += Double(px)
+                                    fallbackSumY += Double(py)
                                     iteration = directIteration
                                 } else {
                                     perturbationPixels += 1
@@ -3127,6 +3129,8 @@ nonisolated func renderFractal(
                         } else {
                             unreliablePerturbationPixels += 1
                             fallbackPixels += 1
+                            fallbackSumX += Double(px)
+                            fallbackSumY += Double(py)
                             iteration = calculateFractalIteration(
                                 mode: mode,
                                 x0: x0,
@@ -3136,6 +3140,8 @@ nonisolated func renderFractal(
                         }
                     } else {
                         fallbackPixels += 1
+                        fallbackSumX += Double(px)
+                        fallbackSumY += Double(py)
                         iteration = calculateFractalIteration(
                             mode: mode,
                             x0: x0,
@@ -3146,6 +3152,8 @@ nonisolated func renderFractal(
                 } else {
                     if usePerturbation {
                         fallbackPixels += 1
+                        fallbackSumX += Double(px)
+                        fallbackSumY += Double(py)
                     }
                     iteration = calculateFractalIteration(
                         mode: mode,
@@ -3198,7 +3206,6 @@ nonisolated func renderFractal(
         let coverage = 100.0 * Double(perturbationPixels) / Double(totalPixels)
         let checkedPerturbationPixels = max(perturbationPixels + unreliablePerturbationPixels, 1)
         let stability = 100.0 * Double(perturbationPixels) / Double(checkedPerturbationPixels)
-
         func bar(_ value: Double) -> String {
             let filled = Int((value / 10.0).rounded())
             let clamped = min(max(filled, 0), 10)
@@ -3218,7 +3225,7 @@ nonisolated func renderFractal(
         Unreliable:    \(unreliablePerturbationPixels)
 
         References:    \(initialPerturbationReferenceCount) + \(cachedReferences)
-        Radius:        \(Int(perturbationRadiusPixels)) px
+        Radius:        Auto \(Int(perturbationRadiusPixels)) px
         """)
     } else {
         statsCallback?(nil)
