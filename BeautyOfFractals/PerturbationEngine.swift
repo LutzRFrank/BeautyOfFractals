@@ -6,7 +6,7 @@ nonisolated struct PerturbationOrbit {
     let escapedAt: Int
 }
 
-nonisolated 
+nonisolated
 struct PerturbationState {
     var zx: Double = 0.0
     var zy: Double = 0.0
@@ -18,6 +18,7 @@ struct PerturbationIterationResult {
     let iteration: Int
     let reliable: Bool
     let rebaseCount: Int
+    let firstRebaseIteration: Int?
 }
 
 struct PerturbationStepResult {
@@ -64,7 +65,7 @@ nonisolated struct PerturbationReferenceCache {
             .min() ?? .greatestFiniteMagnitude
     }
 
-    func makeLocalReference(
+    mutating func cacheLocalReference(
         centerX: Double,
         centerY: Double,
         maxIterations: Int
@@ -80,6 +81,7 @@ nonisolated struct PerturbationReferenceCache {
         )
 
         // references.append(reference)
+        references.append(reference)
         return reference
     }
 }
@@ -207,7 +209,7 @@ nonisolated enum PerturbationEngine {
         }
 
         let deltaMagnitude2 = state.zx * state.zx + state.zy * state.zy
-        let shouldRebase = deltaMagnitude2 > 0.000001
+        let shouldRebase = deltaMagnitude2 > 0.00001
 
         if state.iteration >= orbit.escapedAt {
             return PerturbationStepResult(
@@ -236,12 +238,14 @@ nonisolated enum PerturbationEngine {
             return PerturbationIterationResult(
                 iteration: maxIterations,
                 reliable: false,
-                rebaseCount: 0
+                rebaseCount: 0,
+                firstRebaseIteration: nil
             )
         }
 
         var state = PerturbationState(reference: initialReference)
         var rebaseCount = 0
+        var firstRebaseIteration: Int?
 
         while state.iteration < maxIterations {
             let result = step(
@@ -254,28 +258,52 @@ nonisolated enum PerturbationEngine {
             if result.escaped {
                 return PerturbationIterationResult(
                     iteration: result.iteration,
-                    reliable: rebaseCount <= 4,
-                    rebaseCount: rebaseCount
+                    reliable: true,
+                    rebaseCount: rebaseCount,
+                    firstRebaseIteration: firstRebaseIteration
                 )
             }
 
-            if result.shouldRebase,
-               cache.count < maximumCachedReferences {
+            if result.shouldRebase {
+                // A reference orbit for the exact target point has all global
+                // orbit positions available. Reset only the delta; preserve the
+                // absolute iteration so the next step continues at z_n, not z_0.
+                guard cache.count < maximumCachedReferences,
+                      rebaseCount < 4 else {
+                    return PerturbationIterationResult(
+                        iteration: result.iteration,
+                        reliable: false,
+                        rebaseCount: rebaseCount,
+                        firstRebaseIteration: firstRebaseIteration
+                    )
+                }
+
                 rebaseCount += 1
-                let localReference = cache.makeLocalReference(
+                if firstRebaseIteration == nil {
+                    firstRebaseIteration = state.iteration
+                }
+
+                let preservedIteration = state.iteration
+                let localReference = cache.cacheLocalReference(
                     centerX: x0,
                     centerY: y0,
                     maxIterations: maxIterations
                 )
 
-                state = PerturbationState(reference: localReference)
+                state = PerturbationState(
+                    zx: 0.0,
+                    zy: 0.0,
+                    iteration: preservedIteration,
+                    reference: localReference
+                )
             }
         }
 
         return PerturbationIterationResult(
             iteration: maxIterations,
-            reliable: rebaseCount <= 4,
-            rebaseCount: rebaseCount
+            reliable: true,
+            rebaseCount: rebaseCount,
+            firstRebaseIteration: firstRebaseIteration
         )
     }
 

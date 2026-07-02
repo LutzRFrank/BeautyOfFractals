@@ -3020,7 +3020,7 @@ nonisolated func renderFractal(
         )
     }
 
-    var perturbationReferenceCache = PerturbationReferenceCache(
+    let perturbationReferenceCache = PerturbationReferenceCache(
         references: usePerturbation
             ? PerturbationEngine.makeReferenceGrid(
                 centerX: centerX,
@@ -3032,12 +3032,11 @@ nonisolated func renderFractal(
             : []
     )
 
-    // The reference grid starts with nine entries. Local rebases are shared
-    // across the complete render, but must stay bounded: otherwise every pixel
-    // can append more full reference orbits and make nearest-reference lookup
-    // progressively slower.
-    let maximumCachedPerturbationReferences =
-        perturbationReferenceCache.count + 64
+    // Local rebases are cached only within a single image row.
+    // This lets neighboring pixels reuse local reference orbits without
+    // leaking them globally, which avoids the old bubble artifacts.
+    let maximumRowLocalPerturbationReferences =
+        perturbationReferenceCache.count + 256
 
     let perturbationRadiusPixels = perturbationCoverageRadiusPixels(
         scale: scale,
@@ -3046,9 +3045,14 @@ nonisolated func renderFractal(
     var perturbationPixels = 0
     var fallbackPixels = 0
     var unreliablePerturbationPixels = 0
+    var perturbationRebasePixels = 0
+    var totalPerturbationRebases = 0
+    var firstRebaseIterationSum = 0
     let initialPerturbationReferenceCount = perturbationReferenceCache.count
     
     for py in 0..<height {
+        var rowPerturbationReferenceCache = perturbationReferenceCache
+
         // The high-precision worker is cancelled as soon as a new drag begins.
         if Task.isCancelled { return nil }
 
@@ -3079,7 +3083,7 @@ nonisolated func renderFractal(
                 var iteration: Int
 
                 if perturbationReferenceCache.count > 0 {
-                    let referenceDistance2 = perturbationReferenceCache.nearestReferenceDistanceSquared(
+                    let referenceDistance2 = rowPerturbationReferenceCache.nearestReferenceDistanceSquared(
                         forX: x0,
                         y: y0
                     )
@@ -3092,9 +3096,9 @@ nonisolated func renderFractal(
                         let perturbationResult = PerturbationEngine.perturbationIterationWithCachedRebase(
                             x0: x0,
                             y0: y0,
-                            cache: &perturbationReferenceCache,
+                            cache: &rowPerturbationReferenceCache,
                             maxIterations: localMaxIterations,
-                            maximumCachedReferences: maximumCachedPerturbationReferences
+                            maximumCachedReferences: maximumRowLocalPerturbationReferences
                         )
 
                         if perturbationResult.reliable {
@@ -3116,10 +3120,24 @@ nonisolated func renderFractal(
                                     iteration = directIteration
                                 } else {
                                     perturbationPixels += 1
+                                    if perturbationResult.rebaseCount > 0 {
+                                        perturbationRebasePixels += 1
+                                        totalPerturbationRebases += perturbationResult.rebaseCount
+                                        if let firstRebaseIteration = perturbationResult.firstRebaseIteration {
+                                            firstRebaseIterationSum += firstRebaseIteration
+                                        }
+                                    }
                                     iteration = perturbationResult.iteration
                                 }
                             } else {
                                 perturbationPixels += 1
+                                if perturbationResult.rebaseCount > 0 {
+                                    perturbationRebasePixels += 1
+                                    totalPerturbationRebases += perturbationResult.rebaseCount
+                                    if let firstRebaseIteration = perturbationResult.firstRebaseIteration {
+                                        firstRebaseIterationSum += firstRebaseIteration
+                                    }
+                                }
                                 iteration = perturbationResult.iteration
                             }
                         } else {
@@ -3196,6 +3214,9 @@ nonisolated func renderFractal(
         let coverage = 100.0 * Double(perturbationPixels) / Double(totalPixels)
         let checkedPerturbationPixels = max(perturbationPixels + unreliablePerturbationPixels, 1)
         let stability = 100.0 * Double(perturbationPixels) / Double(checkedPerturbationPixels)
+        let averageFirstRebaseIteration = perturbationRebasePixels > 0
+            ? String(Int((Double(firstRebaseIterationSum) / Double(perturbationRebasePixels)).rounded()))
+            : "none"
         func bar(_ value: Double) -> String {
             let filled = Int((value / 10.0).rounded())
             let clamped = min(max(filled, 0), 10)
@@ -3213,6 +3234,9 @@ nonisolated func renderFractal(
         Perturbation: \(perturbationPixels) / \(totalPixels)
         Direct CPU:    \(fallbackPixels)
         Unreliable:    \(unreliablePerturbationPixels)
+        Rebased px:    \(perturbationRebasePixels)
+        Rebases:       \(totalPerturbationRebases)
+        First rebase:  \(averageFirstRebaseIteration)
 
         References:    \(initialPerturbationReferenceCount) + \(cachedReferences)
         Radius:        Auto \(Int(perturbationRadiusPixels)) px
