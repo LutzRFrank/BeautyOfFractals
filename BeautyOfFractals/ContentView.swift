@@ -3424,15 +3424,34 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
                 let x0 = preciseViewport.centerX
                     + preciseViewport.scale * horizontalOffset
 
-                let iteration = calculateMandelbrotIterationDoubleDouble(
+                var localMaxIterations = maxIterations
+                var iteration = calculateMandelbrotIterationDoubleDouble(
                     cX: x0,
                     cY: y0,
-                    maxIterations: maxIterations
+                    maxIterations: localMaxIterations
                 )
+
+                if shouldApplyAdaptiveIterationRefinement(
+                    mode: .mandelbrot,
+                    width: width,
+                    maxIterations: maxIterations,
+                    iteration: iteration
+                ) {
+                    localMaxIterations = min(
+                        maxIterations + maxIterations / 2,
+                        120_000
+                    )
+
+                    iteration = calculateMandelbrotIterationDoubleDouble(
+                        cX: x0,
+                        cY: y0,
+                        maxIterations: localMaxIterations
+                    )
+                }
 
                 let color: (r: Double, g: Double, b: Double)
 
-                if iteration == maxIterations {
+                if iteration == localMaxIterations {
                     color = insideColor(
                         mode: .mandelbrot,
                         palette: palette
