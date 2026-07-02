@@ -11,7 +11,9 @@ private let highPrecisionScaleLimit: Double = 0.006
 
 // Temporary comparison switch. This is intentionally opt-in while the
 // DoubleDouble renderer is validated against the existing direct CPU path.
-private let doubleDoubleDirectRendererEnabled = false
+nonisolated private func doubleDoubleDirectRendererEnabled() -> Bool {
+    false
+}
 nonisolated private func perturbationCoverageRadiusPixels(
     scale: Double,
     viewportWidth: Int
@@ -828,7 +830,7 @@ The zoom factor overlay is only visible in the app and is not included in export
     private var perturbationStatsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Perturbation Stats", systemImage: "waveform.path.ecg")
+                Label("Render Diagnostics", systemImage: "waveform.path.ecg")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
 
                 Spacer()
@@ -1029,14 +1031,14 @@ The zoom factor overlay is only visible in the app and is not included in export
                     ))
                     .disabled(fractalMode != .mandelbrot)
 
-                    Button("Show Last Stats") {
+                    Button("Show Diagnostics") {
                         showPerturbationStats = true
                     }
                 } label: {
                     Image(systemName: "waveform.path.ecg")
                         .frame(width: 22)
                 }
-                .help("Perturbation diagnostics")
+                .help("Render diagnostics")
                 
                 Button {
                     zoomOut()
@@ -3191,7 +3193,7 @@ nonisolated func renderFractal(
 
     // Temporary opt-in comparison path. The normal deep renderer remains
     // Double unless this switch is enabled and a precise snapshot is available.
-    if doubleDoubleDirectRendererEnabled,
+    if doubleDoubleDirectRendererEnabled(),
        !usePerturbation,
        mode == .mandelbrot,
        let preciseViewport,
