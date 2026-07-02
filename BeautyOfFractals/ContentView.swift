@@ -3030,6 +3030,116 @@ nonisolated private func renderDirectMandelbrotParallel(
     )
 }
 
+nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
+    width: Int,
+    height: Int,
+    palette: FractalPalette,
+    preciseViewport: PreciseViewport,
+    maxIterations: Int,
+    viewportAspectRatio: Double,
+    progressCallback: (@Sendable (Double) -> Void)? = nil
+) -> CGImage? {
+    let bytesPerPixel = 4
+    let bytesPerRow = width * bytesPerPixel
+    let bitsPerComponent = 8
+    let byteCount = width * height * bytesPerPixel
+
+    let storage = DirectRenderPixelStorage(byteCount: byteCount)
+
+    let processorCount = max(1, ProcessInfo.processInfo.activeProcessorCount)
+    let bandCount = min(height, max(2, processorCount * 3))
+    let rowsPerBand = (height + bandCount - 1) / bandCount
+    let bandProgress = progressCallback.map {
+        DirectRenderBandProgress(totalBands: bandCount, report: $0)
+    }
+
+    let pixelWidth = Double(width)
+    let pixelHeight = Double(height)
+
+    DispatchQueue.concurrentPerform(iterations: bandCount) { bandIndex in
+        let startRow = bandIndex * rowsPerBand
+        let endRow = min(startRow + rowsPerBand, height)
+
+        guard startRow < endRow else { return }
+
+        for py in startRow..<endRow {
+            if Task.isCancelled { return }
+
+            let verticalOffset =
+                (Double(py) + 0.5) / pixelHeight - 0.5
+
+            let y0 = preciseViewport.centerY
+                + preciseViewport.scale * verticalOffset
+
+            for px in 0..<width {
+                if px.isMultiple(of: 64), Task.isCancelled { return }
+
+                let horizontalOffset =
+                    ((Double(px) + 0.5) / pixelWidth - 0.5)
+                    * viewportAspectRatio
+
+                let x0 = preciseViewport.centerX
+                    + preciseViewport.scale * horizontalOffset
+
+                let iteration = calculateMandelbrotIterationDoubleDouble(
+                    cX: x0,
+                    cY: y0,
+                    maxIterations: maxIterations
+                )
+
+                let color: (r: Double, g: Double, b: Double)
+
+                if iteration == maxIterations {
+                    color = insideColor(
+                        mode: .mandelbrot,
+                        palette: palette
+                    )
+                } else {
+                    let t = Double(iteration) / Double(maxIterations)
+
+                    color = cpuPaletteColor(
+                        t: t,
+                        mode: .mandelbrot,
+                        palette: palette
+                    )
+                }
+
+                let offset = (py * width + px) * bytesPerPixel
+
+                storage.pointer[offset + 0] =
+                    UInt8(clamp01(color.r) * 255.0)
+                storage.pointer[offset + 1] =
+                    UInt8(clamp01(color.g) * 255.0)
+                storage.pointer[offset + 2] =
+                    UInt8(clamp01(color.b) * 255.0)
+                storage.pointer[offset + 3] = 255
+            }
+        }
+
+        bandProgress?.finishBand()
+    }
+
+    guard !Task.isCancelled else {
+        return nil
+    }
+
+    let pixels = Array(
+        UnsafeBufferPointer(
+            start: storage.pointer,
+            count: storage.byteCount
+        )
+    )
+
+    return makeCGImage(
+        pixels: pixels,
+        width: width,
+        height: height,
+        bytesPerRow: bytesPerRow,
+        bitsPerComponent: bitsPerComponent,
+        bytesPerPixel: bytesPerPixel
+    )
+}
+
 nonisolated func renderFractal(
     width: Int,
     height: Int,
