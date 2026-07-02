@@ -9,11 +9,6 @@ import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
 
-// Temporary comparison switch. This is intentionally opt-in while the
-// DoubleDouble renderer is validated against the existing direct CPU path.
-nonisolated private func doubleDoubleDirectRendererEnabled() -> Bool {
-    false
-}
 nonisolated private func perturbationCoverageRadiusPixels(
     scale: Double,
     viewportWidth: Int
@@ -636,6 +631,7 @@ struct ContentView: View {
     @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
     @State private var perturbationEnabled: Bool = false
+    @State private var doubleDoubleEnabled: Bool = false
     @State private var showPerturbationStats: Bool = false
     @State private var lastPerturbationStatsText: String? = "No experimental Perturbation statistics captured yet.\nEnable Experimental Perturbation for a deep Mandelbrot CPU render."
     @State private var perturbationStatsOffset: CGSize = .zero
@@ -714,6 +710,7 @@ struct ContentView: View {
                 maxIterations: $maxIterations,
                 renderQuality: renderQuality,
                 perturbationEnabled: perturbationEnabled,
+                doubleDoubleEnabled: doubleDoubleEnabled,
                 navigationStarted: recordNavigationStep,
                 navigationRevision: navigationRevision,
                 latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG,
@@ -1024,6 +1021,23 @@ The zoom factor overlay is only visible in the app and is not included in export
                         get: { perturbationEnabled },
                         set: { newValue in
                             perturbationEnabled = newValue
+                            if newValue {
+                                doubleDoubleEnabled = false
+                            }
+                            latestHighPrecisionThumbnailPNG = nil
+                            lastPerturbationStatsText = nil
+                            navigationRevision &+= 1
+                        }
+                    ))
+                    .disabled(fractalMode != .mandelbrot)
+
+                    Toggle("Experimental DoubleDouble CPU", isOn: Binding(
+                        get: { doubleDoubleEnabled },
+                        set: { newValue in
+                            doubleDoubleEnabled = newValue
+                            if newValue {
+                                perturbationEnabled = false
+                            }
                             latestHighPrecisionThumbnailPNG = nil
                             lastPerturbationStatsText = nil
                             navigationRevision &+= 1
@@ -1821,6 +1835,7 @@ struct MandelbrotView: View {
     @Binding var maxIterations: Int
     let renderQuality: RenderQuality
     let perturbationEnabled: Bool
+    let doubleDoubleEnabled: Bool
     let navigationStarted: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
@@ -1878,9 +1893,20 @@ struct MandelbrotView: View {
                 fractalMode == .mandelbrot &&
                 scale < 1e-9
 
-            return usesPerturbation
-                ? "High Precision · CPU Deep Zoom · Perturbation"
-                : "High Precision · CPU Deep Zoom"
+            let usesDoubleDouble =
+                doubleDoubleEnabled &&
+                fractalMode == .mandelbrot &&
+                scale < directDeepMandelbrotScaleLimit
+
+            if usesPerturbation {
+                return "High Precision · CPU Deep Zoom · Perturbation"
+            }
+
+            if usesDoubleDouble {
+                return "High Precision · CPU Deep Zoom · DoubleDouble"
+            }
+
+            return "High Precision · CPU Deep Zoom"
         }
 
         if magnificationFactor >= 50_000_000_000 {
@@ -1984,6 +2010,7 @@ struct MandelbrotView: View {
                             renderEpoch: highPrecisionRenderEpoch,
                             renderQualityKey: renderQuality.rawValue,
                             perturbationEnabled: perturbationEnabled,
+                            doubleDoubleEnabled: doubleDoubleEnabled,
                             onImagePublished: { visibleState in
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
@@ -2316,6 +2343,7 @@ struct HighPrecisionFractalPreview: View {
     let renderEpoch: UInt
     let renderQualityKey: String
     let perturbationEnabled: Bool
+    let doubleDoubleEnabled: Bool
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
     let onPerturbationStatsPublished: (String?) -> Void
@@ -2350,7 +2378,8 @@ struct HighPrecisionFractalPreview: View {
             refinementEnabled.description,
             renderEpoch.description,
             renderQualityKey,
-            perturbationEnabled.description
+            perturbationEnabled.description,
+            doubleDoubleEnabled.description
         ].joined(separator: "|")
     }
     
@@ -2616,6 +2645,7 @@ struct HighPrecisionFractalPreview: View {
                     maxIterations: previewIterations,
                     requestID: requestID,
                     perturbationEnabled: perturbationEnabled,
+                    doubleDoubleEnabled: false,
                 ) {
                     image = NSImage(
                         cgImage: quickImage,
@@ -2666,6 +2696,8 @@ struct HighPrecisionFractalPreview: View {
             requestID: requestID,
             progressStart: 0.82,
             perturbationEnabled: perturbationEnabled,
+            doubleDoubleEnabled: doubleDoubleEnabled,
+            isFinalRender: true,
             progressEnd: 0.995,
             statsCallback: { stats in
                 Task { @MainActor in
@@ -2717,6 +2749,8 @@ struct HighPrecisionFractalPreview: View {
         requestID: String,
         progressStart: Double? = nil,
         perturbationEnabled: Bool,
+        doubleDoubleEnabled: Bool = false,
+        isFinalRender: Bool = false,
         progressEnd: Double? = nil,
         statsCallback: (@MainActor @Sendable (String?) -> Void)? = nil
     ) async -> CGImage? {
@@ -2736,6 +2770,7 @@ struct HighPrecisionFractalPreview: View {
                 maxIterations: maxIterations,
                 viewportAspectRatio: aspectRatio,
                 perturbationEnabled: perturbationEnabled,
+                doubleDoubleEnabled: doubleDoubleEnabled && isFinalRender,
                 statsCallback: { stats in
                     Task { @MainActor in
                         guard requestID == renderID else { return }
@@ -3514,6 +3549,7 @@ nonisolated func renderFractal(
     maxIterations: Int,
     viewportAspectRatio: Double? = nil,
     perturbationEnabled: Bool = true,
+    doubleDoubleEnabled: Bool = false,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
@@ -3534,7 +3570,7 @@ nonisolated func renderFractal(
 
     // Temporary opt-in comparison path. The normal deep renderer remains
     // Double unless this switch is enabled and a precise snapshot is available.
-    if doubleDoubleDirectRendererEnabled(),
+    if doubleDoubleEnabled,
        !usePerturbation,
        mode == .mandelbrot,
        let preciseViewport,
