@@ -2242,24 +2242,22 @@ struct MandelbrotView: View {
     }
     
     private func zoomToSelection(rect: CGRect, viewSize: CGSize) {
-        let oldScale = scale
-        let viewport = FractalViewportTransform(
-            centerX: centerX,
-            centerY: centerY,
-            scale: oldScale,
-            viewSize: viewSize
-        )
-        let newCenter = viewport.complexPoint(at: CGPoint(x: rect.midX, y: rect.midY))
-
         let viewWidth = max(Double(viewSize.width), 1.0)
         let viewHeight = max(Double(viewSize.height), 1.0)
+        let aspectRatio = viewWidth / viewHeight
         let zoomFactorX = Double(rect.width) / viewWidth
         let zoomFactorY = Double(rect.height) / viewHeight
         let zoomFactor = max(zoomFactorX, zoomFactorY)
-        
-        centerX = newCenter.x
-        centerY = newCenter.y
-        scale = oldScale * zoomFactor
+
+        applyPreciseViewport(
+            preciseViewport.zoomed(
+                toHorizontalFraction: Double(rect.midX) / viewWidth,
+                verticalFraction: Double(rect.midY) / viewHeight,
+                aspectRatio: aspectRatio,
+                zoomFactor: zoomFactor
+            )
+        )
+
         increaseIterationsForZoom()
     }
     
