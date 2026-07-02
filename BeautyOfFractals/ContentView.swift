@@ -1754,6 +1754,7 @@ struct HighPrecisionViewportState: Equatable {
     let centerX: Double
     let centerY: Double
     let scale: Double
+    let preciseViewport: PreciseViewport
     let iterations: Int
     let thumbnailPNG: Data? = nil
 }
@@ -1899,6 +1900,7 @@ struct MandelbrotView: View {
             centerX: centerX,
             centerY: centerY,
             scale: scale,
+            preciseViewport: preciseViewport,
             iterations: effectiveIterations
         )
     }
@@ -1951,6 +1953,7 @@ struct MandelbrotView: View {
                             centerX: state.centerX,
                             centerY: state.centerY,
                             scale: state.scale,
+                            preciseViewport: state.preciseViewport,
                             maxIterations: state.iterations,
                             displayIterations: effectiveIterations,
                             viewSize: geometry.size,
@@ -2150,13 +2153,7 @@ struct MandelbrotView: View {
 
                 // A pending target may be newer than the picture on screen. Discard that
                 // invisible target so the rectangle maps exactly to what is visible.
-                applyPreciseViewport(
-                    PreciseViewport(
-                        centerX: visibleState.centerX,
-                        centerY: visibleState.centerY,
-                        scale: visibleState.scale
-                    )
-                )
+                applyPreciseViewport(visibleState.preciseViewport)
             } else {
                 frozenHighPrecisionState = nil
             }
@@ -2286,6 +2283,7 @@ struct HighPrecisionFractalPreview: View {
     let centerX: Double
     let centerY: Double
     let scale: Double
+    let preciseViewport: PreciseViewport
     let maxIterations: Int
     let displayIterations: Int
     let viewSize: CGSize
@@ -2317,6 +2315,12 @@ struct HighPrecisionFractalPreview: View {
             String(format: "%.18f", centerX),
             String(format: "%.18f", centerY),
             String(format: "%.18f", scale),
+            String(preciseViewport.centerX.hi.bitPattern, radix: 16),
+            String(preciseViewport.centerX.lo.bitPattern, radix: 16),
+            String(preciseViewport.centerY.hi.bitPattern, radix: 16),
+            String(preciseViewport.centerY.lo.bitPattern, radix: 16),
+            String(preciseViewport.scale.hi.bitPattern, radix: 16),
+            String(preciseViewport.scale.lo.bitPattern, radix: 16),
             maxIterations.description,
             displayIterations.description,
             Int(viewSize.width).description,
@@ -2474,6 +2478,7 @@ struct HighPrecisionFractalPreview: View {
         let cx = centerX
         let cy = centerY
         let currentScale = scale
+        let precise = preciseViewport
         let fullIterations = maxIterations
 
         renderProgress = 0.01
@@ -2599,6 +2604,7 @@ struct HighPrecisionFractalPreview: View {
                             centerX: cx,
                             centerY: cy,
                             scale: currentScale,
+                            preciseViewport: precise,
                             iterations: previewIterations
                         )
                     )
@@ -2653,6 +2659,7 @@ struct HighPrecisionFractalPreview: View {
                     centerX: cx,
                     centerY: cy,
                     scale: currentScale,
+                    preciseViewport: precise,
                     iterations: fullIterations
                 )
             )
