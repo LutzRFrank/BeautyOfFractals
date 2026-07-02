@@ -704,6 +704,7 @@ struct ContentView: View {
                 centerX: $centerX,
                 centerY: $centerY,
                 scale: $scale,
+                preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
                 renderQuality: renderQuality,
                 perturbationEnabled: perturbationEnabled,
@@ -1794,6 +1795,7 @@ struct MandelbrotView: View {
     @Binding var centerX: Double
     @Binding var centerY: Double
     @Binding var scale: Double
+    @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
     let renderQuality: RenderQuality
     let perturbationEnabled: Bool
@@ -1809,6 +1811,7 @@ struct MandelbrotView: View {
     @State private var isPanning: Bool = false
     @State private var panStartCenterX: Double = -0.5
     @State private var panStartCenterY: Double = 0.0
+    @State private var panStartPreciseViewport: PreciseViewport?
     
     @State private var keyMonitor: Any?
     // Safe progressive rendering: keep the last completed high-precision image
@@ -2087,6 +2090,7 @@ struct MandelbrotView: View {
                     isPanning = isOptionPressed
                     panStartCenterX = centerX
                     panStartCenterY = centerY
+                    panStartPreciseViewport = preciseViewport
 
                     // A pan changes the viewport continuously, so record its starting
                     // position exactly once when the drag begins.
@@ -2146,9 +2150,13 @@ struct MandelbrotView: View {
 
                 // A pending target may be newer than the picture on screen. Discard that
                 // invisible target so the rectangle maps exactly to what is visible.
-                centerX = visibleState.centerX
-                centerY = visibleState.centerY
-                scale = visibleState.scale
+                applyPreciseViewport(
+                    PreciseViewport(
+                        centerX: visibleState.centerX,
+                        centerY: visibleState.centerY,
+                        scale: visibleState.scale
+                    )
+                )
             } else {
                 frozenHighPrecisionState = nil
             }
@@ -2184,6 +2192,7 @@ struct MandelbrotView: View {
         dragStart = nil
         dragCurrent = nil
         isPanning = false
+        panStartPreciseViewport = nil
         
         if isOptionPressed {
             NSCursor.openHand.set()
@@ -2201,17 +2210,34 @@ struct MandelbrotView: View {
         )
     }
     
-    private func panView(from start: CGPoint, to current: CGPoint, viewSize: CGSize) {
-        let startViewport = FractalViewportTransform(
-            centerX: panStartCenterX,
-            centerY: panStartCenterY,
-            scale: scale,
-            viewSize: viewSize
-        )
-        let newCenter = startViewport.centerAfterPan(from: start, to: current)
+    private func applyPreciseViewport(_ viewport: PreciseViewport) {
+        preciseViewport = viewport
 
-        centerX = newCenter.x
-        centerY = newCenter.y
+        let projection = viewport.doubleProjection
+        centerX = projection.centerX
+        centerY = projection.centerY
+        scale = projection.scale
+    }
+
+    private func panView(from start: CGPoint, to current: CGPoint, viewSize: CGSize) {
+        guard let startViewport = panStartPreciseViewport else {
+            return
+        }
+
+        let width = max(Double(viewSize.width), 1.0)
+        let height = max(Double(viewSize.height), 1.0)
+        let horizontalFraction = Double(current.x - start.x) / width
+        let verticalFraction = Double(current.y - start.y) / height
+        let aspectRatio = width / height
+
+        applyPreciseViewport(
+            startViewport.panned(
+                horizontalFraction: horizontalFraction,
+                verticalFraction: verticalFraction,
+                aspectRatio: aspectRatio
+            )
+        )
+
         dragCurrent = current
     }
     
