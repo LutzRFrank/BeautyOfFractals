@@ -36,13 +36,42 @@ struct PerturbationReference {
 
 nonisolated struct PerturbationReferenceCache {
     private(set) var references: [PerturbationReference]
+    private let initialReferenceCount: Int
 
     var count: Int {
         references.count
     }
 
+    var localReferenceCount: Int {
+        max(references.count - initialReferenceCount, 0)
+    }
+
     init(references: [PerturbationReference]) {
         self.references = references
+        self.initialReferenceCount = references.count
+    }
+
+    func nearestReferenceIsLocal(
+        forX x: Double,
+        y: Double
+    ) -> Bool {
+        guard let index = references.indices.min(by: {
+            let da = PerturbationEngine.squaredDistance(
+                x, y,
+                references[$0].centerX,
+                references[$0].centerY
+            )
+            let db = PerturbationEngine.squaredDistance(
+                x, y,
+                references[$1].centerX,
+                references[$1].centerY
+            )
+            return da < db
+        }) else {
+            return false
+        }
+
+        return index >= initialReferenceCount
     }
 
     mutating func nearestReference(

@@ -8,6 +8,12 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
+
+// Temporary comparison switch. This is intentionally opt-in while the
+// DoubleDouble renderer is validated against the existing direct CPU path.
+nonisolated private func doubleDoubleDirectRendererEnabled() -> Bool {
+    false
+}
 nonisolated private func perturbationCoverageRadiusPixels(
     scale: Double,
     viewportWidth: Int
@@ -638,6 +644,11 @@ struct ContentView: View {
     @State private var centerX: Double = FractalMode.mandelbrot.defaultCenterX
     @State private var centerY: Double = FractalMode.mandelbrot.defaultCenterY
     @State private var scale: Double = FractalMode.mandelbrot.defaultScale
+    @State private var preciseViewport = PreciseViewport(
+        centerX: FractalMode.mandelbrot.defaultCenterX,
+        centerY: FractalMode.mandelbrot.defaultCenterY,
+        scale: FractalMode.mandelbrot.defaultScale
+    )
     
     @State private var maxIterations: Int = 300
     @State private var isSavingSnapshot: Bool = false
@@ -660,6 +671,7 @@ struct ContentView: View {
         let centerX: Double
         let centerY: Double
         let scale: Double
+        let preciseViewport: PreciseViewport
         let maxIterations: Int
     }
     
@@ -698,6 +710,7 @@ struct ContentView: View {
                 centerX: $centerX,
                 centerY: $centerY,
                 scale: $scale,
+                preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
                 renderQuality: renderQuality,
                 perturbationEnabled: perturbationEnabled,
@@ -817,7 +830,7 @@ The zoom factor overlay is only visible in the app and is not included in export
     private var perturbationStatsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Perturbation Stats", systemImage: "waveform.path.ecg")
+                Label("Render Diagnostics", systemImage: "waveform.path.ecg")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
 
                 Spacer()
@@ -829,6 +842,22 @@ The zoom factor overlay is only visible in the app and is not included in export
                         .font(.system(size: 12, weight: .bold))
                 }
                 .buttonStyle(.plain)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Precise Viewport")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+
+                Text(
+                    "X lo: \(String(format: "%+.17e", preciseViewport.centerX.lo))\n" +
+                    "Y lo: \(String(format: "%+.17e", preciseViewport.centerY.lo))\n" +
+                    "S lo: \(String(format: "%+.17e", preciseViewport.scale.lo))"
+                )
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.78))
+                .textSelection(.enabled)
             }
 
             if let stats = lastPerturbationStatsText,
@@ -1002,15 +1031,14 @@ The zoom factor overlay is only visible in the app and is not included in export
                     ))
                     .disabled(fractalMode != .mandelbrot)
 
-                    Button("Show Last Stats") {
+                    Button("Show Diagnostics") {
                         showPerturbationStats = true
                     }
-                    .disabled(lastPerturbationStatsText == nil)
                 } label: {
                     Image(systemName: "waveform.path.ecg")
                         .frame(width: 22)
                 }
-                .help("Experimental Perturbation diagnostics")
+                .help("Render diagnostics")
                 
                 Button {
                     zoomOut()
@@ -1510,20 +1538,34 @@ The zoom factor overlay is only visible in the app and is not included in export
         recordNavigationStep()
         fractalMode = spot.mode
         fractalPalette = spot.palette
-        centerX = spot.centerX
-        centerY = spot.centerY
-        scale = spot.scale
+        applyPreciseViewport(
+            PreciseViewport(
+                centerX: spot.centerX,
+                centerY: spot.centerY,
+                scale: spot.scale
+            )
+        )
         maxIterations = spot.iterations
         navigationRevision &+= 1
         favoritesStore.incrementUsage(for: spot)
     }
 
 
+    private func applyPreciseViewport(_ viewport: PreciseViewport) {
+        preciseViewport = viewport
+
+        let projection = viewport.doubleProjection
+        centerX = projection.centerX
+        centerY = projection.centerY
+        scale = projection.scale
+    }
+
     private func currentViewportSnapshot() -> ViewportSnapshot {
         ViewportSnapshot(
             centerX: centerX,
             centerY: centerY,
             scale: scale,
+            preciseViewport: preciseViewport,
             maxIterations: maxIterations
         )
     }
@@ -1545,17 +1587,19 @@ The zoom factor overlay is only visible in the app and is not included in export
         // Tell the live renderer to invalidate a pending debounce/CPU refinement
         // before restoring the older viewport.
         navigationRevision &+= 1
-        centerX = previous.centerX
-        centerY = previous.centerY
-        scale = previous.scale
+        applyPreciseViewport(previous.preciseViewport)
         maxIterations = previous.maxIterations
     }
 
     private func setMode(_ mode: FractalMode) {
         fractalMode = mode
-        centerX = mode.defaultCenterX
-        centerY = mode.defaultCenterY
-        scale = mode.defaultScale
+        applyPreciseViewport(
+            PreciseViewport(
+                centerX: mode.defaultCenterX,
+                centerY: mode.defaultCenterY,
+                scale: mode.defaultScale
+            )
+        )
         maxIterations = 300
         navigationHistory.removeAll()
         navigationRevision &+= 1
@@ -1564,23 +1608,27 @@ The zoom factor overlay is only visible in the app and is not included in export
     private func zoomIn() {
         recordNavigationStep()
         navigationRevision &+= 1
-        scale *= 0.5
+        applyPreciseViewport(preciseViewport.zoomed(by: 0.5))
         increaseIterationsForZoom()
     }
     
     private func zoomOut() {
         recordNavigationStep()
         navigationRevision &+= 1
-        scale *= 2.0
+        applyPreciseViewport(preciseViewport.zoomed(by: 2.0))
         decreaseIterationsForZoom()
     }
     
     private func resetView() {
         recordNavigationStep()
         navigationRevision &+= 1
-        centerX = fractalMode.defaultCenterX
-        centerY = fractalMode.defaultCenterY
-        scale = fractalMode.defaultScale
+        applyPreciseViewport(
+            PreciseViewport(
+                centerX: fractalMode.defaultCenterX,
+                centerY: fractalMode.defaultCenterY,
+                scale: fractalMode.defaultScale
+            )
+        )
         maxIterations = 300
     }
     
@@ -1727,6 +1775,7 @@ struct HighPrecisionViewportState: Equatable {
     let centerX: Double
     let centerY: Double
     let scale: Double
+    let preciseViewport: PreciseViewport
     let iterations: Int
     let thumbnailPNG: Data? = nil
 }
@@ -1768,6 +1817,7 @@ struct MandelbrotView: View {
     @Binding var centerX: Double
     @Binding var centerY: Double
     @Binding var scale: Double
+    @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
     let renderQuality: RenderQuality
     let perturbationEnabled: Bool
@@ -1783,6 +1833,7 @@ struct MandelbrotView: View {
     @State private var isPanning: Bool = false
     @State private var panStartCenterX: Double = -0.5
     @State private var panStartCenterY: Double = 0.0
+    @State private var panStartPreciseViewport: PreciseViewport?
     
     @State private var keyMonitor: Any?
     // Safe progressive rendering: keep the last completed high-precision image
@@ -1870,6 +1921,7 @@ struct MandelbrotView: View {
             centerX: centerX,
             centerY: centerY,
             scale: scale,
+            preciseViewport: preciseViewport,
             iterations: effectiveIterations
         )
     }
@@ -1922,6 +1974,7 @@ struct MandelbrotView: View {
                             centerX: state.centerX,
                             centerY: state.centerY,
                             scale: state.scale,
+                            preciseViewport: state.preciseViewport,
                             maxIterations: state.iterations,
                             displayIterations: effectiveIterations,
                             viewSize: geometry.size,
@@ -2061,6 +2114,7 @@ struct MandelbrotView: View {
                     isPanning = isOptionPressed
                     panStartCenterX = centerX
                     panStartCenterY = centerY
+                    panStartPreciseViewport = preciseViewport
 
                     // A pan changes the viewport continuously, so record its starting
                     // position exactly once when the drag begins.
@@ -2120,9 +2174,7 @@ struct MandelbrotView: View {
 
                 // A pending target may be newer than the picture on screen. Discard that
                 // invisible target so the rectangle maps exactly to what is visible.
-                centerX = visibleState.centerX
-                centerY = visibleState.centerY
-                scale = visibleState.scale
+                applyPreciseViewport(visibleState.preciseViewport)
             } else {
                 frozenHighPrecisionState = nil
             }
@@ -2158,6 +2210,7 @@ struct MandelbrotView: View {
         dragStart = nil
         dragCurrent = nil
         isPanning = false
+        panStartPreciseViewport = nil
         
         if isOptionPressed {
             NSCursor.openHand.set()
@@ -2175,39 +2228,54 @@ struct MandelbrotView: View {
         )
     }
     
-    private func panView(from start: CGPoint, to current: CGPoint, viewSize: CGSize) {
-        let startViewport = FractalViewportTransform(
-            centerX: panStartCenterX,
-            centerY: panStartCenterY,
-            scale: scale,
-            viewSize: viewSize
-        )
-        let newCenter = startViewport.centerAfterPan(from: start, to: current)
+    private func applyPreciseViewport(_ viewport: PreciseViewport) {
+        preciseViewport = viewport
 
-        centerX = newCenter.x
-        centerY = newCenter.y
+        let projection = viewport.doubleProjection
+        centerX = projection.centerX
+        centerY = projection.centerY
+        scale = projection.scale
+    }
+
+    private func panView(from start: CGPoint, to current: CGPoint, viewSize: CGSize) {
+        guard let startViewport = panStartPreciseViewport else {
+            return
+        }
+
+        let width = max(Double(viewSize.width), 1.0)
+        let height = max(Double(viewSize.height), 1.0)
+        let horizontalFraction = Double(current.x - start.x) / width
+        let verticalFraction = Double(current.y - start.y) / height
+        let aspectRatio = width / height
+
+        applyPreciseViewport(
+            startViewport.panned(
+                horizontalFraction: horizontalFraction,
+                verticalFraction: verticalFraction,
+                aspectRatio: aspectRatio
+            )
+        )
+
         dragCurrent = current
     }
     
     private func zoomToSelection(rect: CGRect, viewSize: CGSize) {
-        let oldScale = scale
-        let viewport = FractalViewportTransform(
-            centerX: centerX,
-            centerY: centerY,
-            scale: oldScale,
-            viewSize: viewSize
-        )
-        let newCenter = viewport.complexPoint(at: CGPoint(x: rect.midX, y: rect.midY))
-
         let viewWidth = max(Double(viewSize.width), 1.0)
         let viewHeight = max(Double(viewSize.height), 1.0)
+        let aspectRatio = viewWidth / viewHeight
         let zoomFactorX = Double(rect.width) / viewWidth
         let zoomFactorY = Double(rect.height) / viewHeight
         let zoomFactor = max(zoomFactorX, zoomFactorY)
-        
-        centerX = newCenter.x
-        centerY = newCenter.y
-        scale = oldScale * zoomFactor
+
+        applyPreciseViewport(
+            preciseViewport.zoomed(
+                toHorizontalFraction: Double(rect.midX) / viewWidth,
+                verticalFraction: Double(rect.midY) / viewHeight,
+                aspectRatio: aspectRatio,
+                zoomFactor: zoomFactor
+            )
+        )
+
         increaseIterationsForZoom()
     }
     
@@ -2236,6 +2304,7 @@ struct HighPrecisionFractalPreview: View {
     let centerX: Double
     let centerY: Double
     let scale: Double
+    let preciseViewport: PreciseViewport
     let maxIterations: Int
     let displayIterations: Int
     let viewSize: CGSize
@@ -2267,6 +2336,12 @@ struct HighPrecisionFractalPreview: View {
             String(format: "%.18f", centerX),
             String(format: "%.18f", centerY),
             String(format: "%.18f", scale),
+            String(preciseViewport.centerX.hi.bitPattern, radix: 16),
+            String(preciseViewport.centerX.lo.bitPattern, radix: 16),
+            String(preciseViewport.centerY.hi.bitPattern, radix: 16),
+            String(preciseViewport.centerY.lo.bitPattern, radix: 16),
+            String(preciseViewport.scale.hi.bitPattern, radix: 16),
+            String(preciseViewport.scale.lo.bitPattern, radix: 16),
             maxIterations.description,
             displayIterations.description,
             Int(viewSize.width).description,
@@ -2424,6 +2499,7 @@ struct HighPrecisionFractalPreview: View {
         let cx = centerX
         let cy = centerY
         let currentScale = scale
+        let precise = preciseViewport
         let fullIterations = maxIterations
 
         renderProgress = 0.01
@@ -2536,6 +2612,7 @@ struct HighPrecisionFractalPreview: View {
                     centerX: cx,
                     centerY: cy,
                     scale: currentScale,
+                    preciseViewport: precise,
                     maxIterations: previewIterations,
                     requestID: requestID,
                     perturbationEnabled: perturbationEnabled,
@@ -2549,6 +2626,7 @@ struct HighPrecisionFractalPreview: View {
                             centerX: cx,
                             centerY: cy,
                             scale: currentScale,
+                            preciseViewport: precise,
                             iterations: previewIterations
                         )
                     )
@@ -2583,6 +2661,7 @@ struct HighPrecisionFractalPreview: View {
             centerX: cx,
             centerY: cy,
             scale: currentScale,
+            preciseViewport: precise,
             maxIterations: fullIterations,
             requestID: requestID,
             progressStart: 0.82,
@@ -2603,6 +2682,7 @@ struct HighPrecisionFractalPreview: View {
                     centerX: cx,
                     centerY: cy,
                     scale: currentScale,
+                    preciseViewport: precise,
                     iterations: fullIterations
                 )
             )
@@ -2632,6 +2712,7 @@ struct HighPrecisionFractalPreview: View {
         centerX: Double,
         centerY: Double,
         scale: Double,
+        preciseViewport: PreciseViewport,
         maxIterations: Int,
         requestID: String,
         progressStart: Double? = nil,
@@ -2651,6 +2732,7 @@ struct HighPrecisionFractalPreview: View {
                 centerX: centerX,
                 centerY: centerY,
                 scale: scale,
+                preciseViewport: preciseViewport,
                 maxIterations: maxIterations,
                 viewportAspectRatio: aspectRatio,
                 perturbationEnabled: perturbationEnabled,
@@ -2988,7 +3070,6 @@ nonisolated private func renderDirectMandelbrotParallel(
     )
 }
 
-
 private struct PerturbationParallelRowStats: Sendable {
     var perturbationPixels = 0
     var fallbackPixels = 0
@@ -3292,6 +3373,115 @@ nonisolated private func renderPerturbationMandelbrotParallel(
     )
 }
 
+nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
+    width: Int,
+    height: Int,
+    palette: FractalPalette,
+    preciseViewport: PreciseViewport,
+    maxIterations: Int,
+    viewportAspectRatio: Double,
+    progressCallback: (@Sendable (Double) -> Void)? = nil
+) -> CGImage? {
+    let bytesPerPixel = 4
+    let bytesPerRow = width * bytesPerPixel
+    let bitsPerComponent = 8
+    let byteCount = width * height * bytesPerPixel
+
+    let storage = DirectRenderPixelStorage(byteCount: byteCount)
+
+    let processorCount = max(1, ProcessInfo.processInfo.activeProcessorCount)
+    let bandCount = min(height, max(2, processorCount * 3))
+    let rowsPerBand = (height + bandCount - 1) / bandCount
+    let bandProgress = progressCallback.map {
+        DirectRenderBandProgress(totalBands: bandCount, report: $0)
+    }
+
+    let pixelWidth = Double(width)
+    let pixelHeight = Double(height)
+
+    DispatchQueue.concurrentPerform(iterations: bandCount) { bandIndex in
+        let startRow = bandIndex * rowsPerBand
+        let endRow = min(startRow + rowsPerBand, height)
+
+        guard startRow < endRow else { return }
+
+        for py in startRow..<endRow {
+            if Task.isCancelled { return }
+
+            let verticalOffset =
+                (Double(py) + 0.5) / pixelHeight - 0.5
+
+            let y0 = preciseViewport.centerY
+                + preciseViewport.scale * verticalOffset
+
+            for px in 0..<width {
+                if px.isMultiple(of: 64), Task.isCancelled { return }
+
+                let horizontalOffset =
+                    ((Double(px) + 0.5) / pixelWidth - 0.5)
+                    * viewportAspectRatio
+
+                let x0 = preciseViewport.centerX
+                    + preciseViewport.scale * horizontalOffset
+
+                let iteration = calculateMandelbrotIterationDoubleDouble(
+                    cX: x0,
+                    cY: y0,
+                    maxIterations: maxIterations
+                )
+
+                let color: (r: Double, g: Double, b: Double)
+
+                if iteration == maxIterations {
+                    color = insideColor(
+                        mode: .mandelbrot,
+                        palette: palette
+                    )
+                } else {
+                    let t = Double(iteration) / Double(maxIterations)
+
+                    color = cpuPaletteColor(
+                        t: t,
+                        mode: .mandelbrot,
+                        palette: palette
+                    )
+                }
+
+                let offset = (py * width + px) * bytesPerPixel
+
+                storage.pointer[offset + 0] =
+                    UInt8(clamp01(color.r) * 255.0)
+                storage.pointer[offset + 1] =
+                    UInt8(clamp01(color.g) * 255.0)
+                storage.pointer[offset + 2] =
+                    UInt8(clamp01(color.b) * 255.0)
+                storage.pointer[offset + 3] = 255
+            }
+        }
+
+        bandProgress?.finishBand()
+    }
+
+    guard !Task.isCancelled else {
+        return nil
+    }
+
+    let pixels = Array(
+        UnsafeBufferPointer(
+            start: storage.pointer,
+            count: storage.byteCount
+        )
+    )
+
+    return makeCGImage(
+        pixels: pixels,
+        width: width,
+        height: height,
+        bytesPerRow: bytesPerRow,
+        bitsPerComponent: bitsPerComponent,
+        bytesPerPixel: bytesPerPixel
+    )
+}
 
 nonisolated func renderFractal(
     width: Int,
@@ -3301,6 +3491,7 @@ nonisolated func renderFractal(
     centerX: Double,
     centerY: Double,
     scale: Double,
+    preciseViewport: PreciseViewport? = nil,
     maxIterations: Int,
     viewportAspectRatio: Double? = nil,
     perturbationEnabled: Bool = true,
@@ -3321,6 +3512,27 @@ nonisolated func renderFractal(
     let usePerturbation = perturbationEnabled &&
         mode == .mandelbrot &&
         scale < 1e-9
+
+    // Temporary opt-in comparison path. The normal deep renderer remains
+    // Double unless this switch is enabled and a precise snapshot is available.
+    if doubleDoubleDirectRendererEnabled(),
+       !usePerturbation,
+       mode == .mandelbrot,
+       let preciseViewport,
+       scale < directDeepMandelbrotScaleLimit,
+       width >= 512,
+       height >= 256,
+       maxIterations >= 8_000 {
+        return renderDirectMandelbrotDoubleDoubleParallel(
+            width: width,
+            height: height,
+            palette: palette,
+            preciseViewport: preciseViewport,
+            maxIterations: maxIterations,
+            viewportAspectRatio: aspectRatio,
+            progressCallback: progressCallback
+        )
+    }
 
     // Release deep zoom currently uses the proven direct Double renderer.
     // Split only this expensive exact path across CPU cores; all other modes,
@@ -3391,6 +3603,16 @@ nonisolated func renderFractal(
     var perturbationRebasePixels = 0
     var totalPerturbationRebases = 0
     var firstRebaseIterationSum = 0
+    var totalRowLocalReferences = 0
+    var peakRowLocalReferences = 0
+    var saturatedPerturbationRows = 0
+    var localReferenceStartPixels = 0
+    var localReferenceReusePixels = 0
+    var localReferenceFallbackPixels = 0
+    var initialReferenceFirstRebaseCount = 0
+    var initialReferenceFirstRebaseIterationSum = 0
+    var localReferenceFirstRebaseCount = 0
+    var localReferenceFirstRebaseIterationSum = 0
     let initialPerturbationReferenceCount = perturbationReferenceCache.count
     
     for py in 0..<height {
@@ -3436,6 +3658,16 @@ nonisolated func renderFractal(
                     let maxReferenceDistance2 = maxReferenceDistance * maxReferenceDistance
 
                     if referenceDistance2 <= maxReferenceDistance2 {
+                        let startedFromLocalReference =
+                            rowPerturbationReferenceCache.nearestReferenceIsLocal(
+                                forX: x0,
+                                y: y0
+                            )
+
+                        if startedFromLocalReference {
+                            localReferenceStartPixels += 1
+                        }
+
                         let perturbationResult = PerturbationEngine.perturbationIterationWithCachedRebase(
                             x0: x0,
                             y0: y0,
@@ -3443,6 +3675,19 @@ nonisolated func renderFractal(
                             maxIterations: localMaxIterations,
                             maximumCachedReferences: maximumRowLocalPerturbationReferences
                         )
+
+                        if let firstRebaseIteration =
+                            perturbationResult.firstRebaseIteration {
+                            if startedFromLocalReference {
+                                localReferenceFirstRebaseCount += 1
+                                localReferenceFirstRebaseIterationSum +=
+                                    firstRebaseIteration
+                            } else {
+                                initialReferenceFirstRebaseCount += 1
+                                initialReferenceFirstRebaseIterationSum +=
+                                    firstRebaseIteration
+                            }
+                        }
 
                         if perturbationResult.reliable {
                             let shouldPulseCheck =
@@ -3460,6 +3705,9 @@ nonisolated func renderFractal(
                                 if abs(directIteration - perturbationResult.iteration) > 8 {
                                     unreliablePerturbationPixels += 1
                                     fallbackPixels += 1
+                                    if startedFromLocalReference {
+                                        localReferenceFallbackPixels += 1
+                                    }
                                     iteration = directIteration
                                 } else {
                                     perturbationPixels += 1
@@ -3469,6 +3717,10 @@ nonisolated func renderFractal(
                                         if let firstRebaseIteration = perturbationResult.firstRebaseIteration {
                                             firstRebaseIterationSum += firstRebaseIteration
                                         }
+                                    }
+                                    if startedFromLocalReference,
+                                       perturbationResult.rebaseCount == 0 {
+                                        localReferenceReusePixels += 1
                                     }
                                     iteration = perturbationResult.iteration
                                 }
@@ -3481,11 +3733,18 @@ nonisolated func renderFractal(
                                         firstRebaseIterationSum += firstRebaseIteration
                                     }
                                 }
+                                if startedFromLocalReference,
+                                   perturbationResult.rebaseCount == 0 {
+                                    localReferenceReusePixels += 1
+                                }
                                 iteration = perturbationResult.iteration
                             }
                         } else {
                             unreliablePerturbationPixels += 1
                             fallbackPixels += 1
+                            if startedFromLocalReference {
+                                localReferenceFallbackPixels += 1
+                            }
                             iteration = calculateFractalIteration(
                                 mode: mode,
                                 x0: x0,
@@ -3548,11 +3807,45 @@ nonisolated func renderFractal(
             pixels[offset + 2] = UInt8(clamp01(color.b) * 255.0)
             pixels[offset + 3] = 255
         }
+
+        if usePerturbation {
+            let rowLocalReferences =
+                rowPerturbationReferenceCache.localReferenceCount
+
+            totalRowLocalReferences += rowLocalReferences
+            peakRowLocalReferences = max(
+                peakRowLocalReferences,
+                rowLocalReferences
+            )
+
+            if rowPerturbationReferenceCache.count >=
+                maximumRowLocalPerturbationReferences {
+                saturatedPerturbationRows += 1
+            }
+        }
     }
     
     if usePerturbation {
         let totalPixels = width * height
-        let cachedReferences = perturbationReferenceCache.count - initialPerturbationReferenceCount
+        let averageRowLocalReferences = height > 0
+            ? Double(totalRowLocalReferences) / Double(height)
+            : 0.0
+
+        func averageIterationText(sum: Int, count: Int) -> String {
+            guard count > 0 else { return "none" }
+            return String(
+                Int((Double(sum) / Double(count)).rounded())
+            )
+        }
+
+        let initialReferenceFirstRebaseAverage = averageIterationText(
+            sum: initialReferenceFirstRebaseIterationSum,
+            count: initialReferenceFirstRebaseCount
+        )
+        let localReferenceFirstRebaseAverage = averageIterationText(
+            sum: localReferenceFirstRebaseIterationSum,
+            count: localReferenceFirstRebaseCount
+        )
 
         let coverage = 100.0 * Double(perturbationPixels) / Double(totalPixels)
         let checkedPerturbationPixels = max(perturbationPixels + unreliablePerturbationPixels, 1)
@@ -3581,7 +3874,19 @@ nonisolated func renderFractal(
         Rebases:       \(totalPerturbationRebases)
         First rebase:  \(averageFirstRebaseIteration)
 
-        References:    \(initialPerturbationReferenceCount) + \(cachedReferences)
+        Initial refs:  \(initialPerturbationReferenceCount)
+        Row locals:    \(totalRowLocalReferences) total
+        Avg / row:     \(String(format: "%.1f", averageRowLocalReferences))
+        Peak / row:    \(peakRowLocalReferences)
+        Saturated:     \(saturatedPerturbationRows) / \(height) rows
+        Local starts:  \(localReferenceStartPixels)
+        Local reuse:   \(localReferenceReusePixels)
+        Local fallback:\(localReferenceFallbackPixels)
+
+        Grid 1st rb:   \(initialReferenceFirstRebaseAverage)
+        Grid rb px:    \(initialReferenceFirstRebaseCount)
+        Local 1st rb:  \(localReferenceFirstRebaseAverage)
+        Local rb px:   \(localReferenceFirstRebaseCount)
         Radius:        Auto \(Int(perturbationRadiusPixels)) px
         """)
     } else {
