@@ -638,6 +638,11 @@ struct ContentView: View {
     @State private var centerX: Double = FractalMode.mandelbrot.defaultCenterX
     @State private var centerY: Double = FractalMode.mandelbrot.defaultCenterY
     @State private var scale: Double = FractalMode.mandelbrot.defaultScale
+    @State private var preciseViewport = PreciseViewport(
+        centerX: FractalMode.mandelbrot.defaultCenterX,
+        centerY: FractalMode.mandelbrot.defaultCenterY,
+        scale: FractalMode.mandelbrot.defaultScale
+    )
     
     @State private var maxIterations: Int = 300
     @State private var isSavingSnapshot: Bool = false
@@ -660,6 +665,7 @@ struct ContentView: View {
         let centerX: Double
         let centerY: Double
         let scale: Double
+        let preciseViewport: PreciseViewport
         let maxIterations: Int
     }
     
@@ -1510,20 +1516,34 @@ The zoom factor overlay is only visible in the app and is not included in export
         recordNavigationStep()
         fractalMode = spot.mode
         fractalPalette = spot.palette
-        centerX = spot.centerX
-        centerY = spot.centerY
-        scale = spot.scale
+        applyPreciseViewport(
+            PreciseViewport(
+                centerX: spot.centerX,
+                centerY: spot.centerY,
+                scale: spot.scale
+            )
+        )
         maxIterations = spot.iterations
         navigationRevision &+= 1
         favoritesStore.incrementUsage(for: spot)
     }
 
 
+    private func applyPreciseViewport(_ viewport: PreciseViewport) {
+        preciseViewport = viewport
+
+        let projection = viewport.doubleProjection
+        centerX = projection.centerX
+        centerY = projection.centerY
+        scale = projection.scale
+    }
+
     private func currentViewportSnapshot() -> ViewportSnapshot {
         ViewportSnapshot(
             centerX: centerX,
             centerY: centerY,
             scale: scale,
+            preciseViewport: preciseViewport,
             maxIterations: maxIterations
         )
     }
@@ -1545,17 +1565,19 @@ The zoom factor overlay is only visible in the app and is not included in export
         // Tell the live renderer to invalidate a pending debounce/CPU refinement
         // before restoring the older viewport.
         navigationRevision &+= 1
-        centerX = previous.centerX
-        centerY = previous.centerY
-        scale = previous.scale
+        applyPreciseViewport(previous.preciseViewport)
         maxIterations = previous.maxIterations
     }
 
     private func setMode(_ mode: FractalMode) {
         fractalMode = mode
-        centerX = mode.defaultCenterX
-        centerY = mode.defaultCenterY
-        scale = mode.defaultScale
+        applyPreciseViewport(
+            PreciseViewport(
+                centerX: mode.defaultCenterX,
+                centerY: mode.defaultCenterY,
+                scale: mode.defaultScale
+            )
+        )
         maxIterations = 300
         navigationHistory.removeAll()
         navigationRevision &+= 1
@@ -1564,23 +1586,27 @@ The zoom factor overlay is only visible in the app and is not included in export
     private func zoomIn() {
         recordNavigationStep()
         navigationRevision &+= 1
-        scale *= 0.5
+        applyPreciseViewport(preciseViewport.zoomed(by: 0.5))
         increaseIterationsForZoom()
     }
     
     private func zoomOut() {
         recordNavigationStep()
         navigationRevision &+= 1
-        scale *= 2.0
+        applyPreciseViewport(preciseViewport.zoomed(by: 2.0))
         decreaseIterationsForZoom()
     }
     
     private func resetView() {
         recordNavigationStep()
         navigationRevision &+= 1
-        centerX = fractalMode.defaultCenterX
-        centerY = fractalMode.defaultCenterY
-        scale = fractalMode.defaultScale
+        applyPreciseViewport(
+            PreciseViewport(
+                centerX: fractalMode.defaultCenterX,
+                centerY: fractalMode.defaultCenterY,
+                scale: fractalMode.defaultScale
+            )
+        )
         maxIterations = 300
     }
     
