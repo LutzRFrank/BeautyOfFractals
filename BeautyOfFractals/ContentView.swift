@@ -2969,6 +2969,311 @@ nonisolated private func renderDirectMandelbrotParallel(
     )
 }
 
+
+private struct PerturbationParallelRowStats: Sendable {
+    var perturbationPixels = 0
+    var fallbackPixels = 0
+    var unreliablePixels = 0
+    var rebasedPixels = 0
+    var rebaseCount = 0
+    var firstRebaseIterationSum = 0
+}
+
+nonisolated private final class PerturbationParallelStats: @unchecked Sendable {
+    private let lock = NSLock()
+
+    private var perturbationPixels = 0
+    private var fallbackPixels = 0
+    private var unreliablePixels = 0
+    private var rebasedPixels = 0
+    private var rebaseCount = 0
+    private var firstRebaseIterationSum = 0
+
+    func add(_ row: PerturbationParallelRowStats) {
+        lock.lock()
+        perturbationPixels += row.perturbationPixels
+        fallbackPixels += row.fallbackPixels
+        unreliablePixels += row.unreliablePixels
+        rebasedPixels += row.rebasedPixels
+        rebaseCount += row.rebaseCount
+        firstRebaseIterationSum += row.firstRebaseIterationSum
+        lock.unlock()
+    }
+
+    func snapshot() -> PerturbationParallelRowStats {
+        lock.lock()
+        let result = PerturbationParallelRowStats(
+            perturbationPixels: perturbationPixels,
+            fallbackPixels: fallbackPixels,
+            unreliablePixels: unreliablePixels,
+            rebasedPixels: rebasedPixels,
+            rebaseCount: rebaseCount,
+            firstRebaseIterationSum: firstRebaseIterationSum
+        )
+        lock.unlock()
+        return result
+    }
+}
+
+nonisolated private func renderPerturbationMandelbrotParallel(
+    width: Int,
+    height: Int,
+    palette: FractalPalette,
+    centerX: Double,
+    centerY: Double,
+    scale: Double,
+    maxIterations: Int,
+    viewportAspectRatio: Double,
+    statsCallback: (@Sendable (String?) -> Void)? = nil,
+    progressCallback: (@Sendable (Double) -> Void)? = nil
+) -> CGImage? {
+    let bytesPerPixel = 4
+    let bytesPerRow = width * bytesPerPixel
+    let bitsPerComponent = 8
+    let byteCount = width * height * bytesPerPixel
+    let storage = DirectRenderPixelStorage(byteCount: byteCount)
+
+    let referenceCache = PerturbationReferenceCache(
+        references: PerturbationEngine.makeReferenceGrid(
+            centerX: centerX,
+            centerY: centerY,
+            scale: scale,
+            aspectRatio: viewportAspectRatio,
+            maxIterations: maxIterations
+        )
+    )
+
+    let maximumRowLocalPerturbationReferences =
+        referenceCache.count + 16
+
+    let perturbationRadiusPixels = perturbationCoverageRadiusPixels(
+        scale: scale,
+        viewportWidth: width
+    )
+
+    let pixelScale = scale / Double(max(width, height))
+    let maxReferenceDistance = pixelScale * perturbationRadiusPixels
+    let maxReferenceDistance2 = maxReferenceDistance * maxReferenceDistance
+
+    let stats = PerturbationParallelStats()
+    let rowProgress = progressCallback.map {
+        DirectRenderBandProgress(totalBands: height, report: $0)
+    }
+
+    DispatchQueue.concurrentPerform(iterations: height) { py in
+        if Task.isCancelled { return }
+
+        var rowCache = referenceCache
+        var rowStats = PerturbationParallelRowStats()
+
+        for px in 0..<width {
+            if px.isMultiple(of: 64), Task.isCancelled { return }
+
+            let x0 = centerX
+                + ((Double(px) + 0.5) / Double(width) - 0.5)
+                * scale
+                * viewportAspectRatio
+
+            let y0 = centerY
+                + ((Double(py) + 0.5) / Double(height) - 0.5)
+                * scale
+
+            var localMaxIterations = maxIterations
+            var iteration: Int
+
+            let referenceDistance2 = rowCache.nearestReferenceDistanceSquared(
+                forX: x0,
+                y: y0
+            )
+
+            if referenceDistance2 <= maxReferenceDistance2 {
+                let perturbationResult =
+                    PerturbationEngine.perturbationIterationWithCachedRebase(
+                        x0: x0,
+                        y0: y0,
+                        cache: &rowCache,
+                        maxIterations: localMaxIterations,
+                        maximumCachedReferences: maximumRowLocalPerturbationReferences
+                    )
+
+                if perturbationResult.reliable {
+                    let shouldPulseCheck =
+                        px.isMultiple(of: 32) &&
+                        py.isMultiple(of: 32)
+
+                    if shouldPulseCheck {
+                        let directIteration = calculateFractalIteration(
+                            mode: .mandelbrot,
+                            x0: x0,
+                            y0: y0,
+                            maxIterations: localMaxIterations
+                        )
+
+                        if abs(directIteration - perturbationResult.iteration) > 8 {
+                            rowStats.unreliablePixels += 1
+                            rowStats.fallbackPixels += 1
+                            iteration = directIteration
+                        } else {
+                            rowStats.perturbationPixels += 1
+
+                            if perturbationResult.rebaseCount > 0 {
+                                rowStats.rebasedPixels += 1
+                                rowStats.rebaseCount += perturbationResult.rebaseCount
+
+                                if let firstRebaseIteration =
+                                    perturbationResult.firstRebaseIteration {
+                                    rowStats.firstRebaseIterationSum += firstRebaseIteration
+                                }
+                            }
+
+                            iteration = perturbationResult.iteration
+                        }
+                    } else {
+                        rowStats.perturbationPixels += 1
+
+                        if perturbationResult.rebaseCount > 0 {
+                            rowStats.rebasedPixels += 1
+                            rowStats.rebaseCount += perturbationResult.rebaseCount
+
+                            if let firstRebaseIteration =
+                                perturbationResult.firstRebaseIteration {
+                                rowStats.firstRebaseIterationSum += firstRebaseIteration
+                            }
+                        }
+
+                        iteration = perturbationResult.iteration
+                    }
+                } else {
+                    rowStats.unreliablePixels += 1
+                    rowStats.fallbackPixels += 1
+                    iteration = calculateFractalIteration(
+                        mode: .mandelbrot,
+                        x0: x0,
+                        y0: y0,
+                        maxIterations: localMaxIterations
+                    )
+                }
+            } else {
+                rowStats.fallbackPixels += 1
+                iteration = calculateFractalIteration(
+                    mode: .mandelbrot,
+                    x0: x0,
+                    y0: y0,
+                    maxIterations: localMaxIterations
+                )
+            }
+
+            if shouldApplyAdaptiveIterationRefinement(
+                mode: .mandelbrot,
+                width: width,
+                maxIterations: maxIterations,
+                iteration: iteration
+            ) {
+                localMaxIterations = min(
+                    maxIterations + maxIterations / 2,
+                    120_000
+                )
+
+                iteration = calculateFractalIteration(
+                    mode: .mandelbrot,
+                    x0: x0,
+                    y0: y0,
+                    maxIterations: localMaxIterations
+                )
+            }
+
+            let color: (r: Double, g: Double, b: Double)
+
+            if iteration == localMaxIterations {
+                color = insideColor(mode: .mandelbrot, palette: palette)
+            } else {
+                let t = Double(iteration) / Double(localMaxIterations)
+
+                color = cpuPaletteColor(
+                    t: t,
+                    mode: .mandelbrot,
+                    palette: palette
+                )
+            }
+
+            let offset = (py * width + px) * bytesPerPixel
+            storage.pointer[offset + 0] = UInt8(clamp01(color.r) * 255.0)
+            storage.pointer[offset + 1] = UInt8(clamp01(color.g) * 255.0)
+            storage.pointer[offset + 2] = UInt8(clamp01(color.b) * 255.0)
+            storage.pointer[offset + 3] = 255
+        }
+
+        if !Task.isCancelled {
+            stats.add(rowStats)
+            rowProgress?.finishBand()
+        }
+    }
+
+    guard !Task.isCancelled else {
+        return nil
+    }
+
+    let totals = stats.snapshot()
+    let totalPixels = width * height
+    let coverage = 100.0 * Double(totals.perturbationPixels) / Double(totalPixels)
+    let checkedPixels = max(totals.perturbationPixels + totals.unreliablePixels, 1)
+    let stability = 100.0 * Double(totals.perturbationPixels) / Double(checkedPixels)
+
+    let averageFirstRebaseIteration = totals.rebasedPixels > 0
+        ? String(
+            Int(
+                (
+                    Double(totals.firstRebaseIterationSum)
+                    / Double(totals.rebasedPixels)
+                ).rounded()
+            )
+        )
+        : "none"
+
+    func bar(_ value: Double) -> String {
+        let filled = Int((value / 10.0).rounded())
+        let clamped = min(max(filled, 0), 10)
+
+        return String(repeating: "█", count: clamped)
+            + String(repeating: "░", count: 10 - clamped)
+    }
+
+    statsCallback?("""
+    Coverage  \(bar(coverage)) \(String(format: "%.1f", coverage))%
+    Stability \(bar(stability)) \(String(format: "%.1f", stability))%
+
+    Iterations:   \(maxIterations)
+    Size:         \(width) × \(height)
+
+    Perturbation: \(totals.perturbationPixels) / \(totalPixels)
+    Direct CPU:    \(totals.fallbackPixels)
+    Unreliable:    \(totals.unreliablePixels)
+    Rebased px:    \(totals.rebasedPixels)
+    Rebases:       \(totals.rebaseCount)
+    First rebase:  \(averageFirstRebaseIteration)
+
+    References:    \(referenceCache.count) + 0
+    Radius:        Auto \(Int(perturbationRadiusPixels)) px
+    """)
+
+    let pixels = Array(
+        UnsafeBufferPointer(
+            start: storage.pointer,
+            count: storage.byteCount
+        )
+    )
+
+    return makeCGImage(
+        pixels: pixels,
+        width: width,
+        height: height,
+        bytesPerRow: bytesPerRow,
+        bitsPerComponent: bitsPerComponent,
+        bytesPerPixel: bytesPerPixel
+    )
+}
+
+
 nonisolated func renderFractal(
     width: Int,
     height: Int,
@@ -3016,6 +3321,25 @@ nonisolated func renderFractal(
             scale: scale,
             maxIterations: maxIterations,
             viewportAspectRatio: aspectRatio,
+            progressCallback: progressCallback
+        )
+    }
+
+    if usePerturbation,
+       mode == .mandelbrot,
+       width >= 512,
+       height >= 256,
+       maxIterations >= 8_000 {
+        return renderPerturbationMandelbrotParallel(
+            width: width,
+            height: height,
+            palette: palette,
+            centerX: centerX,
+            centerY: centerY,
+            scale: scale,
+            maxIterations: maxIterations,
+            viewportAspectRatio: aspectRatio,
+            statsCallback: statsCallback,
             progressCallback: progressCallback
         )
     }
