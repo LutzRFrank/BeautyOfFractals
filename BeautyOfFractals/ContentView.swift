@@ -8,7 +8,29 @@ import simd
 import Combine
 
 private let highPrecisionScaleLimit: Double = 0.006
-nonisolated private let perturbationCoverageRadiusPixels = 512.0
+nonisolated private func perturbationCoverageRadiusPixels(
+    scale: Double,
+    viewportWidth: Int
+) -> Double {
+    let zoom = 3.0 / max(scale, 1e-30)
+
+    switch zoom {
+    case ..<1e8:
+        return 256.0
+    case ..<1e9:
+        return 384.0
+    case ..<1e10:
+        return 512.0
+    case ..<1e11:
+        return 640.0
+    case ..<1e12:
+        return 768.0
+    case ..<1e14:
+        return 896.0
+    default:
+        return 1024.0
+    }
+}
 
 
 // Below this scale a Float-based Metal preview can no longer reliably represent
@@ -3019,7 +3041,10 @@ nonisolated func renderFractal(
     let maximumCachedPerturbationReferences =
         perturbationReferenceCache.count + 64
 
-    let perturbationRadiusPixels = perturbationCoverageRadiusPixels
+    let perturbationRadiusPixels = perturbationCoverageRadiusPixels(
+        scale: scale,
+        viewportWidth: width
+    )
     var perturbationPixels = 0
     var fallbackPixels = 0
     var unreliablePerturbationPixels = 0
