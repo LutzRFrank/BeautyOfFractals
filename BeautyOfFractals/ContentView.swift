@@ -626,12 +626,19 @@ enum FavoriteSort: String, CaseIterable, Identifiable {
 }
 
 
+enum DeepRenderMethod: String, CaseIterable, Identifiable {
+    case directDouble = "Direct Double"
+    case perturbation = "Experimental Perturbation"
+    case doubleDouble = "Experimental DoubleDouble CPU"
+
+    var id: String { rawValue }
+}
+
 struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
     @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
-    @State private var perturbationEnabled: Bool = false
-    @State private var doubleDoubleEnabled: Bool = false
+    @State private var deepRenderMethod: DeepRenderMethod = .directDouble
     @State private var showPerturbationStats: Bool = false
     @State private var lastPerturbationStatsText: String? = "No experimental Perturbation statistics captured yet.\nEnable Experimental Perturbation for a deep Mandelbrot CPU render."
     @State private var perturbationStatsOffset: CGSize = .zero
@@ -709,8 +716,7 @@ struct ContentView: View {
                 preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
                 renderQuality: renderQuality,
-                perturbationEnabled: perturbationEnabled,
-                doubleDoubleEnabled: doubleDoubleEnabled,
+                deepRenderMethod: deepRenderMethod,
                 navigationStarted: recordNavigationStep,
                 navigationRevision: navigationRevision,
                 latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG,
@@ -1017,33 +1023,21 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Choose render quality")
 
                 Menu {
-                    Toggle("Experimental Perturbation", isOn: Binding(
-                        get: { perturbationEnabled },
-                        set: { newValue in
-                            perturbationEnabled = newValue
-                            if newValue {
-                                doubleDoubleEnabled = false
-                            }
+                    ForEach(DeepRenderMethod.allCases) { method in
+                        Button {
+                            deepRenderMethod = method
                             latestHighPrecisionThumbnailPNG = nil
                             lastPerturbationStatsText = nil
                             navigationRevision &+= 1
+                        } label: {
+                            Text(
+                                "\(deepRenderMethod == method ? "◉" : "○")  \(method.rawValue)"
+                            )
                         }
-                    ))
-                    .disabled(fractalMode != .mandelbrot)
+                        .disabled(fractalMode != .mandelbrot)
+                    }
 
-                    Toggle("Experimental DoubleDouble CPU", isOn: Binding(
-                        get: { doubleDoubleEnabled },
-                        set: { newValue in
-                            doubleDoubleEnabled = newValue
-                            if newValue {
-                                perturbationEnabled = false
-                            }
-                            latestHighPrecisionThumbnailPNG = nil
-                            lastPerturbationStatsText = nil
-                            navigationRevision &+= 1
-                        }
-                    ))
-                    .disabled(fractalMode != .mandelbrot)
+                    Divider()
 
                     Button("Show Diagnostics") {
                         showPerturbationStats = true
@@ -1834,8 +1828,7 @@ struct MandelbrotView: View {
     @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
     let renderQuality: RenderQuality
-    let perturbationEnabled: Bool
-    let doubleDoubleEnabled: Bool
+    let deepRenderMethod: DeepRenderMethod
     let navigationStarted: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
@@ -1888,25 +1881,16 @@ struct MandelbrotView: View {
         }
         
         if useDeepCPUPreview {
-            let usesPerturbation =
-                perturbationEnabled &&
-                fractalMode == .mandelbrot &&
-                scale < 1e-9
-
-            let usesDoubleDouble =
-                doubleDoubleEnabled &&
-                fractalMode == .mandelbrot &&
-                scale < directDeepMandelbrotScaleLimit
-
-            if usesPerturbation {
+            switch deepRenderMethod {
+            case .perturbation:
                 return "High Precision · CPU Deep Zoom · Perturbation"
-            }
 
-            if usesDoubleDouble {
+            case .doubleDouble:
                 return "High Precision · CPU Deep Zoom · DoubleDouble"
-            }
 
-            return "High Precision · CPU Deep Zoom"
+            case .directDouble:
+                return "High Precision · CPU Deep Zoom"
+            }
         }
 
         if magnificationFactor >= 50_000_000_000 {
@@ -2009,8 +1993,7 @@ struct MandelbrotView: View {
                             refinementEnabled: !isInteractionPreviewActive,
                             renderEpoch: highPrecisionRenderEpoch,
                             renderQualityKey: renderQuality.rawValue,
-                            perturbationEnabled: perturbationEnabled,
-                            doubleDoubleEnabled: doubleDoubleEnabled,
+                            deepRenderMethod: deepRenderMethod,
                             onImagePublished: { visibleState in
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
@@ -2342,8 +2325,7 @@ struct HighPrecisionFractalPreview: View {
     let refinementEnabled: Bool
     let renderEpoch: UInt
     let renderQualityKey: String
-    let perturbationEnabled: Bool
-    let doubleDoubleEnabled: Bool
+    let deepRenderMethod: DeepRenderMethod
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
     let onPerturbationStatsPublished: (String?) -> Void
@@ -2378,8 +2360,7 @@ struct HighPrecisionFractalPreview: View {
             refinementEnabled.description,
             renderEpoch.description,
             renderQualityKey,
-            perturbationEnabled.description,
-            doubleDoubleEnabled.description
+            deepRenderMethod.rawValue
         ].joined(separator: "|")
     }
     
@@ -2644,7 +2625,7 @@ struct HighPrecisionFractalPreview: View {
                     preciseViewport: precise,
                     maxIterations: previewIterations,
                     requestID: requestID,
-                    perturbationEnabled: perturbationEnabled,
+                    perturbationEnabled: deepRenderMethod == .perturbation,
                     doubleDoubleEnabled: false,
                 ) {
                     image = NSImage(
@@ -2695,8 +2676,8 @@ struct HighPrecisionFractalPreview: View {
             maxIterations: fullIterations,
             requestID: requestID,
             progressStart: 0.82,
-            perturbationEnabled: perturbationEnabled,
-            doubleDoubleEnabled: doubleDoubleEnabled,
+            perturbationEnabled: deepRenderMethod == .perturbation,
+            doubleDoubleEnabled: deepRenderMethod == .doubleDouble,
             isFinalRender: true,
             progressEnd: 0.995,
             statsCallback: { stats in
