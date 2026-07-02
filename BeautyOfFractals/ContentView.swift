@@ -3046,8 +3046,6 @@ nonisolated func renderFractal(
     var perturbationPixels = 0
     var fallbackPixels = 0
     var unreliablePerturbationPixels = 0
-    var fallbackSumX = 0.0
-    var fallbackSumY = 0.0
     let initialPerturbationReferenceCount = perturbationReferenceCache.count
     
     for py in 0..<height {
@@ -3115,8 +3113,6 @@ nonisolated func renderFractal(
                                 if abs(directIteration - perturbationResult.iteration) > 8 {
                                     unreliablePerturbationPixels += 1
                                     fallbackPixels += 1
-                                    fallbackSumX += Double(px)
-                                    fallbackSumY += Double(py)
                                     iteration = directIteration
                                 } else {
                                     perturbationPixels += 1
@@ -3129,8 +3125,6 @@ nonisolated func renderFractal(
                         } else {
                             unreliablePerturbationPixels += 1
                             fallbackPixels += 1
-                            fallbackSumX += Double(px)
-                            fallbackSumY += Double(py)
                             iteration = calculateFractalIteration(
                                 mode: mode,
                                 x0: x0,
@@ -3140,8 +3134,6 @@ nonisolated func renderFractal(
                         }
                     } else {
                         fallbackPixels += 1
-                        fallbackSumX += Double(px)
-                        fallbackSumY += Double(py)
                         iteration = calculateFractalIteration(
                             mode: mode,
                             x0: x0,
@@ -3152,8 +3144,6 @@ nonisolated func renderFractal(
                 } else {
                     if usePerturbation {
                         fallbackPixels += 1
-                        fallbackSumX += Double(px)
-                        fallbackSumY += Double(py)
                     }
                     iteration = calculateFractalIteration(
                         mode: mode,
