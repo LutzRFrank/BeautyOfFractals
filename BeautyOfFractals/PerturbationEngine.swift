@@ -6,12 +6,19 @@ nonisolated struct PerturbationOrbit {
     let escapedAt: Int
 }
 
-nonisolated 
+nonisolated
 struct PerturbationState {
     var zx: Double = 0.0
     var zy: Double = 0.0
     var iteration: Int = 0
     var reference: PerturbationReference
+}
+
+struct PerturbationIterationResult {
+    let iteration: Int
+    let reliable: Bool
+    let rebaseCount: Int
+    let firstRebaseIteration: Int?
 }
 
 struct PerturbationStepResult {
@@ -29,14 +36,42 @@ struct PerturbationReference {
 
 nonisolated struct PerturbationReferenceCache {
     private(set) var references: [PerturbationReference]
-    private(set) var addedLocalReferenceCount: Int = 0
+    private let initialReferenceCount: Int
 
     var count: Int {
         references.count
     }
 
+    var localReferenceCount: Int {
+        max(references.count - initialReferenceCount, 0)
+    }
+
     init(references: [PerturbationReference]) {
         self.references = references
+        self.initialReferenceCount = references.count
+    }
+
+    func nearestReferenceIsLocal(
+        forX x: Double,
+        y: Double
+    ) -> Bool {
+        guard let index = references.indices.min(by: {
+            let da = PerturbationEngine.squaredDistance(
+                x, y,
+                references[$0].centerX,
+                references[$0].centerY
+            )
+            let db = PerturbationEngine.squaredDistance(
+                x, y,
+                references[$1].centerX,
+                references[$1].centerY
+            )
+            return da < db
+        }) else {
+            return false
+        }
+
+        return index >= initialReferenceCount
     }
 
     mutating func nearestReference(
@@ -50,7 +85,16 @@ nonisolated struct PerturbationReferenceCache {
         )
     }
 
-    mutating func addLocalReference(
+    func nearestReferenceDistanceSquared(
+        forX x: Double,
+        y: Double
+    ) -> Double {
+        references
+            .map { PerturbationEngine.squaredDistance(x, y, $0.centerX, $0.centerY) }
+            .min() ?? .greatestFiniteMagnitude
+    }
+
+    mutating func cacheLocalReference(
         centerX: Double,
         centerY: Double,
         maxIterations: Int
@@ -65,8 +109,8 @@ nonisolated struct PerturbationReferenceCache {
             )
         )
 
+        // references.append(reference)
         references.append(reference)
-        addedLocalReferenceCount += 1
         return reference
     }
 }
@@ -111,7 +155,10 @@ nonisolated enum PerturbationEngine {
         aspectRatio: Double,
         maxIterations: Int
     ) -> [PerturbationReference] {
-        let offsets = [-0.5, 0.0, 0.5]
+        let zoom = 3.0 / max(scale, 1e-30)
+        let offsets = zoom >= 1e12
+            ? [-0.5, -0.25, 0.0, 0.25, 0.5]
+            : [-0.5, 0.0, 0.5]
 
         return offsets.flatMap { oy in
             offsets.map { ox in
@@ -191,7 +238,7 @@ nonisolated enum PerturbationEngine {
         }
 
         let deltaMagnitude2 = state.zx * state.zx + state.zy * state.zy
-        let shouldRebase = deltaMagnitude2 > 0.000001
+        let shouldRebase = deltaMagnitude2 > 0.00001
 
         if state.iteration >= orbit.escapedAt {
             return PerturbationStepResult(
@@ -215,12 +262,19 @@ nonisolated enum PerturbationEngine {
         cache: inout PerturbationReferenceCache,
         maxIterations: Int,
         maximumCachedReferences: Int
-    ) -> Int {
+    ) -> PerturbationIterationResult {
         guard let initialReference = cache.nearestReference(forX: x0, y: y0) else {
-            return maxIterations
+            return PerturbationIterationResult(
+                iteration: maxIterations,
+                reliable: false,
+                rebaseCount: 0,
+                firstRebaseIteration: nil
+            )
         }
 
         var state = PerturbationState(reference: initialReference)
+        var rebaseCount = 0
+        var firstRebaseIteration: Int?
 
         while state.iteration < maxIterations {
             let result = step(
@@ -231,22 +285,55 @@ nonisolated enum PerturbationEngine {
             )
 
             if result.escaped {
-                return result.iteration
+                return PerturbationIterationResult(
+                    iteration: result.iteration,
+                    reliable: true,
+                    rebaseCount: rebaseCount,
+                    firstRebaseIteration: firstRebaseIteration
+                )
             }
 
-            if result.shouldRebase,
-               cache.count < maximumCachedReferences {
-                let localReference = cache.addLocalReference(
+            if result.shouldRebase {
+                // A reference orbit for the exact target point has all global
+                // orbit positions available. Reset only the delta; preserve the
+                // absolute iteration so the next step continues at z_n, not z_0.
+                guard cache.count < maximumCachedReferences,
+                      rebaseCount < 4 else {
+                    return PerturbationIterationResult(
+                        iteration: result.iteration,
+                        reliable: false,
+                        rebaseCount: rebaseCount,
+                        firstRebaseIteration: firstRebaseIteration
+                    )
+                }
+
+                rebaseCount += 1
+                if firstRebaseIteration == nil {
+                    firstRebaseIteration = state.iteration
+                }
+
+                let preservedIteration = state.iteration
+                let localReference = cache.cacheLocalReference(
                     centerX: x0,
                     centerY: y0,
                     maxIterations: maxIterations
                 )
 
-                state = PerturbationState(reference: localReference)
+                state = PerturbationState(
+                    zx: 0.0,
+                    zy: 0.0,
+                    iteration: preservedIteration,
+                    reference: localReference
+                )
             }
         }
 
-        return maxIterations
+        return PerturbationIterationResult(
+            iteration: maxIterations,
+            reliable: true,
+            rebaseCount: rebaseCount,
+            firstRebaseIteration: firstRebaseIteration
+        )
     }
 
     static func perturbationIteration(
@@ -277,7 +364,7 @@ nonisolated enum PerturbationEngine {
         return maxIterations
     }
 
-    private static func squaredDistance(
+    static func squaredDistance(
         _ ax: Double,
         _ ay: Double,
         _ bx: Double,
