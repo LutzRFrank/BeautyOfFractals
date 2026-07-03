@@ -52,7 +52,9 @@
 		55E4667D2FE11A0F00DC3CA5 /* Exceptions for "BeautyOfFractals" folder in "BeautyOfFractals iOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				DoubleDouble.swift,
 				MandelbrotShader.metal,
+				PreciseViewport.swift,
 			);
 			target = 55E4664A2FE1155C00DC3CA5 /* BeautyOfFractals iOS */;
 		};
