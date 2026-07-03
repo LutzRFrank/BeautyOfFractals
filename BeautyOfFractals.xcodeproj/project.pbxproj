@@ -53,6 +53,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				DoubleDouble.swift,
+				MandelbrotDoubleDouble.swift,
 				MandelbrotShader.metal,
 				PreciseViewport.swift,
 			);
