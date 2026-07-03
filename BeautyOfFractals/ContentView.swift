@@ -978,7 +978,7 @@ The zoom factor overlay is only visible in the app and is not included in export
     }
 
     private var controlsOverlay: some View {
-        HStack(spacing: 14) {
+        VStack(spacing: 10) {
             HStack(spacing: 10) {
                 Menu {
                     ForEach(FractalMode.allCases) { mode in
@@ -2965,6 +2965,91 @@ nonisolated func renderFractalSupersampled(
 }
 
 
+private struct DirectRefinementStats: Sendable {
+    var refinedPixels = 0
+    var initialInsidePixels = 0
+    var lateEscapePixels = 0
+    var escapedAfterRefinement = 0
+    var insideAfterRefinement = 0
+
+    nonisolated init(
+        refinedPixels: Int = 0,
+        initialInsidePixels: Int = 0,
+        lateEscapePixels: Int = 0,
+        escapedAfterRefinement: Int = 0,
+        insideAfterRefinement: Int = 0
+    ) {
+        self.refinedPixels = refinedPixels
+        self.initialInsidePixels = initialInsidePixels
+        self.lateEscapePixels = lateEscapePixels
+        self.escapedAfterRefinement = escapedAfterRefinement
+        self.insideAfterRefinement = insideAfterRefinement
+    }
+}
+
+nonisolated private final class DirectRefinementStatsAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var totals = DirectRefinementStats()
+
+    func add(_ values: DirectRefinementStats) {
+        lock.lock()
+        totals.refinedPixels += values.refinedPixels
+        totals.initialInsidePixels += values.initialInsidePixels
+        totals.lateEscapePixels += values.lateEscapePixels
+        totals.escapedAfterRefinement += values.escapedAfterRefinement
+        totals.insideAfterRefinement += values.insideAfterRefinement
+        lock.unlock()
+    }
+
+    func snapshot() -> DirectRefinementStats {
+        lock.lock()
+        let result = totals
+        lock.unlock()
+        return result
+    }
+}
+
+nonisolated private func calculateMandelbrotIterationState(
+    cX: Double,
+    cY: Double,
+    maxIterations: Int
+) -> (iteration: Int, x: Double, y: Double) {
+    var x = 0.0
+    var y = 0.0
+    var iteration = 0
+
+    while x * x + y * y <= 4.0 && iteration < maxIterations {
+        let nextX = x * x - y * y + cX
+        y = 2.0 * x * y + cY
+        x = nextX
+        iteration += 1
+    }
+
+    return (iteration, x, y)
+}
+
+nonisolated private func continueMandelbrotIteration(
+    cX: Double,
+    cY: Double,
+    x: Double,
+    y: Double,
+    iteration: Int,
+    maxIterations: Int
+) -> Int {
+    var x = x
+    var y = y
+    var iteration = iteration
+
+    while x * x + y * y <= 4.0 && iteration < maxIterations {
+        let nextX = x * x - y * y + cX
+        y = 2.0 * x * y + cY
+        x = nextX
+        iteration += 1
+    }
+
+    return iteration
+}
+
 nonisolated private func renderDirectMandelbrotParallel(
     width: Int,
     height: Int,
@@ -2974,6 +3059,7 @@ nonisolated private func renderDirectMandelbrotParallel(
     scale: Double,
     maxIterations: Int,
     viewportAspectRatio: Double,
+    statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     let bytesPerPixel = 4
@@ -2991,12 +3077,15 @@ nonisolated private func renderDirectMandelbrotParallel(
     let bandProgress = progressCallback.map {
         DirectRenderBandProgress(totalBands: bandCount, report: $0)
     }
+    let refinementStats = DirectRefinementStatsAccumulator()
 
     DispatchQueue.concurrentPerform(iterations: bandCount) { bandIndex in
         let startRow = bandIndex * rowsPerBand
         let endRow = min(startRow + rowsPerBand, height)
 
         guard startRow < endRow else { return }
+
+        var bandStats = DirectRefinementStats()
 
         for py in startRow..<endRow {
             if Task.isCancelled { return }
@@ -3014,12 +3103,12 @@ nonisolated private func renderDirectMandelbrotParallel(
                     * scale
 
                 var localMaxIterations = maxIterations
-                var iteration = calculateFractalIteration(
-                    mode: .mandelbrot,
-                    x0: x0,
-                    y0: y0,
+                let initialOrbit = calculateMandelbrotIterationState(
+                    cX: x0,
+                    cY: y0,
                     maxIterations: localMaxIterations
                 )
+                var iteration = initialOrbit.iteration
 
                 if shouldApplyAdaptiveIterationRefinement(
                     mode: .mandelbrot,
@@ -3027,17 +3116,38 @@ nonisolated private func renderDirectMandelbrotParallel(
                     maxIterations: maxIterations,
                     iteration: iteration
                 ) {
+                    bandStats.refinedPixels += 1
+
+                    if iteration == maxIterations {
+                        bandStats.initialInsidePixels += 1
+                    } else {
+                        bandStats.lateEscapePixels += 1
+                    }
+
                     localMaxIterations = min(
                         maxIterations + maxIterations / 2,
                         120_000
                     )
 
-                    iteration = calculateFractalIteration(
-                        mode: .mandelbrot,
-                        x0: x0,
-                        y0: y0,
-                        maxIterations: localMaxIterations
-                    )
+                    // A pixel that has already escaped has a final iteration
+                    // count. Keep that count, but normalize its color against
+                    // the higher refinement limit exactly as before.
+                    if iteration == maxIterations {
+                        iteration = continueMandelbrotIteration(
+                            cX: x0,
+                            cY: y0,
+                            x: initialOrbit.x,
+                            y: initialOrbit.y,
+                            iteration: initialOrbit.iteration,
+                            maxIterations: localMaxIterations
+                        )
+                    }
+
+                    if iteration == localMaxIterations {
+                        bandStats.insideAfterRefinement += 1
+                    } else {
+                        bandStats.escapedAfterRefinement += 1
+                    }
                 }
 
                 let color: (r: Double, g: Double, b: Double)
@@ -3062,12 +3172,35 @@ nonisolated private func renderDirectMandelbrotParallel(
             }
         }
 
+        if !Task.isCancelled {
+            refinementStats.add(bandStats)
+        }
+
         bandProgress?.finishBand()
     }
 
     guard !Task.isCancelled else {
         return nil
     }
+
+    let totals = refinementStats.snapshot()
+    let totalPixels = max(width * height, 1)
+    let refinementShare = 100.0
+        * Double(totals.refinedPixels)
+        / Double(totalPixels)
+
+    statsCallback?("""
+    Direct Double Refinement
+
+    Iterations:        \(maxIterations)
+    Size:              \(width) × \(height)
+    Refined px:        \(totals.refinedPixels) / \(totalPixels)
+    Refinement share:  \(String(format: "%.1f", refinementShare))%
+    Initial inside:    \(totals.initialInsidePixels)
+    Late escape:       \(totals.lateEscapePixels)
+    Escaped after:     \(totals.escapedAfterRefinement)
+    Inside after:      \(totals.insideAfterRefinement)
+    """)
 
     let pixels = Array(
         UnsafeBufferPointer(
@@ -3588,6 +3721,7 @@ nonisolated func renderFractal(
             scale: scale,
             maxIterations: maxIterations,
             viewportAspectRatio: aspectRatio,
+            statsCallback: statsCallback,
             progressCallback: progressCallback
         )
     }

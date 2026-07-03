@@ -10,12 +10,12 @@ struct MandelbrotExplorerApp: App {
             ContentView()
                 .preferredColorScheme(.dark)
                 .onAppear {
-                    DispatchQueue.main.async {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         AppDelegate.resizeMainWindowToAppStoreSize()
                     }
                 }
         }
-        .defaultSize(width: 1280, height: 800)
+        .defaultSize(width: 1180, height: 740)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("Fractal") {
@@ -73,19 +73,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     static func resizeMainWindowToAppStoreSize() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window =
+            NSApplication.shared.mainWindow
+            ?? NSApplication.shared.keyWindow
+            ?? NSApplication.shared.windows.first
+        else {
+            return
+        }
         
-        let targetSize = NSSize(width: 1280, height: 800)
-        let currentFrame = window.frame
-        
+        let targetSize = NSSize(width: 1180, height: 740)
+
+        guard let screen = window.screen ?? NSScreen.main else {
+            return
+        }
+
+        let fullScreenFrame = screen.frame
+        let visibleFrame = screen.visibleFrame
+
         let newOrigin = NSPoint(
-            x: currentFrame.midX - targetSize.width / 2.0,
-            y: currentFrame.midY - targetSize.height / 2.0
+            x: fullScreenFrame.midX - targetSize.width / 2.0,
+            y: visibleFrame.midY - targetSize.height / 2.0
         )
-        
+
         let newFrame = NSRect(origin: newOrigin, size: targetSize)
         window.setFrame(newFrame, display: true, animate: false)
-        window.center()
     }
 }
 
