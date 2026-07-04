@@ -1743,6 +1743,12 @@ The zoom factor overlay is only visible in the app and is not included in export
         case .mandelbrot:
             fractalPalette = .deepBlue
 
+        case .tricorn:
+            fractalPalette = .deepBlue
+
+        case .newton:
+            fractalPalette = .solarPop
+
         default:
             break
         }
