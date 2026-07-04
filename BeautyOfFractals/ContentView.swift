@@ -58,11 +58,11 @@ enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbrotRelief = 6
     case mandelbox3D = 7
     case newton = 8
-    
+
     var id: Int {
         rawValue
     }
-    
+
     var displayName: String {
         switch self {
         case .mandelbrot:
@@ -85,7 +85,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Newton Fractal"
         }
     }
-    
+
     var shortName: String {
         switch self {
         case .mandelbrot:
@@ -108,7 +108,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Newton"
         }
     }
-    
+
     var fileName: String {
         switch self {
         case .mandelbrot:
@@ -131,7 +131,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Newton"
         }
     }
-    
+
     var defaultCenterX: Double {
         switch self {
         case .mandelbrot:
@@ -154,7 +154,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         }
     }
-    
+
     var defaultCenterY: Double {
         switch self {
         case .mandelbrot:
@@ -177,7 +177,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         }
     }
-    
+
     var defaultScale: Double {
         switch self {
         case .mandelbrot:
@@ -200,7 +200,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 3.2
         }
     }
-    
+
     var supportsHighPrecisionPreview: Bool {
         switch self {
         case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton:
@@ -222,11 +222,11 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case solarCoral = 7
     case infernoCoral = 8
     case solarPop = 9
-    
+
     var id: Int {
         rawValue
     }
-    
+
     var displayName: String {
         switch self {
         case .ocean:
@@ -251,7 +251,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Solar Pop"
         }
     }
-    
+
     var fileName: String {
         switch self {
         case .ocean:
@@ -282,9 +282,9 @@ enum RenderQuality: String, CaseIterable, Identifiable {
     case fast = "Fast"
     case high = "High"
     case deep = "Deep"
-    
+
     var id: String { rawValue }
-    
+
     var iterationMultiplier: Double {
         switch self {
         case .fast:
@@ -306,7 +306,7 @@ private func effectiveIterationCount(
 ) -> Int {
     let zoomLevel = defaultScale / max(scale, 0.000000000000000001)
     let zoomBoost: Double
-    
+
     if zoomLevel > 100_000_000 {
         zoomBoost = 1.6
     } else if zoomLevel > 10_000_000 {
@@ -316,7 +316,7 @@ private func effectiveIterationCount(
     } else {
         zoomBoost = 1.0
     }
-    
+
     let value = Double(baseIterations) * renderQuality.iterationMultiplier * zoomBoost
     return min(max(Int(value.rounded()), 300), cap)
 }
@@ -403,7 +403,7 @@ final class FavoritesStore: ObservableObject {
         return folder.appendingPathComponent("FavoriteSpots.json")
     }
 
-    
+
     private var cloudFileURL: URL? {
         guard let containerURL = FileManager.default.url(
             forUbiquityContainerIdentifier: "iCloud.com.lutzrfrank.BeautyOfFractals"
@@ -707,7 +707,7 @@ struct ContentView: View {
     @State private var lastPerturbationStatsText: String? = "No Deep Reference diagnostics captured yet.\nSelect Deep Reference for a deep Mandelbrot CPU render."
     @State private var perturbationStatsOffset: CGSize = .zero
     @State private var perturbationStatsDragStartOffset: CGSize = .zero
-    
+
     @State private var centerX: Double = FractalMode.mandelbrot.defaultCenterX
     @State private var centerY: Double = FractalMode.mandelbrot.defaultCenterY
     @State private var scale: Double = FractalMode.mandelbrot.defaultScale
@@ -716,7 +716,7 @@ struct ContentView: View {
         centerY: FractalMode.mandelbrot.defaultCenterY,
         scale: FractalMode.mandelbrot.defaultScale
     )
-    
+
     @State private var maxIterations: Int = 300
     @State private var isSavingSnapshot: Bool = false
     @State private var showHelp: Bool = false
@@ -742,7 +742,7 @@ struct ContentView: View {
         let preciseViewport: PreciseViewport
         let maxIterations: Int
     }
-    
+
     private var effectiveIterations: Int {
         effectiveIterationCount(
             baseIterations: maxIterations,
@@ -752,7 +752,7 @@ struct ContentView: View {
             cap: renderQuality == .deep ? 100_000 : 80_000
         )
     }
-    
+
     private var exportEffectiveIterations: Int {
         effectiveIterationCount(
             baseIterations: maxIterations,
@@ -762,14 +762,14 @@ struct ContentView: View {
             cap: renderQuality == .deep ? 100_000 : 80_000
         )
     }
-    
+
     private var ultraExportEffectiveIterations: Int {
         min(
             Int(Double(exportEffectiveIterations) * 1.5),
             120_000
         )
     }
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
             MandelbrotView(
@@ -892,7 +892,7 @@ The zoom factor overlay is only visible in the app and is not included in export
 """)
         }
     }
-    
+
     private func displayDiagnosticsText(_ text: String) -> String {
         let isPerturbationDiagnostics = text.contains("Perturbation:")
 
@@ -1107,7 +1107,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                         .frame(width: 135, alignment: .leading)
                 }
                 .help("Choose fractal mode")
-                
+
                 Menu {
                     if fractalMode == .julia {
                         Text("✓ Solar Pop")
@@ -1127,7 +1127,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                         .frame(width: 130, alignment: .leading)
                 }
                 .help("Choose color palette")
-                
+
                 Menu {
                     ForEach(RenderQuality.allCases) { quality in
                         Button {
@@ -1167,7 +1167,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                         .frame(width: 22)
                 }
                 .help("Render diagnostics")
-                
+
                 Button {
                     zoomOut()
                 } label: {
@@ -1176,7 +1176,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                 }
                 .keyboardShortcut("-", modifiers: [])
                 .help("Zoom Out")
-                
+
                 Button {
                     zoomIn()
                 } label: {
@@ -1186,7 +1186,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .keyboardShortcut("+", modifiers: [])
                 .keyboardShortcut("=", modifiers: [])
                 .help("Zoom In")
-                
+
                 Button {
                     undoView()
                 } label: {
@@ -1205,35 +1205,35 @@ The zoom factor overlay is only visible in the app and is not included in export
                 }
                 .keyboardShortcut("r", modifiers: .command)
                 .help("Reset View")
-                
+
                 Menu(isSavingSnapshot ? "Rendering…" : "Export") {
                     Button("Export 1440 × 900 PNG") {
                         saveSnapshot(width: 1440, height: 900)
                     }
-                    
+
                     Button("Export 2560 × 1600 PNG") {
                         saveSnapshot(width: 2560, height: 1600)
                     }
-                    
+
                     Button("Export 2880 × 1800 PNG") {
                         saveSnapshot(width: 2880, height: 1800)
                     }
-                    
+
                     Divider()
-                    
+
                     Button("Ultra Export 1440 × 900 PNG · 2×") {
                         saveSnapshot(width: 1440, height: 900, supersampling: 2)
                     }
-                    
+
                     Button("Ultra Export 2560 × 1600 PNG · 2×") {
                         saveSnapshot(width: 2560, height: 1600, supersampling: 2)
                     }
-                    
+
                     // 2880 × 1800 stays normal export only.
                     // Ultra 2× at this size allocates a 5760 × 3600 render buffer and can stall macOS on smaller systems.
                 }
                 .disabled(isSavingSnapshot)
-                
+
                 Button {
                     showFavoritesPanel.toggle()
                 } label: {
@@ -1251,14 +1251,14 @@ The zoom factor overlay is only visible in the app and is not included in export
             .padding(.vertical, 6)
             .background(.ultraThinMaterial)
             .clipShape(Capsule())
-            
+
             HStack(spacing: 10) {
                 Text("Iterations: \(effectiveIterations.formatted())")
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
                     .monospacedDigit()
                     .frame(width: 130, alignment: .trailing)
-                
+
                 Slider(
                     value: Binding(
                         get: {
@@ -1271,7 +1271,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                     in: 300...24000
                 )
                 .frame(width: 220)
-                
+
                 Stepper(
                     "",
                     value: $maxIterations,
@@ -1294,7 +1294,7 @@ The zoom factor overlay is only visible in the app and is not included in export
         .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 10)
         .padding(.horizontal, 24)
     }
-    
+
 
     private var favoritesPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1353,7 +1353,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                 }
                 .disabled(favoriteName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .help("Save Current View")
-                
+
                 Button {
                     isSyncingFavorites = true
                     _ = favoritesStore.syncWithCloud()
@@ -1736,8 +1736,15 @@ The zoom factor overlay is only visible in the app and is not included in export
     private func setMode(_ mode: FractalMode) {
         fractalMode = mode
 
-        if mode == .julia {
+        switch mode {
+        case .julia:
             fractalPalette = .solarPop
+
+        case .mandelbrot:
+            fractalPalette = .deepBlue
+
+        default:
+            break
         }
 
         applyPreciseViewport(
@@ -1751,21 +1758,21 @@ The zoom factor overlay is only visible in the app and is not included in export
         navigationHistory.removeAll()
         navigationRevision &+= 1
     }
-    
+
     private func zoomIn() {
         recordNavigationStep()
         navigationRevision &+= 1
         applyPreciseViewport(preciseViewport.zoomed(by: 0.5))
         increaseIterationsForZoom()
     }
-    
+
     private func zoomOut() {
         recordNavigationStep()
         navigationRevision &+= 1
         applyPreciseViewport(preciseViewport.zoomed(by: 2.0))
         decreaseIterationsForZoom()
     }
-    
+
     private func resetView() {
         recordNavigationStep()
         navigationRevision &+= 1
@@ -1778,7 +1785,7 @@ The zoom factor overlay is only visible in the app and is not included in export
         )
         maxIterations = 300
     }
-    
+
     private func increaseIterationsForZoom() {
         if maxIterations < 500 {
             maxIterations += 400
@@ -1797,10 +1804,10 @@ The zoom factor overlay is only visible in the app and is not included in export
         } else {
             maxIterations += 6000
         }
-        
+
         maxIterations = min(maxIterations, 24000)
     }
-    
+
     private func decreaseIterationsForZoom() {
         if maxIterations > 20000 {
             maxIterations -= 6000
@@ -1819,16 +1826,16 @@ The zoom factor overlay is only visible in the app and is not included in export
         } else {
             maxIterations -= 400
         }
-        
+
         maxIterations = max(maxIterations, 300)
     }
-    
-    
+
+
     private func saveSnapshot(width exportWidth: Int = 2560, height exportHeight: Int = 1600, supersampling: Int = 1) {
         if isSavingSnapshot {
             return
         }
-        
+
         let snapshotMode = fractalMode
         let snapshotPalette = fractalPalette
         let snapshotCenterX = centerX
@@ -1837,22 +1844,22 @@ The zoom factor overlay is only visible in the app and is not included in export
         let snapshotSupersampling = max(1, min(supersampling, 2))
         let snapshotIterations = snapshotSupersampling > 1 ? ultraExportEffectiveIterations : exportEffectiveIterations
         let snapshotExportSuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
-        
+
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue =
             "BeautyOfFractals-\(snapshotMode.fileName)-\(snapshotPalette.fileName)-\(snapshotIterations)-iterations\(snapshotExportSuffix)-\(exportWidth)x\(exportHeight).png"
-        
+
         panel.begin { response in
             guard response == .OK, let url = panel.url else {
                 return
             }
-            
+
             isSavingSnapshot = true
-            
+
             Task.detached(priority: .userInitiated) {
                 let cgImage: CGImage?
-                
+
                 if snapshotMode == .mandelbulb3D {
                     cgImage = renderMandelbulb3DImage(
                         width: exportWidth,
@@ -1884,16 +1891,16 @@ The zoom factor overlay is only visible in the app and is not included in export
                         maxIterations: snapshotIterations
                     )
                 }
-                
+
                 guard let finalImage = cgImage else {
                     await MainActor.run {
                         isSavingSnapshot = false
                     }
                     return
                 }
-                
+
                 let bitmapRep = NSBitmapImageRep(cgImage: finalImage)
-                
+
                 guard let pngData = bitmapRep.representation(
                     using: .png,
                     properties: [:]
@@ -1903,13 +1910,13 @@ The zoom factor overlay is only visible in the app and is not included in export
                     }
                     return
                 }
-                
+
                 do {
                     try pngData.write(to: url)
                 } catch {
                     print("Snapshot konnte nicht gespeichert werden:", error)
                 }
-                
+
                 await MainActor.run {
                     isSavingSnapshot = false
                 }
@@ -1960,7 +1967,7 @@ private struct FractalViewportTransform {
 struct MandelbrotView: View {
     let fractalMode: FractalMode
     let fractalPalette: FractalPalette
-    
+
     @Binding var centerX: Double
     @Binding var centerY: Double
     @Binding var scale: Double
@@ -1976,16 +1983,16 @@ struct MandelbrotView: View {
     @Binding var activeFloatingPanel: FloatingRenderPanel
     let diagnosticsPanel: () -> AnyView
     let onPerturbationStatsPublished: (String?) -> Void
-    
+
     @State private var dragStart: CGPoint?
     @State private var dragCurrent: CGPoint?
-    
+
     @State private var isOptionPressed: Bool = false
     @State private var isPanning: Bool = false
     @State private var panStartCenterX: Double = -0.5
     @State private var panStartCenterY: Double = 0.0
     @State private var panStartPreciseViewport: PreciseViewport?
-    
+
     @State private var keyMonitor: Any?
     // Safe progressive rendering: keep the last completed high-precision image
     // visible while panning instead of falling back to GPU at extreme zoom.
@@ -1998,7 +2005,7 @@ struct MandelbrotView: View {
     // Invalidates a pending high-precision worker when a new interaction starts.
     @State private var highPrecisionRenderEpoch: UInt = 0
 
-    
+
     private var useHighPrecisionPreview: Bool {
         fractalMode.supportsHighPrecisionPreview && scale < highPrecisionScaleLimit
     }
@@ -2009,20 +2016,20 @@ struct MandelbrotView: View {
     private var useDeepCPUPreview: Bool {
         fractalMode.supportsHighPrecisionPreview && scale < deepCPUPreviewScaleLimit
     }
-    
+
     private var magnificationFactor: Double {
         fractalMode.defaultScale / max(scale, 0.000000000000000001)
     }
-    
+
     private var magnificationText: String {
         formatMagnification(magnificationFactor)
     }
-    
+
     private var precisionStatusText: String? {
         if !fractalMode.supportsHighPrecisionPreview {
             return nil
         }
-        
+
         if useDeepCPUPreview {
             switch deepRenderMethod {
             case .automatic:
@@ -2042,18 +2049,18 @@ struct MandelbrotView: View {
         if magnificationFactor >= 50_000_000_000 {
             return "High Precision · Extreme Zoom"
         }
-        
+
         if magnificationFactor >= 10_000_000_000 {
             return "High Precision · Near Limit"
         }
-        
+
         if useHighPrecisionPreview {
             return "High Precision"
         }
-        
+
         return nil
     }
-    
+
     private var effectiveIterations: Int {
         effectiveIterationCount(
             baseIterations: maxIterations,
@@ -2099,7 +2106,7 @@ struct MandelbrotView: View {
 
         return "Preview · refining detail…"
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             // One aspect ratio is shared by navigation, Metal and CPU refinement.
@@ -2156,7 +2163,7 @@ struct MandelbrotView: View {
                             onPerturbationStatsPublished: onPerturbationStatsPublished
                         )
                     }
-                    
+
                 }
 
                 if let rect = selectionRect, !isPanning {
@@ -2170,7 +2177,7 @@ struct MandelbrotView: View {
                         .position(x: rect.midX, y: rect.midY)
                         .allowsHitTesting(false)
                 }
-                
+
                 HStack {
                     Text("Zoom \(magnificationText)")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -2182,9 +2189,9 @@ struct MandelbrotView: View {
                         .clipShape(Capsule())
                         .padding(.top, 16)
                         .padding(.leading, 18)
-                    
+
                     Spacer()
-                    
+
                     VStack(alignment: .trailing, spacing: 8) {
                         if let interactionStatusText {
                             Text(interactionStatusText)
@@ -2217,13 +2224,13 @@ struct MandelbrotView: View {
             .onAppear {
                 keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { event in
                     isOptionPressed = event.modifierFlags.contains(.option)
-                    
+
                     if isOptionPressed {
                         NSCursor.openHand.set()
                     } else {
                         NSCursor.crosshair.set()
                     }
-                    
+
                     return event
                 }
             }
@@ -2258,7 +2265,7 @@ struct MandelbrotView: View {
             }
         }
     }
-    
+
     private func selectionDragGesture(viewSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 2)
             .onChanged { value in
@@ -2363,23 +2370,23 @@ struct MandelbrotView: View {
         guard let start = dragStart, let current = dragCurrent else {
             return nil
         }
-        
+
         return makeRect(from: start, to: current)
     }
-    
+
     private func resetDragState() {
         dragStart = nil
         dragCurrent = nil
         isPanning = false
         panStartPreciseViewport = nil
-        
+
         if isOptionPressed {
             NSCursor.openHand.set()
         } else {
             NSCursor.crosshair.set()
         }
     }
-    
+
     private func makeRect(from start: CGPoint, to end: CGPoint) -> CGRect {
         CGRect(
             x: min(start.x, end.x),
@@ -2388,7 +2395,7 @@ struct MandelbrotView: View {
             height: abs(end.y - start.y)
         )
     }
-    
+
     private func applyPreciseViewport(_ viewport: PreciseViewport) {
         preciseViewport = viewport
 
@@ -2419,7 +2426,7 @@ struct MandelbrotView: View {
 
         dragCurrent = current
     }
-    
+
     private func zoomToSelection(rect: CGRect, viewSize: CGSize) {
         let viewWidth = max(Double(viewSize.width), 1.0)
         let viewHeight = max(Double(viewSize.height), 1.0)
@@ -2439,7 +2446,7 @@ struct MandelbrotView: View {
 
         increaseIterationsForZoom()
     }
-    
+
     private func increaseIterationsForZoom() {
         if maxIterations < 500 {
             maxIterations += 400
@@ -2454,7 +2461,7 @@ struct MandelbrotView: View {
         } else {
             maxIterations += 3000
         }
-        
+
         maxIterations = min(maxIterations, 24000)
     }
 }
@@ -2487,7 +2494,7 @@ struct HighPrecisionFractalPreview: View {
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
     let onPerturbationStatsPublished: (String?) -> Void
-    
+
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
     @State private var renderProgress: Double = 0.0
@@ -2496,7 +2503,7 @@ struct HighPrecisionFractalPreview: View {
     @State private var lastRenderDurationText: String?
     @State private var renderStatusOffset: CGSize = .zero
     @State private var renderStatusDragStartOffset: CGSize = .zero
-    
+
     private var renderID: String {
         [
             fractalMode.rawValue.description,
@@ -2523,7 +2530,7 @@ struct HighPrecisionFractalPreview: View {
             effectiveDeepRenderMethod.rawValue
         ].joined(separator: "|")
     }
-    
+
     private var effectiveDeepRenderMethod: DeepRenderMethod {
         guard deepRenderMethod == .automatic else {
             return deepRenderMethod
@@ -2568,7 +2575,7 @@ struct HighPrecisionFractalPreview: View {
                     .frame(width: viewSize.width, height: viewSize.height)
                     .clipped()
             }
-            
+
             if showDiagnostics {
                 diagnosticsPanel()
                     // Align the default diagnostics position with the controls
@@ -2695,7 +2702,7 @@ struct HighPrecisionFractalPreview: View {
             await renderPreview()
         }
     }
-    
+
     @MainActor
     private func renderPreview() async {
         guard refinementEnabled else {
@@ -3060,7 +3067,7 @@ nonisolated func renderFractalSupersampled(
     maxIterations: Int
 ) -> CGImage? {
     let factor = max(1, min(supersampling, 3))
-    
+
     guard factor > 1 else {
         return renderFractal(
             width: width,
@@ -3073,7 +3080,7 @@ nonisolated func renderFractalSupersampled(
             maxIterations: maxIterations
         )
     }
-    
+
     guard mode != .mandelbulb3D, mode != .mandelbox3D else {
         return renderFractal(
             width: width,
@@ -3086,33 +3093,33 @@ nonisolated func renderFractalSupersampled(
             maxIterations: maxIterations
         )
     }
-    
+
     let sampleWidth = width * factor
     let sampleHeight = height * factor
     let bytesPerPixel = 4
     let bytesPerRow = width * bytesPerPixel
     let bitsPerComponent = 8
     let aspectRatio = Double(width) / Double(height)
-    
+
     var pixels = [UInt8](repeating: 0, count: width * height * bytesPerPixel)
     let samplesPerPixel = Double(factor * factor)
-    
+
     for py in 0..<height {
         for px in 0..<width {
             var r = 0.0
             var g = 0.0
             var b = 0.0
-            
+
             for sy in 0..<factor {
                 for sx in 0..<factor {
                     let sampleX = Double(px * factor + sx) + 0.5
                     let sampleY = Double(py * factor + sy) + 0.5
-                    
+
                     let x0 = centerX + (sampleX / Double(sampleWidth) - 0.5) * scale * aspectRatio
                     let y0 = centerY + (sampleY / Double(sampleHeight) - 0.5) * scale
-                    
+
                     let color: (r: Double, g: Double, b: Double)
-                    
+
                     if mode == .newton {
                         color = calculateNewtonColor(
                             x0: x0,
@@ -3127,7 +3134,7 @@ nonisolated func renderFractalSupersampled(
                             y0: y0,
                             maxIterations: maxIterations
                         )
-                        
+
                         if iteration == maxIterations {
                             color = insideColor(mode: mode, palette: palette)
                         } else {
@@ -3139,13 +3146,13 @@ nonisolated func renderFractalSupersampled(
                             )
                         }
                     }
-                    
+
                     r += color.r
                     g += color.g
                     b += color.b
                 }
             }
-            
+
             let offset = (py * width + px) * bytesPerPixel
             pixels[offset + 0] = UInt8(clamp01(r / samplesPerPixel) * 255.0)
             pixels[offset + 1] = UInt8(clamp01(g / samplesPerPixel) * 255.0)
@@ -3153,7 +3160,7 @@ nonisolated func renderFractalSupersampled(
             pixels[offset + 3] = 255
         }
     }
-    
+
     return makeCGImage(
         pixels: pixels,
         width: width,
@@ -3867,13 +3874,13 @@ nonisolated func renderFractal(
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
-    
+
     let bytesPerPixel = 4
     let bytesPerRow = width * bytesPerPixel
     let bitsPerComponent = 8
-    
+
     var pixels = [UInt8](repeating: 0, count: width * height * bytesPerPixel)
-    
+
     // The preview can be rendered at a capped bitmap size. Its mathematical
     // viewport must nevertheless retain the exact aspect ratio of the SwiftUI view.
     let aspectRatio = viewportAspectRatio ?? (Double(width) / Double(height))
@@ -3984,7 +3991,7 @@ nonisolated func renderFractal(
     var localReferenceFirstRebaseCount = 0
     var localReferenceFirstRebaseIterationSum = 0
     let initialPerturbationReferenceCount = perturbationReferenceCache.count
-    
+
     for py in 0..<height {
         var rowPerturbationReferenceCache = perturbationReferenceCache
 
@@ -4003,9 +4010,9 @@ nonisolated func renderFractal(
             // the fullscreen Metal triangle and therefore to the negative Y half-plane.
             let x0 = centerX + ((Double(px) + 0.5) / Double(width) - 0.5) * scale * aspectRatio
             let y0 = centerY + ((Double(py) + 0.5) / Double(height) - 0.5) * scale
-            
+
             let color: (r: Double, g: Double, b: Double)
-            
+
             if mode == .newton {
                 color = calculateNewtonColor(
                     x0: x0,
@@ -4157,7 +4164,7 @@ nonisolated func renderFractal(
                         maxIterations: localMaxIterations
                     )
                 }
-                
+
                 if iteration == localMaxIterations {
                     color = insideColor(mode: mode, palette: palette)
                 } else {
@@ -4169,9 +4176,9 @@ nonisolated func renderFractal(
                     )
                 }
             }
-            
+
             let offset = (py * width + px) * bytesPerPixel
-            
+
             pixels[offset + 0] = UInt8(clamp01(color.r) * 255.0)
             pixels[offset + 1] = UInt8(clamp01(color.g) * 255.0)
             pixels[offset + 2] = UInt8(clamp01(color.b) * 255.0)
@@ -4194,7 +4201,7 @@ nonisolated func renderFractal(
             }
         }
     }
-    
+
     if usePerturbation {
         let totalPixels = width * height
         let averageRowLocalReferences = height > 0
@@ -4262,7 +4269,7 @@ nonisolated func renderFractal(
     } else {
         statsCallback?(nil)
     }
-    
+
     return makeCGImage(
         pixels: pixels,
         width: width,
@@ -4320,19 +4327,19 @@ nonisolated private func renderRaymarched3DImage(
     scale: Double,
     mode: FractalMode
 ) -> CGImage? {
-    
+
     let bytesPerPixel = 4
     let bytesPerRow = width * bytesPerPixel
     let bitsPerComponent = 8
-    
+
     var pixels = [UInt8](repeating: 0, count: width * height * bytesPerPixel)
     let aspectRatio = Double(width) / Double(height)
-    
+
     for py in 0..<height {
         for px in 0..<width {
             let uvX = Double(px) / Double(width)
             let uvY = 1.0 - Double(py) / Double(height)
-            
+
             let color = renderRaymarched3DPixel(
                 uvX: uvX,
                 uvY: uvY,
@@ -4343,16 +4350,16 @@ nonisolated private func renderRaymarched3DImage(
                 scale: scale,
                 mode: mode
             )
-            
+
             let offset = (py * width + px) * bytesPerPixel
-            
+
             pixels[offset + 0] = UInt8(clamp01(color.r) * 255.0)
             pixels[offset + 1] = UInt8(clamp01(color.g) * 255.0)
             pixels[offset + 2] = UInt8(clamp01(color.b) * 255.0)
             pixels[offset + 3] = 255
         }
     }
-    
+
     return makeCGImage(
         pixels: pixels,
         width: width,
@@ -4373,121 +4380,121 @@ nonisolated private func renderRaymarched3DPixel(
     scale: Double,
     mode: FractalMode
 ) -> (r: Double, g: Double, b: Double) {
-    
+
     var px = (uvX - 0.5) * 2.0 * aspectRatio
     var py = (uvY - 0.5) * 2.0
-    
+
     let zoom = scale / 2.8
     px *= zoom
     py *= zoom
-    
+
     px += centerX
     py += centerY
-    
+
     let rayOrigin = SIMD3<Double>(0.0, 0.0, -4.2)
     let rayDirection = simd_normalize(SIMD3<Double>(px, py, 1.65))
-    
+
     var totalDistance = 0.0
     var hit = false
     var hitDistance = 0.0
     var hitPoint = SIMD3<Double>(0.0, 0.0, 0.0)
-    
+
     for _ in 0..<120 {
         let position = rayOrigin + rayDirection * totalDistance
-        
+
         let distance: Double
         if mode == .mandelbox3D {
             distance = mandelboxDistance(position)
         } else {
             distance = mandelbulbDistance(position)
         }
-        
+
         if distance < 0.0012 {
             hit = true
             hitDistance = totalDistance
             hitPoint = position
             break
         }
-        
+
         totalDistance += distance
-        
+
         if totalDistance > 9.0 {
             break
         }
     }
-    
+
     if !hit {
         let vignette = 1.0 - smoothstep(edge0: 0.2, edge1: 1.7, x: sqrt(px * px + py * py))
         let glow = exp(-0.35 * totalDistance)
-        
+
         let background = paletteBaseColor(
             relief: 0.22 + 0.18 * glow,
             ridge: vignette,
             glow: glow,
             palette: palette
         )
-        
+
         return (
             background.r * 0.28,
             background.g * 0.28,
             background.b * 0.28
         )
     }
-    
+
     let normal: SIMD3<Double>
     if mode == .mandelbox3D {
         normal = mandelboxNormal(hitPoint)
     } else {
         normal = mandelbulbNormal(hitPoint)
     }
-    
+
     let lightDir = simd_normalize(SIMD3<Double>(-0.45, 0.65, -0.8))
     let viewDir = simd_normalize(rayOrigin - hitPoint)
     let halfDir = simd_normalize(lightDir + viewDir)
-    
+
     let diffuse = max(simd_dot(normal, lightDir), 0.0)
     let specular = pow(max(simd_dot(normal, halfDir), 0.0), 48.0)
     let rim = pow(1.0 - max(simd_dot(normal, viewDir), 0.0), 2.2)
-    
+
     let depth = clamp01(hitDistance / 6.5)
     let ao = clamp(value: 1.0 - hitDistance * 0.08, minValue: 0.25, maxValue: 1.0)
-    
+
     let stripe = 0.5 + 0.5 * sin(28.0 * hitPoint.y + 18.0 * hitPoint.x)
-    
+
     var color = paletteBaseColor(
         relief: mode == .mandelbox3D ? 0.78 : 0.65,
         ridge: stripe,
         glow: 0.35,
         palette: palette
     )
-    
+
     color.r *= 0.18 + 1.05 * diffuse
     color.g *= 0.18 + 1.05 * diffuse
     color.b *= 0.18 + 1.05 * diffuse
-    
+
     color.r += 1.0 * specular * 0.85
     color.g += 0.75 * specular * 0.85
     color.b += 0.25 * specular * 0.85
-    
+
     let rimColor = paletteBaseColor(
         relief: 0.9,
         ridge: 1.0,
         glow: 0.7,
         palette: palette
     )
-    
+
     color.r += rimColor.r * rim * 0.45
     color.g += rimColor.g * rim * 0.45
     color.b += rimColor.b * rim * 0.45
-    
+
     color.r *= ao
     color.g *= ao
     color.b *= ao
-    
+
     color.r = mix(color.r, 0.01, depth * 0.35)
     color.g = mix(color.g, 0.02, depth * 0.35)
     color.b = mix(color.b, 0.08, depth * 0.35)
-    
+
     return color
 }
 
@@ -4496,32 +4503,32 @@ nonisolated private func mandelbulbDistance(_ point: SIMD3<Double>) -> Double {
     var dr = 1.0
     var r = 0.0
     let power = 8.0
-    
+
     for _ in 0..<9 {
         r = simd_length(z)
-        
+
         if r > 2.0 {
             break
         }
-        
+
         let theta = acos(clamp(value: z.z / max(r, 0.000001), minValue: -1.0, maxValue: 1.0))
         let phi = atan2(z.y, z.x)
-        
+
         dr = pow(r, power - 1.0) * power * dr + 1.0
-        
+
         let zr = pow(r, power)
         let newTheta = theta * power
         let newPhi = phi * power
-        
+
         z = zr * SIMD3<Double>(
             sin(newTheta) * cos(newPhi),
             sin(newPhi) * sin(newTheta),
             cos(newTheta)
         )
-        
+
         z += point
     }
-    
+
     return 0.5 * log(r) * r / dr
 }
 
@@ -4529,17 +4536,17 @@ nonisolated private func mandelboxDistance(_ point: SIMD3<Double>) -> Double {
     var z = point
     let scaleFactor = 2.4
     var dr = 1.0
-    
+
     let minRadius = 0.45
     let fixedRadius = 1.0
-    
+
     for _ in 0..<12 {
         z.x = clamp(value: z.x, minValue: -1.0, maxValue: 1.0) * 2.0 - z.x
         z.y = clamp(value: z.y, minValue: -1.0, maxValue: 1.0) * 2.0 - z.y
         z.z = clamp(value: z.z, minValue: -1.0, maxValue: 1.0) * 2.0 - z.z
-        
+
         let r2 = simd_length_squared(z)
-        
+
         if r2 < minRadius * minRadius {
             let factor = fixedRadius * fixedRadius / (minRadius * minRadius)
             z *= factor
@@ -4549,11 +4556,11 @@ nonisolated private func mandelboxDistance(_ point: SIMD3<Double>) -> Double {
             z *= factor
             dr *= factor
         }
-        
+
         z = z * scaleFactor + point
         dr = dr * abs(scaleFactor) + 1.0
     }
-    
+
     return simd_length(z) / abs(dr)
 }
 
@@ -4569,18 +4576,18 @@ nonisolated private func estimateNormal(
     _ point: SIMD3<Double>,
     distance: (SIMD3<Double>) -> Double
 ) -> SIMD3<Double> {
-    
+
     let epsilon = 0.0015
-    
+
     let dx = distance(point + SIMD3<Double>(epsilon, 0.0, 0.0)) -
              distance(point - SIMD3<Double>(epsilon, 0.0, 0.0))
-    
+
     let dy = distance(point + SIMD3<Double>(0.0, epsilon, 0.0)) -
              distance(point - SIMD3<Double>(0.0, epsilon, 0.0))
-    
+
     let dz = distance(point + SIMD3<Double>(0.0, 0.0, epsilon)) -
              distance(point - SIMD3<Double>(0.0, 0.0, epsilon))
-    
+
     return simd_normalize(SIMD3<Double>(dx, dy, dz))
 }
 
@@ -4590,7 +4597,7 @@ nonisolated private func calculateNewtonColor(
     palette: FractalPalette,
     maxIterations: Int
 ) -> (r: Double, g: Double, b: Double) {
-    
+
     // Newton Pop:
     // z^5 - 1 gives five attraction basins instead of three.
     // The root index drives strong local color zones; iteration count adds dark borders and glow.
@@ -4602,33 +4609,33 @@ nonisolated private func calculateNewtonColor(
         SIMD2<Double>(-0.8090169944, -0.5877852523),
         SIMD2<Double>( 0.3090169944, -0.9510565163)
     ]
-    
+
     var iteration = 0
-    
+
     while iteration < maxIterations {
         let z2 = complexMul(z, z)
         let z4 = complexMul(z2, z2)
         let z5 = complexMul(z4, z)
-        
+
         let numerator = SIMD2<Double>(z5.x - 1.0, z5.y)
         let denominator = SIMD2<Double>(5.0 * z4.x, 5.0 * z4.y)
         let correction = complexDiv(numerator, denominator)
         z -= correction
-        
+
         if simd_length(correction) < 0.000001 {
             break
         }
-        
+
         if !z.x.isFinite || !z.y.isFinite {
             break
         }
-        
+
         iteration += 1
     }
-    
+
     var nearestRootIndex = 0
     var nearestDistance = Double.greatestFiniteMagnitude
-    
+
     for index in 0..<roots.count {
         let distance = simd_length(z - roots[index])
         if distance < nearestDistance {
@@ -4636,16 +4643,16 @@ nonisolated private func calculateNewtonColor(
             nearestRootIndex = index
         }
     }
-    
+
     let t = clamp01(Double(iteration) / Double(maxIterations))
     let boundary = pow(clamp01(t * 4.2), 0.62)
     let convergence = pow(1.0 - t, 0.32)
     let rings = 0.5 + 0.5 * sin(Double(iteration) * 2.35 + Double(nearestRootIndex) * 1.70)
     let fine = 0.5 + 0.5 * sin(Double(iteration) * 6.10 + atan2(y0, x0) * 3.0)
     let angle = 0.5 + 0.5 * sin(7.0 * atan2(y0, x0) + Double(nearestRootIndex) * 2.1)
-    
+
     let colors: [(Double, Double, Double)]
-    
+
     switch palette {
     case .ocean:
         colors = [
@@ -4728,28 +4735,28 @@ nonisolated private func calculateNewtonColor(
             (1.00, 0.94, 0.68)
         ]
     }
-    
+
     let base = colors[nearestRootIndex]
     let next = colors[(nearestRootIndex + 1) % colors.count]
     let mixAmount = 0.12 + 0.28 * pow(angle, 2.0) * boundary
-    
+
     var r = base.0 + (next.0 - base.0) * mixAmount
     var g = base.1 + (next.1 - base.1) * mixAmount
     var b = base.2 + (next.2 - base.2) * mixAmount
-    
+
     let bright = 0.40 + 0.92 * convergence + 0.35 * pow(rings, 5.0) * boundary
     r *= bright
     g *= bright
     b *= bright
-    
+
     let ink = pow(boundary, 1.85) * (0.42 + 0.30 * (1.0 - fine))
     r *= (1.0 - ink)
     g *= (1.0 - ink)
     b *= (1.0 - ink)
-    
+
     let goldEdge = pow(rings, 10.0) * boundary * 0.48
     let whiteSpark = pow(fine, 18.0) * boundary * 0.25
-    
+
     return (
         clamp01(r + 0.95 * goldEdge + whiteSpark),
         clamp01(g + 0.74 * goldEdge + whiteSpark),
@@ -4785,97 +4792,97 @@ nonisolated private func calculateFractalIteration(
     y0: Double,
     maxIterations: Int
 ) -> Int {
-    
+
     var x: Double
     var y: Double
     var cx: Double
     var cy: Double
-    
+
     switch mode {
     case .mandelbrot, .mandelbrotRelief:
         x = 0.0
         y = 0.0
         cx = x0
         cy = y0
-        
+
     case .julia:
         x = x0
         y = y0
         cx = -0.8
         cy = 0.156
-        
+
     case .burningShip:
         x = 0.0
         y = 0.0
         cx = x0
         cy = y0
-        
+
     case .tricorn:
         x = 0.0
         y = 0.0
         cx = x0
         cy = y0
-        
+
     case .kleinian:
         x = x0
         y = y0
         cx = 0.0
         cy = 0.0
-        
+
     case .mandelbulb3D, .mandelbox3D, .newton:
         x = 0.0
         y = 0.0
         cx = x0
         cy = y0
     }
-    
+
     var iteration = 0
-    
+
     while x * x + y * y <= 4.0 && iteration < maxIterations {
         switch mode {
         case .mandelbrot, .julia, .mandelbulb3D, .mandelbrotRelief, .mandelbox3D, .newton:
             let xtemp = x * x - y * y + cx
             y = 2.0 * x * y + cy
             x = xtemp
-            
+
         case .burningShip:
             let ax = abs(x)
             let ay = abs(y)
             let xtemp = ax * ax - ay * ay + cx
             y = 2.0 * ax * ay + cy
             x = xtemp
-            
+
         case .tricorn:
             let xtemp = x * x - y * y + cx
             y = -2.0 * x * y + cy
             x = xtemp
-            
+
         case .kleinian:
             let r2 = x * x + y * y + 0.000001
-            
+
             x = x / r2
             y = y / r2
-            
+
             x = abs(x)
             y = abs(y)
-            
+
             x = x - 1.0
             y = y - 0.5
-            
+
             let angle = 0.45
             let cosA = cos(angle)
             let sinA = sin(angle)
-            
+
             let rx = x * cosA - y * sinA
             let ry = x * sinA + y * cosA
-            
+
             x = rx
             y = ry
         }
-        
+
         iteration += 1
     }
-    
+
     return iteration
 }
 
@@ -4884,13 +4891,13 @@ nonisolated private func cpuPaletteColor(
     mode: FractalMode,
     palette: FractalPalette
 ) -> (r: Double, g: Double, b: Double) {
-    
+
     let k = sqrt(t)
-    
+
     let relief: Double
     let ridge: Double
     let glow: Double
-    
+
     if mode == .kleinian {
         relief = pow(k, 0.38)
         ridge = 0.5 + 0.5 * sin(70.0 * k)
@@ -4904,14 +4911,14 @@ nonisolated private func cpuPaletteColor(
         ridge = 0.5 + 0.5 * sin(38.0 * k)
         glow = exp(-7.0 * abs(k - 0.45))
     }
-    
+
     let base = paletteBaseColor(
         relief: relief,
         ridge: ridge,
         glow: glow,
         palette: palette
     )
-    
+
     if mode == .kleinian || mode == .mandelbrotRelief {
         return (
             clamp01(base.r * 1.15),
@@ -4919,7 +4926,7 @@ nonisolated private func cpuPaletteColor(
             clamp01(base.b * 1.15)
         )
     }
-    
+
     return base
 }
 
@@ -4929,7 +4936,7 @@ nonisolated private func paletteBaseColor(
     glow: Double,
     palette: FractalPalette
 ) -> (r: Double, g: Double, b: Double) {
-    
+
     switch palette {
     case .ocean:
         return (
@@ -4937,76 +4944,76 @@ nonisolated private func paletteBaseColor(
             clamp01(0.08 + 0.65 * relief + 0.28 * glow + 0.12 * ridge),
             clamp01(0.22 + 1.05 * relief + 0.30 * glow)
         )
-        
+
     case .electric:
         return (
             clamp01(0.01 + 0.08 * relief + 0.16 * glow),
             clamp01(0.10 + 0.95 * relief + 0.40 * glow + 0.10 * ridge),
             clamp01(0.28 + 1.20 * relief + 0.25 * ridge)
         )
-        
+
     case .fire:
         return (
             clamp01(0.20 + 1.20 * relief + 0.35 * glow),
             clamp01(0.04 + 0.45 * relief + 0.28 * glow + 0.18 * ridge),
             clamp01(0.01 + 0.08 * relief + 0.05 * glow)
         )
-        
+
     case .ice:
         return (
             clamp01(0.16 + 0.62 * relief + 0.20 * glow),
             clamp01(0.32 + 0.95 * relief + 0.25 * ridge),
             clamp01(0.55 + 1.10 * relief + 0.20 * glow)
         )
-        
+
     case .gold:
         return (
             clamp01(0.22 + 1.00 * relief + 0.35 * glow),
             clamp01(0.12 + 0.62 * relief + 0.20 * ridge),
             clamp01(0.02 + 0.18 * relief + 0.06 * glow)
         )
-        
+
     case .violet:
         return (
             clamp01(0.12 + 0.75 * relief + 0.25 * glow),
             clamp01(0.02 + 0.18 * relief + 0.08 * ridge),
             clamp01(0.24 + 1.05 * relief + 0.35 * glow)
         )
-        
+
     case .deepBlue:
         let yellowSpark = pow(glow, 1.35)
         let cyanEdge = pow(relief, 0.55)
-        
+
         return (
             clamp01(0.00 + 0.05 * cyanEdge + 0.80 * yellowSpark + 0.10 * ridge),
             clamp01(0.04 + 0.70 * cyanEdge + 0.95 * yellowSpark + 0.20 * ridge),
             clamp01(0.18 + 1.05 * cyanEdge + 0.18 * yellowSpark + 0.18 * ridge)
         )
-        
+
     case .solarCoral:
         let detail = pow(ridge, 0.72)
         let warmBody = pow(relief, 0.58)
         let hotGlow = pow(glow, 0.82)
         let darkFiligree = pow(1.0 - clamp01(relief + glow * 0.35), 2.8) * ridge
-        
+
         return (
             clamp01(0.40 + 0.82 * warmBody + 0.60 * hotGlow + 0.42 * detail - 0.30 * darkFiligree),
             clamp01(0.28 + 0.78 * warmBody + 0.42 * hotGlow + 0.12 * detail - 0.36 * darkFiligree),
             clamp01(0.08 + 0.24 * warmBody + 0.05 * hotGlow + 0.04 * detail - 0.22 * darkFiligree)
         )
-        
+
     case .infernoCoral:
         let detail = pow(ridge, 0.58)
         let warmBody = pow(relief, 0.52)
         let ember = pow(glow, 0.72)
         let darkFiligree = pow(1.0 - clamp01(relief * 0.8 + glow * 0.45), 2.2) * ridge
-        
+
         return (
             clamp01(0.18 + 1.10 * warmBody + 0.92 * ember + 0.58 * detail - 0.40 * darkFiligree),
             clamp01(0.05 + 0.45 * warmBody + 0.36 * ember + 0.16 * detail - 0.32 * darkFiligree),
             clamp01(0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree)
         )
-        
+
     case .solarPop:
         // Solar Pop:
         // high-contrast lemon, ivory, coral-red and charcoal bands.
@@ -5014,45 +5021,45 @@ nonisolated private func paletteBaseColor(
         let detail = pow(ridge, 0.50)
         let body = pow(relief, 0.44)
         let light = pow(glow, 0.60)
-        
+
         let rawPhase = 0.06 + 2.75 * relief + 4.15 * glow + 6.80 * ridge
         let phase = rawPhase - floor(rawPhase)
         let micro = 0.5 + 0.5 * cos(62.0 * ridge + 15.0 * glow - 9.0 * relief)
-        
+
         let redBand = smoothstep(edge0: 0.08, edge1: 0.18, x: phase) * (1.0 - smoothstep(edge0: 0.30, edge1: 0.44, x: phase))
         let lemonBand = smoothstep(edge0: 0.28, edge1: 0.42, x: phase) * (1.0 - smoothstep(edge0: 0.56, edge1: 0.70, x: phase))
         let ivoryBand = smoothstep(edge0: 0.58, edge1: 0.72, x: phase) * (1.0 - smoothstep(edge0: 0.82, edge1: 0.96, x: phase))
         let darkBand = smoothstep(edge0: 0.80, edge1: 0.94, x: phase)
-        
+
         let warmOrange = (1.00, 0.50, 0.02)
         let lemon = (1.00, 0.95, 0.04)
         let coralRed = (1.00, 0.08, 0.025)
         let ivory = (1.00, 0.94, 0.74)
         let charcoal = (0.050, 0.038, 0.030)
-        
+
         var r = warmOrange.0
         var g = warmOrange.1
         var b = warmOrange.2
-        
+
         r = r + (lemon.0 - r) * (0.78 * lemonBand)
         g = g + (lemon.1 - g) * (0.78 * lemonBand)
         b = b + (lemon.2 - b) * (0.78 * lemonBand)
-        
+
         r = r + (coralRed.0 - r) * (0.70 * redBand)
         g = g + (coralRed.1 - g) * (0.70 * redBand)
         b = b + (coralRed.2 - b) * (0.70 * redBand)
-        
+
         r = r + (ivory.0 - r) * (0.58 * ivoryBand * (0.35 + 0.65 * detail))
         g = g + (ivory.1 - g) * (0.58 * ivoryBand * (0.35 + 0.65 * detail))
         b = b + (ivory.2 - b) * (0.58 * ivoryBand * (0.35 + 0.65 * detail))
-        
+
         r = r + (charcoal.0 - r) * (0.36 * darkBand * detail)
         g = g + (charcoal.1 - g) * (0.36 * darkBand * detail)
         b = b + (charcoal.2 - b) * (0.36 * darkBand * detail)
-        
+
         let edgeSpark = pow(detail, 0.68) * (0.50 + 0.50 * micro)
         let lift = 0.56 + 0.72 * body + 0.44 * light
-        
+
         return (
             clamp01(r * lift + 0.48 * edgeSpark + 0.38 * redBand * detail),
             clamp01(g * lift + 0.32 * edgeSpark + 0.04 * redBand * detail),
@@ -5065,11 +5072,11 @@ nonisolated private func insideColor(
     mode: FractalMode,
     palette: FractalPalette
 ) -> (r: Double, g: Double, b: Double) {
-    
+
     if mode == .mandelbrot || mode == .mandelbrotRelief {
         return (0.0, 0.0, 0.0)
     }
-    
+
     if mode == .kleinian {
         switch palette {
         case .ocean:
@@ -5094,7 +5101,7 @@ nonisolated private func insideColor(
             return (0.090, 0.040, 0.018)
         }
     }
-    
+
     return (0.0, 0.0, 0.0)
 }
 
@@ -5107,7 +5114,7 @@ nonisolated private func complexMul(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> S
 
 nonisolated private func complexDiv(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> SIMD2<Double> {
     let denominator = b.x * b.x + b.y * b.y + 0.000000001
-    
+
     return SIMD2<Double>(
         (a.x * b.x + a.y * b.y) / denominator,
         (a.y * b.x - a.x * b.y) / denominator
@@ -5118,19 +5125,19 @@ nonisolated private func formatMagnification(_ value: Double) -> String {
     if value < 1_000 {
         return "×\(String(format: "%.0f", value))"
     }
-    
+
     if value < 1_000_000 {
         return "×\(String(format: "%.1f", value / 1_000.0))K"
     }
-    
+
     if value < 1_000_000_000 {
         return "×\(String(format: "%.1f", value / 1_000_000.0))M"
     }
-    
+
     if value < 1_000_000_000_000 {
         return "×\(String(format: "%.1f", value / 1_000_000_000.0))B"
     }
-    
+
     return "×\(String(format: "%.2e", value))"
 }
 
@@ -5142,16 +5149,16 @@ nonisolated private func makeCGImage(
     bitsPerComponent: Int,
     bytesPerPixel: Int
 ) -> CGImage? {
-    
+
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     let data = Data(pixels)
-    
+
     guard let provider = CGDataProvider(data: data as CFData) else {
         return nil
     }
-    
+
     let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue)
-    
+
     return CGImage(
         width: width,
         height: height,
