@@ -330,13 +330,48 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     var centerX: Double
     var centerY: Double
     var scale: Double
+
+    /// Exact DoubleDouble viewport components. They are optional so favorites
+    /// written by earlier versions remain fully readable.
+    var centerXHi: Double? = nil
+    var centerXLo: Double? = nil
+    var centerYHi: Double? = nil
+    var centerYLo: Double? = nil
+    var scaleHi: Double? = nil
+    var scaleLo: Double? = nil
+
     var iterations: Int
     var created: Date = Date()
     var updated: Date = Date()
     var deleted: Bool = false
-    var schemaVersion: Int = 1
+    var schemaVersion: Int = 2
     var thumbnailPNG: Data? = nil
     var usageCount: Int = 0
+
+    /// Restores the exact saved viewport where available. Older favorites
+    /// gracefully fall back to their original Double coordinates.
+    var storedPreciseViewport: PreciseViewport {
+        guard
+            let centerXHi,
+            let centerXLo,
+            let centerYHi,
+            let centerYLo,
+            let scaleHi,
+            let scaleLo
+        else {
+            return PreciseViewport(
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale
+            )
+        }
+
+        return PreciseViewport(
+            centerX: DoubleDouble(hi: centerXHi, lo: centerXLo),
+            centerY: DoubleDouble(hi: centerYHi, lo: centerYLo),
+            scale: DoubleDouble(hi: scaleHi, lo: scaleLo)
+        )
+    }
 
     var mode: FractalMode {
         FractalMode(rawValue: modeRawValue) ?? .mandelbrot
@@ -627,20 +662,44 @@ enum FavoriteSort: String, CaseIterable, Identifiable {
 
 
 enum DeepRenderMethod: String, CaseIterable, Identifiable {
-    case directDouble = "Direct Double"
-    case perturbation = "Experimental Perturbation"
-    case doubleDouble = "Experimental DoubleDouble CPU"
+    case automatic = "Automatic"
+    case directDouble = "Direct"
+    case perturbation = "Deep Reference"
+    case doubleDouble = "Maximum Precision"
 
     var id: String { rawValue }
+}
+
+/// Selects the fastest safe deep-render path. Direct Double remains preferable
+/// while adjacent screen pixels still map to distinct Double coordinates. Once
+/// that distinction approaches Double resolution at the current center, use the
+/// reference-orbit renderer instead.
+nonisolated private func automaticDeepRenderMethod(
+    preciseViewport: PreciseViewport,
+    viewportHeight: Int
+) -> DeepRenderMethod {
+    let pixelScale = abs(preciseViewport.scale.hi) / Double(max(viewportHeight, 1))
+    let coordinateMagnitude = max(
+        abs(preciseViewport.centerX.hi),
+        abs(preciseViewport.centerY.hi),
+        1.0
+    )
+
+    // Keep a margin above one ULP so Automatic switches before coordinate
+    // rounding can become visible in a deep viewport.
+    let directSafetyMargin = 16.0
+    let directResolution = coordinateMagnitude.ulp * directSafetyMargin
+
+    return pixelScale <= directResolution ? .perturbation : .directDouble
 }
 
 struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
     @State private var fractalPalette: FractalPalette = .deepBlue
     @State private var renderQuality: RenderQuality = .high
-    @State private var deepRenderMethod: DeepRenderMethod = .directDouble
+    @State private var deepRenderMethod: DeepRenderMethod = .automatic
     @State private var showPerturbationStats: Bool = false
-    @State private var lastPerturbationStatsText: String? = "No experimental Perturbation statistics captured yet.\nEnable Experimental Perturbation for a deep Mandelbrot CPU render."
+    @State private var lastPerturbationStatsText: String? = "No Deep Reference diagnostics captured yet.\nSelect Deep Reference for a deep Mandelbrot CPU render."
     @State private var perturbationStatsOffset: CGSize = .zero
     @State private var perturbationStatsDragStartOffset: CGSize = .zero
     
@@ -830,6 +889,17 @@ The zoom factor overlay is only visible in the app and is not included in export
         }
     }
     
+    private func displayDiagnosticsText(_ text: String) -> String {
+        guard deepRenderMethod == .automatic else {
+            return text
+        }
+
+        return text.replacingOccurrences(
+            of: "Direct Double Refinement",
+            with: "Automatic · Direct"
+        )
+    }
+
     private var perturbationStatsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -854,8 +924,11 @@ The zoom factor overlay is only visible in the app and is not included in export
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
 
                 Text(
+                    "X hi: \(String(format: "%+.17e", preciseViewport.centerX.hi))\n" +
                     "X lo: \(String(format: "%+.17e", preciseViewport.centerX.lo))\n" +
+                    "Y hi: \(String(format: "%+.17e", preciseViewport.centerY.hi))\n" +
                     "Y lo: \(String(format: "%+.17e", preciseViewport.centerY.lo))\n" +
+                    "S hi: \(String(format: "%+.17e", preciseViewport.scale.hi))\n" +
                     "S lo: \(String(format: "%+.17e", preciseViewport.scale.lo))"
                 )
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -867,7 +940,11 @@ The zoom factor overlay is only visible in the app and is not included in export
                let parsed = parsePerturbationStats(stats) {
                 perturbationStatsContent(parsed)
             } else {
-                Text(lastPerturbationStatsText ?? "No perturbation statistics available yet.")
+                Text(
+                    displayDiagnosticsText(
+                        lastPerturbationStatsText ?? "No render diagnostics available yet."
+                    )
+                )
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.82))
                     .textSelection(.enabled)
@@ -1534,6 +1611,12 @@ The zoom factor overlay is only visible in the app and is not included in export
                 centerX: centerX,
                 centerY: centerY,
                 scale: scale,
+                centerXHi: preciseViewport.centerX.hi,
+                centerXLo: preciseViewport.centerX.lo,
+                centerYHi: preciseViewport.centerY.hi,
+                centerYLo: preciseViewport.centerY.lo,
+                scaleHi: preciseViewport.scale.hi,
+                scaleLo: preciseViewport.scale.lo,
                 iterations: maxIterations,
                 thumbnailPNG: fractalMode == .mandelbrotRelief ? nil : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite())
             )
@@ -1544,15 +1627,15 @@ The zoom factor overlay is only visible in the app and is not included in export
 
     private func loadFavorite(_ spot: FavoriteSpot) {
         recordNavigationStep()
+
+        // A thumbnail belongs to the former viewport. Do not let it be reused
+        // while the favorite's first exact CPU frame is being prepared.
+        latestHighPrecisionThumbnailPNG = nil
+        lastPerturbationStatsText = nil
+
         fractalMode = spot.mode
         fractalPalette = spot.palette
-        applyPreciseViewport(
-            PreciseViewport(
-                centerX: spot.centerX,
-                centerY: spot.centerY,
-                scale: spot.scale
-            )
-        )
+        applyPreciseViewport(spot.storedPreciseViewport)
         maxIterations = spot.iterations
         navigationRevision &+= 1
         favoritesStore.incrementUsage(for: spot)
@@ -1882,14 +1965,17 @@ struct MandelbrotView: View {
         
         if useDeepCPUPreview {
             switch deepRenderMethod {
+            case .automatic:
+                return "High Precision · CPU Deep Zoom · Automatic"
+
             case .perturbation:
-                return "High Precision · CPU Deep Zoom · Perturbation"
+                return "High Precision · CPU Deep Zoom · Deep Reference"
 
             case .doubleDouble:
-                return "High Precision · CPU Deep Zoom · DoubleDouble"
+                return "High Precision · CPU Deep Zoom · Maximum Precision"
 
             case .directDouble:
-                return "High Precision · CPU Deep Zoom"
+                return "High Precision · CPU Deep Zoom · Direct"
             }
         }
 
@@ -1992,6 +2078,7 @@ struct MandelbrotView: View {
                             progressiveCPUPreview: useDeepCPUPreview,
                             refinementEnabled: !isInteractionPreviewActive,
                             renderEpoch: highPrecisionRenderEpoch,
+                            renderRevision: navigationRevision,
                             renderQualityKey: renderQuality.rawValue,
                             deepRenderMethod: deepRenderMethod,
                             onImagePublished: { visibleState in
@@ -2324,6 +2411,9 @@ struct HighPrecisionFractalPreview: View {
     let progressiveCPUPreview: Bool
     let refinementEnabled: Bool
     let renderEpoch: UInt
+    /// Explicit external-navigation identity. This ensures Favorites, Reset,
+    /// Undo and toolbar navigation always start a fresh CPU render request.
+    let renderRevision: UInt
     let renderQualityKey: String
     let deepRenderMethod: DeepRenderMethod
     let onImagePublished: (HighPrecisionViewportState) -> Void
@@ -2359,11 +2449,24 @@ struct HighPrecisionFractalPreview: View {
             progressiveCPUPreview.description,
             refinementEnabled.description,
             renderEpoch.description,
+            renderRevision.description,
             renderQualityKey,
-            deepRenderMethod.rawValue
+            deepRenderMethod.rawValue,
+            effectiveDeepRenderMethod.rawValue
         ].joined(separator: "|")
     }
     
+    private var effectiveDeepRenderMethod: DeepRenderMethod {
+        guard deepRenderMethod == .automatic else {
+            return deepRenderMethod
+        }
+
+        return automaticDeepRenderMethod(
+            preciseViewport: preciseViewport,
+            viewportHeight: max(Int(viewSize.height.rounded()), 1)
+        )
+    }
+
     private var clampedRenderProgress: Double {
         min(max(renderProgress, 0.0), 1.0)
     }
@@ -2625,7 +2728,7 @@ struct HighPrecisionFractalPreview: View {
                     preciseViewport: precise,
                     maxIterations: previewIterations,
                     requestID: requestID,
-                    perturbationEnabled: deepRenderMethod == .perturbation,
+                    perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
                     doubleDoubleEnabled: false,
                 ) {
                     image = NSImage(
@@ -2676,8 +2779,8 @@ struct HighPrecisionFractalPreview: View {
             maxIterations: fullIterations,
             requestID: requestID,
             progressStart: 0.82,
-            perturbationEnabled: deepRenderMethod == .perturbation,
-            doubleDoubleEnabled: deepRenderMethod == .doubleDouble,
+            perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
+            doubleDoubleEnabled: effectiveDeepRenderMethod == .doubleDouble,
             isFinalRender: true,
             progressEnd: 0.995,
             statsCallback: { stats in
