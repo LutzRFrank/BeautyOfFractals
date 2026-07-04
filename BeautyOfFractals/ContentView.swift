@@ -1809,25 +1809,38 @@ The zoom factor overlay is only visible in the app and is not included in export
     }
 
     private func decreaseIterationsForZoom() {
-        if maxIterations > 20000 {
-            maxIterations -= 6000
-        } else if maxIterations > 16000 {
-            maxIterations -= 4000
-        } else if maxIterations > 10000 {
-            maxIterations -= 3000
-        } else if maxIterations > 7000 {
-            maxIterations -= 2000
-        } else if maxIterations > 3500 {
-            maxIterations -= 1500
-        } else if maxIterations > 2500 {
-            maxIterations -= 1200
-        } else if maxIterations > 1000 {
-            maxIterations -= 700
+        let magnification = fractalMode.defaultScale / max(scale, 1e-18)
+
+        let reduction: Int
+
+        // Preserve detail while flying back through genuinely deep territory.
+        // At Deep quality, each 1,000 base iterations correspond to roughly
+        // 4,000 displayed iterations, so large reductions feel abrupt here.
+        if magnification >= 1_000_000_000_000 {
+            reduction = 2_000
+        } else if magnification >= 100_000_000_000 {
+            reduction = 3_000
+        } else if magnification >= 10_000_000_000 {
+            reduction = 4_000
+        } else if maxIterations > 20_000 {
+            reduction = 6_000
+        } else if maxIterations > 16_000 {
+            reduction = 4_000
+        } else if maxIterations > 10_000 {
+            reduction = 3_000
+        } else if maxIterations > 7_000 {
+            reduction = 2_000
+        } else if maxIterations > 3_500 {
+            reduction = 1_500
+        } else if maxIterations > 2_500 {
+            reduction = 1_200
+        } else if maxIterations > 1_000 {
+            reduction = 700
         } else {
-            maxIterations -= 400
+            reduction = 400
         }
 
-        maxIterations = max(maxIterations, 300)
+        maxIterations = max(maxIterations - reduction, 300)
     }
 
 
