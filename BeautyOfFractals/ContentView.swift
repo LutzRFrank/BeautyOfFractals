@@ -1734,24 +1734,18 @@ The zoom factor overlay is only visible in the app and is not included in export
     }
 
     private func setMode(_ mode: FractalMode) {
-        fractalMode = mode
-
         switch mode {
-        case .julia:
+        case .julia, .newton:
             fractalPalette = .solarPop
 
-        case .mandelbrot:
+        case .mandelbrot, .tricorn:
             fractalPalette = .deepBlue
-
-        case .tricorn:
-            fractalPalette = .deepBlue
-
-        case .newton:
-            fractalPalette = .solarPop
 
         default:
             break
         }
+
+        fractalMode = mode
 
         applyPreciseViewport(
             PreciseViewport(
