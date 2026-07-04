@@ -793,11 +793,13 @@ struct ContentView: View {
             )
             .frame(minWidth: 760, minHeight: 650)
             .ignoresSafeArea()
-            .overlay(alignment: .topTrailing) {
+            .overlay(alignment: .bottomTrailing) {
                 if showFavoritesPanel {
                     favoritesPanel
+                        // Align the lower edge with Render Diagnostics.
                         .padding(.trailing, 28)
-                        .padding(.top, 72)
+                        .padding(.bottom, 34)
+                        .offset(y: 40)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
