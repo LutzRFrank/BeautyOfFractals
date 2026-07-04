@@ -890,6 +890,16 @@ The zoom factor overlay is only visible in the app and is not included in export
     }
     
     private func displayDiagnosticsText(_ text: String) -> String {
+        let isPerturbationDiagnostics = text.contains("Perturbation:")
+
+        if isPerturbationDiagnostics {
+            let renderPath = deepRenderMethod == .automatic
+                ? "Automatic · Deep Reference"
+                : "Deep Reference"
+
+            return "\(renderPath)\n\n" + text
+        }
+
         guard deepRenderMethod == .automatic else {
             return text
         }
@@ -938,7 +948,13 @@ The zoom factor overlay is only visible in the app and is not included in export
 
             if let stats = lastPerturbationStatsText,
                let parsed = parsePerturbationStats(stats) {
-                perturbationStatsContent(parsed)
+                perturbationStatsContent(
+                    ParsedPerturbationStats(
+                        coverage: parsed.coverage,
+                        stability: parsed.stability,
+                        details: displayDiagnosticsText(parsed.details)
+                    )
+                )
             } else {
                 Text(
                     displayDiagnosticsText(
