@@ -661,6 +661,11 @@ enum FavoriteSort: String, CaseIterable, Identifiable {
 }
 
 
+enum FloatingRenderPanel {
+    case renderStatus
+    case diagnostics
+}
+
 enum DeepRenderMethod: String, CaseIterable, Identifiable {
     case automatic = "Automatic"
     case directDouble = "Direct"
@@ -726,6 +731,7 @@ struct ContentView: View {
     @State private var latestHighPrecisionThumbnailPNG: Data?
     @State private var navigationHistory: [ViewportSnapshot] = []
     @State private var navigationRevision: UInt = 0
+    @State private var activeFloatingPanel: FloatingRenderPanel = .renderStatus
 
     private let maximumNavigationHistory = 100
 
@@ -779,6 +785,10 @@ struct ContentView: View {
                 navigationStarted: recordNavigationStep,
                 navigationRevision: navigationRevision,
                 latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG,
+                showDiagnostics: showPerturbationStats,
+                diagnosticsOffset: perturbationStatsOffset,
+                activeFloatingPanel: $activeFloatingPanel,
+                diagnosticsPanel: { AnyView(perturbationStatsPanel) },
                 onPerturbationStatsPublished: { lastPerturbationStatsText = $0 }
             )
             .frame(minWidth: 760, minHeight: 650)
@@ -790,14 +800,6 @@ struct ContentView: View {
                         .padding(.top, 72)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
-            }
-
-            if showPerturbationStats {
-                perturbationStatsPanel
-                    .padding(.leading, 28)
-                    .padding(.bottom, 120)
-                    .offset(perturbationStatsOffset)
-                    .transition(.scale.combined(with: .opacity))
             }
 
             controlsOverlay
@@ -972,9 +974,15 @@ The zoom factor overlay is only visible in the app and is not included in export
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .shadow(color: .black.opacity(0.32), radius: 24, x: 0, y: 12)
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                activeFloatingPanel = .diagnostics
+            }
+        )
         .gesture(
             DragGesture()
                 .onChanged { value in
+                    activeFloatingPanel = .diagnostics
                     perturbationStatsOffset = CGSize(
                         width: perturbationStatsDragStartOffset.width + value.translation.width,
                         height: perturbationStatsDragStartOffset.height + value.translation.height
@@ -1931,6 +1939,10 @@ struct MandelbrotView: View {
     let navigationStarted: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
+    let showDiagnostics: Bool
+    let diagnosticsOffset: CGSize
+    @Binding var activeFloatingPanel: FloatingRenderPanel
+    let diagnosticsPanel: () -> AnyView
     let onPerturbationStatsPublished: (String?) -> Void
     
     @State private var dragStart: CGPoint?
@@ -2097,6 +2109,10 @@ struct MandelbrotView: View {
                             renderRevision: navigationRevision,
                             renderQualityKey: renderQuality.rawValue,
                             deepRenderMethod: deepRenderMethod,
+                            showDiagnostics: showDiagnostics,
+                            diagnosticsOffset: diagnosticsOffset,
+                            activeFloatingPanel: $activeFloatingPanel,
+                            diagnosticsPanel: diagnosticsPanel,
                             onImagePublished: { visibleState in
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
@@ -2432,6 +2448,10 @@ struct HighPrecisionFractalPreview: View {
     let renderRevision: UInt
     let renderQualityKey: String
     let deepRenderMethod: DeepRenderMethod
+    let showDiagnostics: Bool
+    let diagnosticsOffset: CGSize
+    @Binding var activeFloatingPanel: FloatingRenderPanel
+    let diagnosticsPanel: () -> AnyView
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
     let onPerturbationStatsPublished: (String?) -> Void
@@ -2517,6 +2537,23 @@ struct HighPrecisionFractalPreview: View {
                     .clipped()
             }
             
+            if showDiagnostics {
+                diagnosticsPanel()
+                    // Align the default diagnostics position with the controls
+                    // container while keeping the panel freely draggable.
+                    .padding(.leading, 90)
+                    .padding(.bottom, 154)
+                    .offset(diagnosticsOffset)
+                    .zIndex(
+                        activeFloatingPanel == .diagnostics ? 2 : 1
+                    )
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity,
+                        alignment: .bottomLeading
+                    )
+            }
+
             if isRendering || showRenderStatus {
                 TimelineView(.periodic(from: .now, by: 0.25)) { timeline in
                     VStack(spacing: 14) {
@@ -2588,12 +2625,21 @@ struct HighPrecisionFractalPreview: View {
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .shadow(color: .black.opacity(0.32), radius: 24, x: 0, y: 12)
+                    .contentShape(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    )
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            activeFloatingPanel = .renderStatus
+                        }
+                    )
                     .padding(.leading, 28)
                     .padding(.top, 72)
                     .offset(renderStatusOffset)
                     .gesture(
                         DragGesture()
                             .onChanged { value in
+                                activeFloatingPanel = .renderStatus
                                 renderStatusOffset = CGSize(
                                     width: renderStatusDragStartOffset.width + value.translation.width,
                                     height: renderStatusDragStartOffset.height + value.translation.height
@@ -2605,6 +2651,9 @@ struct HighPrecisionFractalPreview: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                .zIndex(
+                    activeFloatingPanel == .renderStatus ? 2 : 1
+                )
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleRenderStatus)) { _ in
