@@ -1082,13 +1082,24 @@ The zoom factor overlay is only visible in the app and is not included in export
         VStack(spacing: 10) {
             HStack(spacing: 10) {
                 Menu {
-                    ForEach(FractalMode.allCases) { mode in
-                        Button {
-                            setMode(mode)
-                        } label: {
-                            Text("\(fractalMode == mode ? "✓ " : "   ")\(mode.displayName)")
-                        }
-                    }
+                    modeMenuButton(.mandelbrot)
+                    modeMenuButton(.julia)
+
+                    Divider()
+
+                    modeMenuButton(.burningShip)
+                    modeMenuButton(.tricorn)
+                    modeMenuButton(.kleinian)
+                    modeMenuButton(.mandelbrotRelief)
+
+                    Divider()
+
+                    modeMenuButton(.mandelbulb3D)
+                    modeMenuButton(.mandelbox3D)
+
+                    Divider()
+
+                    modeMenuButton(.newton)
                 } label: {
                     Text("Mode: \(fractalMode.shortName)")
                         .frame(width: 135, alignment: .leading)
@@ -1096,11 +1107,17 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Choose fractal mode")
                 
                 Menu {
-                    ForEach(FractalPalette.allCases) { palette in
-                        Button {
-                            fractalPalette = palette
-                        } label: {
-                            Text("\(fractalPalette == palette ? "✓ " : "   ")\(palette.displayName)")
+                    if fractalMode == .julia {
+                        Text("✓ Solar Pop")
+                    } else {
+                        ForEach(FractalPalette.allCases) { palette in
+                            Button {
+                                fractalPalette = palette
+                            } label: {
+                                Text(
+                                    "\(fractalPalette == palette ? "✓ " : "   ")\(palette.displayName)"
+                                )
+                            }
                         }
                     }
                 } label: {
@@ -1658,7 +1675,7 @@ The zoom factor overlay is only visible in the app and is not included in export
         lastPerturbationStatsText = nil
 
         fractalMode = spot.mode
-        fractalPalette = spot.palette
+        fractalPalette = spot.mode == .julia ? .solarPop : spot.palette
         applyPreciseViewport(spot.storedPreciseViewport)
         maxIterations = spot.iterations
         navigationRevision &+= 1
@@ -1706,8 +1723,21 @@ The zoom factor overlay is only visible in the app and is not included in export
         maxIterations = previous.maxIterations
     }
 
+    private func modeMenuButton(_ mode: FractalMode) -> some View {
+        Button {
+            setMode(mode)
+        } label: {
+            Text("\(fractalMode == mode ? "✓ " : "   ")\(mode.displayName)")
+        }
+    }
+
     private func setMode(_ mode: FractalMode) {
         fractalMode = mode
+
+        if mode == .julia {
+            fractalPalette = .solarPop
+        }
+
         applyPreciseViewport(
             PreciseViewport(
                 centerX: mode.defaultCenterX,
