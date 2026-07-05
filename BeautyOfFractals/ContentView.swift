@@ -59,6 +59,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbox3D = 7
     case newton = 8
     case eightRainbows = 9
+    case celtic = 10
 
     var id: Int {
         rawValue
@@ -86,6 +87,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Newton Fractal"
         case .eightRainbows:
             return "Eight Rainbows"
+        case .celtic:
+            return "Celtic Mandelbrot"
         }
     }
 
@@ -111,6 +114,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Newton"
         case .eightRainbows:
             return "Rainbows"
+        case .celtic:
+            return "Celtic"
         }
     }
 
@@ -136,6 +141,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Newton"
         case .eightRainbows:
             return "EightRainbows"
+        case .celtic:
+            return "CelticMandelbrot"
         }
     }
 
@@ -161,6 +168,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         case .eightRainbows:
             return 0.0
+        case .celtic:
+            return -0.5
         }
     }
 
@@ -185,6 +194,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
         case .newton:
             return 0.0
         case .eightRainbows:
+            return 0.0
+        case .celtic:
             return 0.0
         }
     }
@@ -211,12 +222,14 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 3.2
         case .eightRainbows:
             return 3.0
+        case .celtic:
+            return 3.0
         }
     }
 
     var supportsHighPrecisionPreview: Bool {
         switch self {
-        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows:
+        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows, .celtic:
             return true
         case .mandelbrotRelief, .mandelbulb3D, .mandelbox3D:
             return false
@@ -1103,6 +1116,7 @@ The zoom factor overlay is only visible in the app and is not included in export
             HStack(spacing: 10) {
                 Menu {
                     modeMenuButton(.mandelbrot)
+                    modeMenuButton(.celtic)
                     modeMenuButton(.julia)
                     modeMenuButton(.eightRainbows)
 
@@ -1646,7 +1660,7 @@ The zoom factor overlay is only visible in the app and is not included in export
 
     private func fallbackThumbnailForCurrentFavorite() -> Data? {
         switch fractalMode {
-        case .mandelbrot, .julia, .burningShip, .tricorn, .newton, .eightRainbows:
+        case .mandelbrot, .celtic, .julia, .burningShip, .tricorn, .newton, .eightRainbows:
             return makeFavoriteThumbnailPNG(
                 mode: fractalMode,
                 palette: fractalPalette,
@@ -1757,7 +1771,7 @@ The zoom factor overlay is only visible in the app and is not included in export
         case .julia, .newton:
             fractalPalette = .solarPop
 
-        case .mandelbrot, .tricorn:
+        case .mandelbrot, .tricorn, .celtic:
             fractalPalette = .deepBlue
 
         case .eightRainbows:
@@ -4855,7 +4869,7 @@ nonisolated private func calculateFractalIteration(
     var cy: Double
 
     switch mode {
-    case .mandelbrot, .mandelbrotRelief:
+    case .mandelbrot, .mandelbrotRelief, .celtic:
         x = 0.0
         y = 0.0
         cx = x0
@@ -4900,6 +4914,12 @@ nonisolated private func calculateFractalIteration(
             let xtemp = x * x - y * y + cx
             y = 2.0 * x * y + cy
             x = xtemp
+
+        case .celtic:
+            let realSquared = x * x - y * y
+            let imaginarySquared = 2.0 * x * y
+            x = abs(realSquared) + cx
+            y = imaginarySquared + cy
 
         case .burningShip:
             let ax = abs(x)
