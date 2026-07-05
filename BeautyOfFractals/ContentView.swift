@@ -1122,8 +1122,8 @@ The zoom factor overlay is only visible in the app and is not included in export
 
                     modeMenuButton(.newton)
                 } label: {
-                    Text("Mode: \(fractalMode.shortName)")
-                        .frame(width: 135, alignment: .leading)
+                    Text("Mode: \(fractalMode.displayName)")
+                        .frame(width: 160, alignment: .leading)
                 }
                 .help("Choose fractal mode")
 
@@ -2066,6 +2066,12 @@ struct MandelbrotView: View {
         }
 
         if useDeepCPUPreview {
+            // Deep Reference, Direct and Maximum Precision currently apply
+            // only to Mandelbrot's dedicated perturbation / Double-Double paths.
+            guard fractalMode == .mandelbrot else {
+                return "High Precision · CPU Deep Zoom"
+            }
+
             switch deepRenderMethod {
             case .automatic:
                 return "High Precision · CPU Deep Zoom · Automatic"
