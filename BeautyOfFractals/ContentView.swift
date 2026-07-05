@@ -2560,6 +2560,7 @@ struct HighPrecisionFractalPreview: View {
     @State private var image: NSImage?
     @State private var isRendering: Bool = false
     @State private var renderProgress: Double = 0.0
+    @State private var completedRenderIterations: Int?
     @State private var showRenderStatus: Bool = false
     @State private var renderStartDate: Date?
     @State private var lastRenderDurationText: String?
@@ -2613,8 +2614,23 @@ struct HighPrecisionFractalPreview: View {
     }
 
     private var renderIterationText: String {
+        if !isRendering, let completedRenderIterations {
+            return "\(completedRenderIterations.formatted()) / \(displayIterations.formatted())"
+        }
+
         let current = Int(Double(displayIterations) * clampedRenderProgress)
         return "\(current.formatted()) / \(displayIterations.formatted())"
+    }
+
+    private var renderIterationCaption: String {
+        guard fractalMode == .celtic,
+              !isRendering,
+              let completedRenderIterations,
+              completedRenderIterations < displayIterations else {
+            return "Iterations"
+        }
+
+        return "Atmospheric Finish"
     }
 
     private func elapsedText(at date: Date) -> String {
@@ -2690,7 +2706,7 @@ struct HighPrecisionFractalPreview: View {
                                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.78))
 
-                                Text("Iterations")
+                                Text(renderIterationCaption)
                                     .font(.system(size: 12, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.62))
                             }
@@ -2788,6 +2804,7 @@ struct HighPrecisionFractalPreview: View {
         var finalRenderIterations = fullIterations
 
         renderProgress = 0.01
+        completedRenderIterations = nil
         renderStartDate = Date()
         lastRenderDurationText = nil
         isRendering = true
@@ -2860,7 +2877,10 @@ struct HighPrecisionFractalPreview: View {
                 ]
             }
 
-            if let lastPreviewStage = previewStages.last {
+            // Celtic benefits visually from retaining the atmospheric final
+            // preview stage. Other fractals continue to their full requested
+            // iteration target so fine structure is never traded away.
+            if mode == .celtic, let lastPreviewStage = previewStages.last {
                 finalRenderIterations = max(
                     300,
                     min(
@@ -2991,6 +3011,7 @@ struct HighPrecisionFractalPreview: View {
                 )
             )
             onThumbnailPublished(makeFavoriteThumbnailPNG(from: finalImage))
+            completedRenderIterations = finalRenderIterations
 
             renderProgress = 1.0
         }
