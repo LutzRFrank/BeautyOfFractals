@@ -43,7 +43,7 @@ static uint fractalIteration(
     float cx;
     float cy;
     
-    if (mode == 0 || mode == 6) {
+    if (mode == 0 || mode == 6 || mode == 9) {
         x = 0.0;
         y = 0.0;
         cx = x0;
@@ -92,6 +92,14 @@ static uint fractalIteration(
             float xtemp = x * x - y * y + cx;
             y = -2.0 * x * y + cy;
             x = xtemp;
+        } else if (mode == 9) {
+            float x2 = x * x - y * y;
+            float y2 = 2.0 * x * y;
+            float x4 = x2 * x2 - y2 * y2;
+            float y4 = 2.0 * x2 * y2;
+
+            x = x4 * x4 - y4 * y4 + cx;
+            y = 2.0 * x4 * y4 + cy;
         } else if (mode == 4) {
             float r2 = x * x + y * y + 0.000001;
             
@@ -200,7 +208,7 @@ static float3 paletteColor(
             0.05 + 0.45 * warmBody + 0.36 * ember + 0.16 * detail - 0.32 * darkFiligree,
             0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree
         );
-    } else {
+    } else if (palette == 9) {
         // Solar Pop:
         // high-contrast lemon, ivory, coral-red and charcoal bands.
         // More colorful and stepped than Solar Coral, but kept separate as palette 9.
@@ -234,6 +242,24 @@ static float3 paletteColor(
         color = base * lift
               + float3(0.48, 0.32, 0.07) * edgeSpark
               + float3(0.38, 0.04, 0.02) * redBand * detail;
+    } else {
+        // Rainbows:
+        // Explicit spectral cycles: red → yellow → green → cyan → blue → magenta.
+        float phase = fract(0.08 + 5.20 * pow(relief, 0.58) + 0.72 * ridge + 0.35 * glow);
+        float h6 = phase * 6.0;
+
+        float red = clamp(abs(h6 - 3.0) - 1.0, 0.0, 1.0);
+        float green = clamp(2.0 - abs(h6 - 2.0), 0.0, 1.0);
+        float blue = clamp(2.0 - abs(h6 - 4.0), 0.0, 1.0);
+
+        float brightness = 0.58 + 0.48 * pow(relief, 0.32) + 0.18 * glow;
+        float sparkle = 0.10 + 0.20 * pow(ridge, 1.60);
+
+        color = float3(
+            red * brightness + sparkle,
+            green * brightness + sparkle,
+            blue * brightness + sparkle
+        );
     }
     
     return clamp(color, 0.0, 1.0);
@@ -242,6 +268,10 @@ static float3 paletteColor(
 static float3 insideColor(uint mode, uint palette) {
     if (mode == 0 || mode == 6) {
         return float3(0.0, 0.0, 0.0);
+    }
+
+    if (mode == 9) {
+        return float3(0.018, 0.004, 0.055);
     }
     
     if (mode == 4) {

@@ -58,6 +58,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
     case mandelbrotRelief = 6
     case mandelbox3D = 7
     case newton = 8
+    case eightRainbows = 9
 
     var id: Int {
         rawValue
@@ -83,6 +84,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Mandelbox 3D"
         case .newton:
             return "Newton Fractal"
+        case .eightRainbows:
+            return "Eight Rainbows"
         }
     }
 
@@ -106,6 +109,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Mandelbox"
         case .newton:
             return "Newton"
+        case .eightRainbows:
+            return "Rainbows"
         }
     }
 
@@ -129,6 +134,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Mandelbox3D"
         case .newton:
             return "Newton"
+        case .eightRainbows:
+            return "EightRainbows"
         }
     }
 
@@ -151,6 +158,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
         case .mandelbox3D:
             return 0.0
         case .newton:
+            return 0.0
+        case .eightRainbows:
             return 0.0
         }
     }
@@ -175,6 +184,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         case .newton:
             return 0.0
+        case .eightRainbows:
+            return 0.0
         }
     }
 
@@ -198,12 +209,14 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 2.8
         case .newton:
             return 3.2
+        case .eightRainbows:
+            return 3.0
         }
     }
 
     var supportsHighPrecisionPreview: Bool {
         switch self {
-        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton:
+        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows:
             return true
         case .mandelbrotRelief, .mandelbulb3D, .mandelbox3D:
             return false
@@ -222,6 +235,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case solarCoral = 7
     case infernoCoral = 8
     case solarPop = 9
+    case rainbows = 10
 
     var id: Int {
         rawValue
@@ -249,6 +263,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Inferno Coral"
         case .solarPop:
             return "Solar Pop"
+        case .rainbows:
+            return "Rainbows"
         }
     }
 
@@ -274,6 +290,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "InfernoCoral"
         case .solarPop:
             return "SolarPop"
+        case .rainbows:
+            return "Rainbows"
         }
     }
 }
@@ -1086,6 +1104,7 @@ The zoom factor overlay is only visible in the app and is not included in export
                 Menu {
                     modeMenuButton(.mandelbrot)
                     modeMenuButton(.julia)
+                    modeMenuButton(.eightRainbows)
 
                     Divider()
 
@@ -1627,7 +1646,7 @@ The zoom factor overlay is only visible in the app and is not included in export
 
     private func fallbackThumbnailForCurrentFavorite() -> Data? {
         switch fractalMode {
-        case .mandelbrot, .julia, .burningShip, .tricorn, .newton:
+        case .mandelbrot, .julia, .burningShip, .tricorn, .newton, .eightRainbows:
             return makeFavoriteThumbnailPNG(
                 mode: fractalMode,
                 palette: fractalPalette,
@@ -1740,6 +1759,9 @@ The zoom factor overlay is only visible in the app and is not included in export
 
         case .mandelbrot, .tricorn:
             fractalPalette = .deepBlue
+
+        case .eightRainbows:
+            fractalPalette = .rainbows
 
         default:
             break
@@ -2085,7 +2107,14 @@ struct MandelbrotView: View {
     }
 
     private var interactionPreviewIterations: Int {
-        max(300, min(effectiveIterations, Int(Double(effectiveIterations) * 0.25)))
+        // z⁸ + c escapes very quickly for most pixels. Keeping its full
+        // iteration budget makes the Rainbows palette visually stable while
+        // a selection is dragged, instead of shifting its spectral phase on release.
+        if fractalMode == .eightRainbows {
+            return effectiveIterations
+        }
+
+        return max(300, min(effectiveIterations, Int(Double(effectiveIterations) * 0.25)))
     }
 
     private var metalDisplayedIterations: Int {
@@ -4747,6 +4776,14 @@ nonisolated private func calculateNewtonColor(
             (0.05, 0.035, 0.025),
             (1.00, 0.94, 0.68)
         ]
+    case .rainbows:
+        colors = [
+            (1.00, 0.08, 0.16),
+            (1.00, 0.80, 0.05),
+            (0.12, 1.00, 0.38),
+            (0.05, 0.62, 1.00),
+            (0.72, 0.12, 1.00)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -4842,7 +4879,7 @@ nonisolated private func calculateFractalIteration(
         cx = 0.0
         cy = 0.0
 
-    case .mandelbulb3D, .mandelbox3D, .newton:
+    case .mandelbulb3D, .mandelbox3D, .newton, .eightRainbows:
         x = 0.0
         y = 0.0
         cx = x0
@@ -4869,6 +4906,15 @@ nonisolated private func calculateFractalIteration(
             let xtemp = x * x - y * y + cx
             y = -2.0 * x * y + cy
             x = xtemp
+
+        case .eightRainbows:
+            let x2 = x * x - y * y
+            let y2 = 2.0 * x * y
+            let x4 = x2 * x2 - y2 * y2
+            let y4 = 2.0 * x2 * y2
+
+            x = x4 * x4 - y4 * y4 + cx
+            y = 2.0 * x4 * y4 + cy
 
         case .kleinian:
             let r2 = x * x + y * y + 0.000001
@@ -5027,6 +5073,28 @@ nonisolated private func paletteBaseColor(
             clamp01(0.01 + 0.10 * warmBody + 0.04 * ember + 0.04 * detail - 0.20 * darkFiligree)
         )
 
+    case .rainbows:
+        // Rainbows:
+        // Explicit spectral cycles: red → yellow → green → cyan → blue → magenta.
+        // The stronger phase variation prevents the usual low-escape region
+        // from collapsing into a mostly teal image.
+        let phase = (0.08 + 5.20 * pow(relief, 0.58) + 0.72 * ridge + 0.35 * glow)
+            .truncatingRemainder(dividingBy: 1.0)
+        let h6 = phase * 6.0
+
+        let red = clamp01(abs(h6 - 3.0) - 1.0)
+        let green = clamp01(2.0 - abs(h6 - 2.0))
+        let blue = clamp01(2.0 - abs(h6 - 4.0))
+
+        let brightness = 0.58 + 0.48 * pow(relief, 0.32) + 0.18 * glow
+        let sparkle = 0.10 + 0.20 * pow(ridge, 1.60)
+
+        return (
+            clamp01(red * brightness + sparkle),
+            clamp01(green * brightness + sparkle),
+            clamp01(blue * brightness + sparkle)
+        )
+
     case .solarPop:
         // Solar Pop:
         // high-contrast lemon, ivory, coral-red and charcoal bands.
@@ -5090,6 +5158,10 @@ nonisolated private func insideColor(
         return (0.0, 0.0, 0.0)
     }
 
+    if mode == .eightRainbows {
+        return (0.018, 0.004, 0.055)
+    }
+
     if mode == .kleinian {
         switch palette {
         case .ocean:
@@ -5112,6 +5184,8 @@ nonisolated private func insideColor(
             return (0.075, 0.020, 0.010)
         case .solarPop:
             return (0.090, 0.040, 0.018)
+        case .rainbows:
+            return (0.018, 0.008, 0.065)
         }
     }
 
