@@ -2878,9 +2878,13 @@ struct HighPrecisionFractalPreview: View {
             }
 
             // Celtic benefits visually from retaining the atmospheric final
-            // preview stage. Other fractals continue to their full requested
-            // iteration target so fine structure is never traded away.
-            if mode == .celtic, let lastPreviewStage = previewStages.last {
+            // preview stage with the expressive palettes. Deep Blue and all
+            // other modes continue to their full requested iteration target.
+            let usesAtmosphericFinish =
+                mode == .celtic
+                && (palette == .rainbows || palette == .solarPop)
+
+            if usesAtmosphericFinish, let lastPreviewStage = previewStages.last {
                 finalRenderIterations = max(
                     300,
                     min(
