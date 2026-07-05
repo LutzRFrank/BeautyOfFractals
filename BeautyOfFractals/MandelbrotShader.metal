@@ -43,7 +43,7 @@ static uint fractalIteration(
     float cx;
     float cy;
     
-    if (mode == 0 || mode == 6 || mode == 9) {
+    if (mode == 0 || mode == 6 || mode == 9 || mode == 10) {
         x = 0.0;
         y = 0.0;
         cx = x0;
@@ -82,6 +82,11 @@ static uint fractalIteration(
             float xtemp = x * x - y * y + cx;
             y = 2.0 * x * y + cy;
             x = xtemp;
+        } else if (mode == 10) {
+            float realSquared = x * x - y * y;
+            float imaginarySquared = 2.0 * x * y;
+            x = abs(realSquared) + cx;
+            y = imaginarySquared + cy;
         } else if (mode == 2) {
             float ax = abs(x);
             float ay = abs(y);
