@@ -2781,6 +2781,12 @@ struct HighPrecisionFractalPreview: View {
         let precise = preciseViewport
         let fullIterations = maxIterations
 
+        // Normally the final full-resolution frame uses all requested
+        // iterations. During progressive deep rendering it adopts the exact
+        // iteration count of the last preview stage instead, preserving the
+        // atmospheric colour state seen immediately before final refinement.
+        var finalRenderIterations = fullIterations
+
         renderProgress = 0.01
         renderStartDate = Date()
         lastRenderDurationText = nil
@@ -2852,6 +2858,22 @@ struct HighPrecisionFractalPreview: View {
                     (720, 450, 0.50),
                     (deepCPUPreviewMaxPixelWidth, deepCPUPreviewMaxPixelHeight, 0.70)
                 ]
+            }
+
+            if let lastPreviewStage = previewStages.last {
+                finalRenderIterations = max(
+                    300,
+                    min(
+                        fullIterations,
+                        min(
+                            deepCPUPreviewIterationCap,
+                            Int(
+                                Double(fullIterations)
+                                    * lastPreviewStage.iterationScale
+                            )
+                        )
+                    )
+                )
             }
 
             for (stageIndex, stage) in previewStages.enumerated() {
@@ -2942,7 +2964,7 @@ struct HighPrecisionFractalPreview: View {
             centerY: cy,
             scale: currentScale,
             preciseViewport: precise,
-            maxIterations: fullIterations,
+            maxIterations: finalRenderIterations,
             requestID: requestID,
             progressStart: 0.82,
             perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
@@ -2965,7 +2987,7 @@ struct HighPrecisionFractalPreview: View {
                     centerY: cy,
                     scale: currentScale,
                     preciseViewport: precise,
-                    iterations: fullIterations
+                    iterations: finalRenderIterations
                 )
             )
             onThumbnailPublished(makeFavoriteThumbnailPNG(from: finalImage))
