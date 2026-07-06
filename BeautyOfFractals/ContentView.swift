@@ -1142,17 +1142,18 @@ The zoom factor overlay is only visible in the app and is not included in export
                 .help("Choose fractal mode")
 
                 Menu {
-                    if fractalMode == .julia {
-                        Text("✓ Solar Pop")
-                    } else {
-                        ForEach(FractalPalette.allCases) { palette in
-                            Button {
-                                fractalPalette = palette
-                            } label: {
-                                Text(
-                                    "\(fractalPalette == palette ? "✓ " : "   ")\(palette.displayName)"
-                                )
-                            }
+                    let availablePalettes: [FractalPalette] =
+                        fractalMode == .julia
+                        ? [.solarPop, .rainbows]
+                        : FractalPalette.allCases
+
+                    ForEach(availablePalettes) { palette in
+                        Button {
+                            fractalPalette = palette
+                        } label: {
+                            Text(
+                                "\(fractalPalette == palette ? "✓ " : "   ")\(palette.displayName)"
+                            )
                         }
                     }
                 } label: {
@@ -1710,7 +1711,7 @@ The zoom factor overlay is only visible in the app and is not included in export
         lastPerturbationStatsText = nil
 
         fractalMode = spot.mode
-        fractalPalette = spot.mode == .julia ? .solarPop : spot.palette
+        fractalPalette = spot.palette
         applyPreciseViewport(spot.storedPreciseViewport)
         maxIterations = spot.iterations
         navigationRevision &+= 1
