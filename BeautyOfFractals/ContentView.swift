@@ -249,6 +249,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case infernoCoral = 8
     case solarPop = 9
     case rainbows = 10
+    case abyss = 11
+    case deepCurrent = 12
 
     var id: Int {
         rawValue
@@ -278,6 +280,10 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Solar Pop"
         case .rainbows:
             return "Rainbows"
+        case .abyss:
+            return "Abyss"
+        case .deepCurrent:
+            return "Deep Current"
         }
     }
 
@@ -305,6 +311,10 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "SolarPop"
         case .rainbows:
             return "Rainbows"
+        case .abyss:
+            return "Abyss"
+        case .deepCurrent:
+            return "DeepCurrent"
         }
     }
 }
@@ -1140,7 +1150,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                        ? [.solarPop, .rainbows]
+                        ? [.solarPop, .rainbows, .abyss, .deepCurrent]
                         : FractalPalette.allCases
 
                     ForEach(availablePalettes) { palette in
@@ -1748,6 +1758,7 @@ The zoom overlay is visible only in the app and is not included in exports.
     private func undoView() {
         guard let previous = navigationHistory.popLast() else { return }
 
+     
         // Tell the live renderer to invalidate a pending debounce/CPU refinement
         // before restoring the older viewport.
         navigationRevision &+= 1
@@ -4848,6 +4859,22 @@ nonisolated private func calculateNewtonColor(
             (0.05, 0.62, 1.00),
             (0.72, 0.12, 1.00)
         ]
+    case .abyss:
+        colors = [
+            (0.00, 0.14, 0.42),
+            (0.00, 0.72, 0.98),
+            (0.78, 0.98, 1.00),
+            (0.02, 0.04, 0.16),
+            (1.00, 0.62, 0.12)
+        ]
+    case .deepCurrent:
+        colors = [
+            (0.01, 0.08, 0.30),
+            (0.02, 0.64, 0.92),
+            (0.88, 0.98, 1.00),
+            (0.92, 0.62, 0.16),
+            (1.00, 0.30, 0.04)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -5216,6 +5243,131 @@ nonisolated private func paletteBaseColor(
             clamp01(g * lift + 0.32 * edgeSpark + 0.04 * redBand * detail),
             clamp01(b * lift + 0.07 * edgeSpark + 0.02 * redBand * detail)
         )
+
+    case .abyss:
+        // Abyss:
+        // Deep navy water, cyan and ice reefs, balanced by broad sand-gold
+        // and amber currents inspired by a warm ocean-floor glow.
+        let body = pow(relief, 0.46)
+        let detail = pow(ridge, 0.64)
+        let iceGlow = pow(glow, 0.74)
+
+        let rawPhase = 0.08 + 2.30 * relief + 1.90 * glow + 3.35 * ridge
+        let phase = rawPhase - floor(rawPhase)
+
+        let iceBand = smoothstep(edge0: 0.24, edge1: 0.38, x: phase)
+            * (1.0 - smoothstep(edge0: 0.57, edge1: 0.72, x: phase))
+
+        let goldBand = smoothstep(edge0: 0.80, edge1: 0.87, x: phase)
+            * (1.0 - smoothstep(edge0: 0.94, edge1: 0.990, x: phase))
+
+        let warmRawPhase = 0.16 + 0.82 * relief + 0.46 * glow + 0.74 * ridge
+        let warmPhase = warmRawPhase - floor(warmRawPhase)
+
+        let warmBody = smoothstep(edge0: 0.18, edge1: 0.34, x: warmPhase)
+            * (1.0 - smoothstep(edge0: 0.62, edge1: 0.80, x: warmPhase))
+
+        let midnight = (0.003, 0.014, 0.070)
+        let cobalt = (0.010, 0.145, 0.470)
+        let cyan = (0.000, 0.860, 1.000)
+        let ice = (0.880, 1.000, 1.000)
+        let sandGold = (0.82, 0.66, 0.30)
+
+        var r = midnight.0
+        var g = midnight.1
+        var b = midnight.2
+
+        let cobaltMix = min(0.88, 0.44 + 0.34 * body)
+        r = r + (cobalt.0 - r) * cobaltMix
+        g = g + (cobalt.1 - g) * cobaltMix
+        b = b + (cobalt.2 - b) * cobaltMix
+
+        let cyanMix = min(0.78, 0.44 * body + 0.32 * detail + 0.16 * iceGlow)
+        r = r + (cyan.0 - r) * cyanMix
+        g = g + (cyan.1 - g) * cyanMix
+        b = b + (cyan.2 - b) * cyanMix
+
+        let broadGoldMix = 0.46 * warmBody * (0.36 + 0.64 * body)
+        r = r + (sandGold.0 - r) * broadGoldMix
+        g = g + (sandGold.1 - g) * broadGoldMix
+        b = b + (sandGold.2 - b) * broadGoldMix
+
+        let iceMix = min(
+            0.88,
+            0.72 * iceBand * (0.24 + 0.76 * detail) + 0.50 * iceGlow
+        )
+        r = r + (ice.0 - r) * iceMix
+        g = g + (ice.1 - g) * iceMix
+        b = b + (ice.2 - b) * iceMix
+
+        let amberGlow = 0.44 * goldBand * (0.24 + 0.76 * detail)
+        let reefSpark = 0.16 * pow(detail, 1.38) + 0.14 * iceGlow
+        let lift = 0.66 + 0.50 * body + 0.34 * iceGlow
+
+        return (
+            clamp01(r * lift + 0.52 * amberGlow + 0.05 * reefSpark),
+            clamp01(g * lift + 0.26 * amberGlow + 0.23 * reefSpark),
+            clamp01(b * lift + 0.03 * amberGlow + 0.30 * reefSpark)
+        )
+
+    case .deepCurrent:
+        // Deep Current:
+        // A deliberate blue-gold ocean ramp. Each color owns a real range
+        // of the phase, so sand and amber stay broad and saturated.
+        let detail = pow(ridge, 0.72)
+        let iceGlow = pow(glow, 0.82)
+
+        let rawPhase = 0.04 + 1.12 * relief + 0.42 * glow + 0.84 * ridge
+        let phase = rawPhase - floor(rawPhase)
+
+        let midnight = (0.004, 0.018, 0.085)
+        let cobalt = (0.010, 0.155, 0.520)
+        let cyan = (0.000, 0.720, 0.980)
+        let ice = (0.850, 0.980, 1.000)
+        let deepBlue = (0.010, 0.080, 0.260)
+        let sandGold = (0.88, 0.64, 0.22)
+        let amber = (1.000, 0.300, 0.045)
+
+        func blend(
+            _ a: (Double, Double, Double),
+            _ b: (Double, Double, Double),
+            _ amount: Double
+        ) -> (Double, Double, Double) {
+            (
+                a.0 + (b.0 - a.0) * amount,
+                a.1 + (b.1 - a.1) * amount,
+                a.2 + (b.2 - a.2) * amount
+            )
+        }
+
+        let base: (Double, Double, Double)
+        switch phase {
+        case ..<0.14:
+            base = blend(midnight, cobalt, phase / 0.14)
+        case ..<0.28:
+            base = blend(cobalt, cyan, (phase - 0.14) / 0.14)
+        case ..<0.42:
+            base = blend(cyan, ice, (phase - 0.28) / 0.14)
+        case ..<0.54:
+            base = blend(ice, deepBlue, (phase - 0.42) / 0.12)
+        case ..<0.68:
+            base = blend(deepBlue, sandGold, (phase - 0.54) / 0.14)
+        case ..<0.84:
+            base = blend(sandGold, amber, (phase - 0.68) / 0.16)
+        default:
+            base = blend(amber, midnight, (phase - 0.84) / 0.16)
+        }
+
+        let iceEdge = 0.22 * pow(detail, 1.38) * (0.28 + 0.72 * iceGlow)
+        let goldEdge = 0.14 * pow(detail, 1.18)
+            * smoothstep(edge0: 0.62, edge1: 0.86, x: phase)
+        let lift = 0.54 + 0.34 * pow(relief, 0.48) + 0.24 * iceGlow
+
+        return (
+            clamp01(base.0 * lift + 0.48 * iceEdge + 0.58 * goldEdge),
+            clamp01(base.1 * lift + 0.72 * iceEdge + 0.31 * goldEdge),
+            clamp01(base.2 * lift + 0.80 * iceEdge + 0.05 * goldEdge)
+        )
     }
 }
 
@@ -5256,6 +5408,10 @@ nonisolated private func insideColor(
             return (0.090, 0.040, 0.018)
         case .rainbows:
             return (0.018, 0.008, 0.065)
+        case .abyss:
+            return (0.003, 0.012, 0.060)
+        case .deepCurrent:
+            return (0.004, 0.016, 0.072)
         }
     }
 
