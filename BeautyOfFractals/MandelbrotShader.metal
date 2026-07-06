@@ -247,7 +247,7 @@ static float3 paletteColor(
         color = base * lift
               + float3(0.48, 0.32, 0.07) * edgeSpark
               + float3(0.38, 0.04, 0.02) * redBand * detail;
-    } else {
+    } else if (palette == 10) {
         // Rainbows:
         // Explicit spectral cycles: red → yellow → green → cyan → blue → magenta.
         float phase = fract(0.08 + 5.20 * pow(relief, 0.58) + 0.72 * ridge + 0.35 * glow);
@@ -265,6 +265,87 @@ static float3 paletteColor(
             green * brightness + sparkle,
             blue * brightness + sparkle
         );
+    } else if (palette == 11) {
+        // Abyss:
+        // Deep navy water, cyan and ice reefs, balanced by broad sand-gold
+        // and amber currents inspired by a warm ocean-floor glow.
+        float body = pow(relief, 0.46);
+        float detail = pow(ridge, 0.64);
+        float iceGlow = pow(glow, 0.74);
+
+        float phase = fract(0.08 + 2.30 * relief + 1.90 * glow + 3.35 * ridge);
+        float iceBand = smoothstep(0.24, 0.38, phase)
+                      * (1.0 - smoothstep(0.57, 0.72, phase));
+        float goldBand = smoothstep(0.80, 0.87, phase)
+                       * (1.0 - smoothstep(0.94, 0.990, phase));
+
+        float warmPhase = fract(0.16 + 0.82 * relief + 0.46 * glow + 0.74 * ridge);
+        float warmBody = smoothstep(0.18, 0.34, warmPhase)
+                       * (1.0 - smoothstep(0.62, 0.80, warmPhase));
+
+        float3 midnight = float3(0.003, 0.014, 0.070);
+        float3 cobalt = float3(0.010, 0.145, 0.470);
+        float3 cyan = float3(0.000, 0.860, 1.000);
+        float3 ice = float3(0.880, 1.000, 1.000);
+        float3 sandGold = float3(0.82, 0.66, 0.30);
+
+        float3 base = mix(midnight, cobalt, min(0.88, 0.44 + 0.34 * body));
+        base = mix(base, cyan, min(0.78, 0.44 * body + 0.32 * detail + 0.16 * iceGlow));
+        base = mix(base, sandGold, 0.46 * warmBody * (0.36 + 0.64 * body));
+        base = mix(
+            base,
+            ice,
+            min(0.88, 0.72 * iceBand * (0.24 + 0.76 * detail) + 0.50 * iceGlow)
+        );
+
+        float amberGlow = 0.44 * goldBand * (0.24 + 0.76 * detail);
+        float reefSpark = 0.16 * pow(detail, 1.38) + 0.14 * iceGlow;
+        float lift = 0.66 + 0.50 * body + 0.34 * iceGlow;
+
+        color = base * lift
+              + float3(0.52, 0.26, 0.03) * amberGlow
+              + float3(0.05, 0.23, 0.30) * reefSpark;
+    } else {
+        // Deep Current:
+        // Explicit blue-gold ocean ramp with broad, clean amber phases.
+        float detail = pow(ridge, 0.72);
+        float iceGlow = pow(glow, 0.82);
+
+        float phase = fract(0.04 + 1.12 * relief + 0.42 * glow + 0.84 * ridge);
+
+        float3 midnight = float3(0.004, 0.018, 0.085);
+        float3 cobalt = float3(0.010, 0.155, 0.520);
+        float3 cyan = float3(0.000, 0.720, 0.980);
+        float3 ice = float3(0.850, 0.980, 1.000);
+        float3 deepBlue = float3(0.010, 0.080, 0.260);
+        float3 sandGold = float3(0.88, 0.64, 0.22);
+        float3 amber = float3(1.000, 0.300, 0.045);
+
+        float3 base;
+        if (phase < 0.14) {
+            base = mix(midnight, cobalt, phase / 0.14);
+        } else if (phase < 0.28) {
+            base = mix(cobalt, cyan, (phase - 0.14) / 0.14);
+        } else if (phase < 0.42) {
+            base = mix(cyan, ice, (phase - 0.28) / 0.14);
+        } else if (phase < 0.54) {
+            base = mix(ice, deepBlue, (phase - 0.42) / 0.12);
+        } else if (phase < 0.68) {
+            base = mix(deepBlue, sandGold, (phase - 0.54) / 0.14);
+        } else if (phase < 0.84) {
+            base = mix(sandGold, amber, (phase - 0.68) / 0.16);
+        } else {
+            base = mix(amber, midnight, (phase - 0.84) / 0.16);
+        }
+
+        float iceEdge = 0.22 * pow(detail, 1.38) * (0.28 + 0.72 * iceGlow);
+        float goldEdge = 0.14 * pow(detail, 1.18)
+                       * smoothstep(0.62, 0.86, phase);
+        float lift = 0.54 + 0.34 * pow(relief, 0.48) + 0.24 * iceGlow;
+
+        color = base * lift
+              + float3(0.48, 0.72, 0.80) * iceEdge
+              + float3(0.58, 0.31, 0.05) * goldEdge;
     }
     
     return clamp(color, 0.0, 1.0);
@@ -298,8 +379,14 @@ static float3 insideColor(uint mode, uint palette) {
             return float3(0.10, 0.055, 0.020);
         } else if (palette == 8) {
             return float3(0.075, 0.020, 0.010);
-        } else {
+        } else if (palette == 9) {
             return float3(0.090, 0.040, 0.018);
+        } else if (palette == 10) {
+            return float3(0.018, 0.008, 0.065);
+        } else if (palette == 11) {
+            return float3(0.003, 0.012, 0.060);
+        } else {
+            return float3(0.004, 0.016, 0.072);
         }
     }
     
@@ -468,12 +555,30 @@ static float3 newtonPopRootColor(uint palette, uint rootIndex) {
         if (r == 2) return float3(1.00, 0.86, 0.08);
         if (r == 3) return float3(0.06, 0.01, 0.00);
         return float3(0.70, 0.16, 0.05);
-    } else {
+    } else if (palette == 9) {
         if (r == 0) return float3(1.00, 0.96, 0.02);
         if (r == 1) return float3(1.00, 0.08, 0.02);
         if (r == 2) return float3(1.00, 0.48, 0.02);
         if (r == 3) return float3(0.05, 0.035, 0.025);
         return float3(1.00, 0.94, 0.68);
+    } else if (palette == 10) {
+        if (r == 0) return float3(1.00, 0.08, 0.16);
+        if (r == 1) return float3(1.00, 0.80, 0.05);
+        if (r == 2) return float3(0.12, 1.00, 0.38);
+        if (r == 3) return float3(0.05, 0.62, 1.00);
+        return float3(0.72, 0.12, 1.00);
+    } else if (palette == 11) {
+        if (r == 0) return float3(0.00, 0.14, 0.42);
+        if (r == 1) return float3(0.00, 0.72, 0.98);
+        if (r == 2) return float3(0.78, 0.98, 1.00);
+        if (r == 3) return float3(0.02, 0.04, 0.16);
+        return float3(1.00, 0.62, 0.12);
+    } else {
+        if (r == 0) return float3(0.01, 0.08, 0.30);
+        if (r == 1) return float3(0.02, 0.64, 0.92);
+        if (r == 2) return float3(0.88, 0.98, 1.00);
+        if (r == 3) return float3(0.92, 0.62, 0.16);
+        return float3(1.00, 0.30, 0.04);
     }
 }
 
