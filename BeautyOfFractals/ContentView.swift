@@ -886,39 +886,35 @@ struct ContentView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("""
-Choose a fractal mode from the Mode menu:
-Mandelbrot, Mandelbrot Relief, Julia, Burning Ship, Tricorn, Kleinian Relief, Mandelbulb 3D, Mandelbox 3D or Newton Fractal.
+Modes:
+Explore Mandelbrot, Celtic Mandelbrot, Julia, Eight Rainbows, Burning Ship, Tricorn, Kleinian Relief, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D and Newton Fractal.
 
-Choose a color palette from the Palette menu:
-Ocean, Electric, Fire, Ice, Gold, Violet or Deep Blue.
+Palettes:
+Choose a palette from the Palette menu. Available palettes depend on the selected mode.
+Julia supports Solar Pop and Rainbows. Eight Rainbows opens with the Rainbows palette.
 
-Choose render quality from the Quality menu:
-Fast, High or Deep. Deep renders more detail at high zooms.
+Quality and iterations:
+Choose Fast, High or Deep. Quality and zoom depth adjust the effective iteration budget shown below the controls.
+Deep 2D locations use High Precision Preview automatically. At extreme zoom levels, CPU Deep Zoom progressively refines the image.
 
-Drag: select an area and zoom in
-
-⌥ Option + Drag: move the view
-
-+ / -: zoom in and out
-
-⌘R: reset view
-⌘⇧P: show / hide render status
-
-⌘S: export 2560 × 1600 PNG
+Navigation:
+Drag to select an area and zoom in.
+⌥ Option + Drag moves the view.
++ / − zoom in and out.
+⌘R resets the current mode.
+⌘⇧P shows or hides render status.
 
 Favorites:
 Use the star button to open Favorite Spots.
-Save Current View stores the current location with a thumbnail.
+Saving a view preserves its mode, palette, location, zoom, iteration setting and thumbnail.
 
-Deep 2D zooms automatically use High Precision Preview.
-At very deep zooms the app shows Near Limit or Extreme Zoom so precision artifacts are easier to recognize.
-
-Export menu:
+Export:
+⌘S exports a 2560 × 1600 PNG.
 Normal exports render at the selected size.
-Ultra exports render internally at 2× resolution and downsample for cleaner images.
+Ultra exports render internally at 2× resolution and downsample for cleaner detail.
 Live preview is capped at 50,000 iterations; normal export at 80,000; Ultra export at 120,000.
 
-The zoom factor overlay is only visible in the app and is not included in exports.
+The zoom overlay is visible only in the app and is not included in exports.
 3D exports are CPU raymarched and may take longer.
 """)
         }
