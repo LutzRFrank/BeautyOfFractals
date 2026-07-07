@@ -728,10 +728,10 @@ enum DeepRenderMethod: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Selects the fastest safe deep-render path. Direct Double remains preferable
-/// while adjacent screen pixels still map to distinct Double coordinates. Once
-/// that distinction approaches Double resolution at the current center, use the
-/// reference-orbit renderer instead.
+/// Selects the fastest safe deep-render path. Automatic starts with Direct
+/// Double while adjacent screen pixels still map to distinct Double coordinates,
+/// moves to Deep Reference near the Direct safety threshold, then uses Maximum
+/// Precision when pixel spacing approaches the coordinate ULP more closely.
 nonisolated private func automaticDeepRenderMethod(
     preciseViewport: PreciseViewport,
     viewportHeight: Int
@@ -745,10 +745,17 @@ nonisolated private func automaticDeepRenderMethod(
 
     // Keep a margin above one ULP so Automatic switches before coordinate
     // rounding can become visible in a deep viewport.
+    let maximumPrecisionResolution = coordinateMagnitude.ulp * 4.0
     let directSafetyMargin = 16.0
     let directResolution = coordinateMagnitude.ulp * directSafetyMargin
 
-    return pixelScale <= directResolution ? .perturbation : .directDouble
+    if pixelScale <= maximumPrecisionResolution {
+        return .doubleDouble
+    } else if pixelScale <= directResolution {
+        return .perturbation
+    } else {
+        return .directDouble
+    }
 }
 
 /// Main macOS fractal explorer interface.
