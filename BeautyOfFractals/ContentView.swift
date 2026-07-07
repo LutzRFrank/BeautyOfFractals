@@ -1847,60 +1847,27 @@ The zoom overlay is visible only in the app and is not included in exports.
     }
 
     private func increaseIterationsForZoom() {
-        if maxIterations < 500 {
+        if maxIterations < 2_500 {
             maxIterations += 400
-        } else if maxIterations < 1000 {
-            maxIterations += 700
-        } else if maxIterations < 2500 {
-            maxIterations += 1200
-        } else if maxIterations < 5000 {
-            maxIterations += 1500
-        } else if maxIterations < 8000 {
-            maxIterations += 2000
-        } else if maxIterations < 12000 {
-            maxIterations += 3000
-        } else if maxIterations < 18000 {
-            maxIterations += 4000
+        } else if maxIterations < 10_000 {
+            maxIterations += 600
         } else {
-            maxIterations += 6000
+            maxIterations += 800
         }
 
-        maxIterations = min(maxIterations, 24000)
+        maxIterations = min(maxIterations, 24_000)
     }
 
     private func decreaseIterationsForZoom() {
-        let magnification = fractalMode.defaultScale / max(scale, 1e-18)
-
-        let reduction: Int
-
-        // Preserve detail while flying back through genuinely deep territory.
-        // At Deep quality, each 1,000 base iterations correspond to roughly
-        // 4,000 displayed iterations, so large reductions feel abrupt here.
-        if magnification >= 1_000_000_000_000 {
-            reduction = 2_000
-        } else if magnification >= 100_000_000_000 {
-            reduction = 3_000
-        } else if magnification >= 10_000_000_000 {
-            reduction = 4_000
-        } else if maxIterations > 20_000 {
-            reduction = 6_000
-        } else if maxIterations > 16_000 {
-            reduction = 4_000
-        } else if maxIterations > 10_000 {
-            reduction = 3_000
-        } else if maxIterations > 7_000 {
-            reduction = 2_000
-        } else if maxIterations > 3_500 {
-            reduction = 1_500
+        if maxIterations > 10_000 {
+            maxIterations -= 400
         } else if maxIterations > 2_500 {
-            reduction = 1_200
-        } else if maxIterations > 1_000 {
-            reduction = 700
+            maxIterations -= 300
         } else {
-            reduction = 400
+            maxIterations -= 200
         }
 
-        maxIterations = max(maxIterations - reduction, 300)
+        maxIterations = max(maxIterations, 300)
     }
 
 
@@ -2501,21 +2468,15 @@ struct MandelbrotView: View {
     }
 
     private func increaseIterationsForZoom() {
-        if maxIterations < 500 {
+        if maxIterations < 2_500 {
             maxIterations += 400
-        } else if maxIterations < 1000 {
-            maxIterations += 700
-        } else if maxIterations < 2500 {
-            maxIterations += 1200
-        } else if maxIterations < 5000 {
-            maxIterations += 1500
-        } else if maxIterations < 8000 {
-            maxIterations += 2000
+        } else if maxIterations < 10_000 {
+            maxIterations += 600
         } else {
-            maxIterations += 3000
+            maxIterations += 800
         }
 
-        maxIterations = min(maxIterations, 24000)
+        maxIterations = min(maxIterations, 24_000)
     }
 }
 
