@@ -2007,35 +2007,6 @@ struct HighPrecisionViewportState: Equatable {
     let thumbnailPNG: Data? = nil
 }
 
-private struct FractalViewportTransform {
-    let centerX: Double
-    let centerY: Double
-    let scale: Double
-    let viewSize: CGSize
-
-    private var width: Double { max(Double(viewSize.width), 1.0) }
-    private var height: Double { max(Double(viewSize.height), 1.0) }
-    var aspectRatio: Double { width / height }
-
-    /// Converts a SwiftUI point (origin at the top-left) to the exact complex-plane
-    /// coordinate used by the live preview and high-precision renderer.
-    func complexPoint(at point: CGPoint) -> (x: Double, y: Double) {
-        (
-            centerX + (Double(point.x) / width - 0.5) * scale * aspectRatio,
-            centerY + (Double(point.y) / height - 0.5) * scale
-        )
-    }
-
-    func centerAfterPan(from start: CGPoint, to current: CGPoint) -> (x: Double, y: Double) {
-        let dx = Double(current.x - start.x)
-        let dy = Double(current.y - start.y)
-
-        return (
-            centerX - (dx / width) * scale * aspectRatio,
-            centerY - (dy / height) * scale
-        )
-    }
-}
 
 struct MandelbrotView: View {
     let fractalMode: FractalMode
@@ -2062,8 +2033,6 @@ struct MandelbrotView: View {
 
     @State private var isOptionPressed: Bool = false
     @State private var isPanning: Bool = false
-    @State private var panStartCenterX: Double = -0.5
-    @State private var panStartCenterY: Double = 0.0
     @State private var panStartPreciseViewport: PreciseViewport?
 
     @State private var keyMonitor: Any?
@@ -2366,8 +2335,6 @@ struct MandelbrotView: View {
                     dragStart = value.startLocation
                     dragCurrent = value.location
                     isPanning = isOptionPressed
-                    panStartCenterX = centerX
-                    panStartCenterY = centerY
                     panStartPreciseViewport = preciseViewport
 
                     // A pan changes the viewport continuously, so record its starting
