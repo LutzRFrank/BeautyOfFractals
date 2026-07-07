@@ -2,6 +2,14 @@ import SwiftUI
 import Metal
 import MetalKit
 
+// BeautyOfFractals
+//
+// MetalMandelbrotView.swift
+//
+// Metal-backed live preview surface for interactive fractal exploration.
+//
+// Provides the fast GPU preview used during navigation while deeper and more
+// precise CPU rendering is scheduled separately when required.
 struct MetalMandelbrotView: NSViewRepresentable {
     let fractalMode: FractalMode
     let fractalPalette: FractalPalette

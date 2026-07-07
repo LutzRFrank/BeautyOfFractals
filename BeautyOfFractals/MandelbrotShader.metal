@@ -1,6 +1,14 @@
 #include <metal_stdlib>
 using namespace metal;
 
+// BeautyOfFractals
+//
+// MandelbrotShader.metal
+//
+// GPU preview shaders for BeautyOfFractals.
+//
+// Optimized for responsive interactive rendering. Extreme deep zooms are
+// refined by the separate high-precision CPU rendering path.
 struct VertexOut {
     float4 position [[position]];
     float2 uv;

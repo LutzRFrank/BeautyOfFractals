@@ -1,5 +1,13 @@
 import Foundation
 
+// BeautyOfFractals
+//
+// MandelbrotPrecisionComparison.swift
+//
+// Diagnostic helpers for comparing Double and Double-Double Mandelbrot paths.
+//
+// Used to validate coordinate stability and visualize where conventional
+// floating-point precision begins to diverge at extreme zoom levels.
 nonisolated struct MandelbrotPrecisionComparison: Sendable {
     let sampleWidth: Int
     let sampleHeight: Int

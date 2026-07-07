@@ -1,5 +1,14 @@
 import Foundation
 
+// BeautyOfFractals
+//
+// PerturbationEngine.swift
+//
+// Reference-orbit perturbation renderer for extreme Mandelbrot zooms.
+//
+// Computes high-precision reference trajectories and reuses local perturbation
+// estimates to render deep regions efficiently without evaluating a complete
+// high-precision orbit independently for every pixel.
 nonisolated struct PerturbationOrbit {
     let x: [Double]
     let y: [Double]
