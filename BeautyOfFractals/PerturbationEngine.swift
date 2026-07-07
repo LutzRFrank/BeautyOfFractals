@@ -118,7 +118,6 @@ nonisolated struct PerturbationReferenceCache {
             )
         )
 
-        // references.append(reference)
         references.append(reference)
         return reference
     }
@@ -343,34 +342,6 @@ nonisolated enum PerturbationEngine {
             rebaseCount: rebaseCount,
             firstRebaseIteration: firstRebaseIteration
         )
-    }
-
-    static func perturbationIteration(
-        x0: Double,
-        y0: Double,
-        reference: PerturbationReference,
-        maxIterations: Int
-    ) -> Int {
-        var state = PerturbationState(reference: reference)
-
-        while state.iteration < maxIterations {
-            let result = step(
-                state: &state,
-                targetX: x0,
-                targetY: y0,
-                maxIterations: maxIterations
-            )
-
-            if result.escaped {
-                return result.iteration
-            }
-
-            if result.iteration >= maxIterations {
-                return maxIterations
-            }
-        }
-
-        return maxIterations
     }
 
     static func squaredDistance(
