@@ -1,5 +1,13 @@
 import Foundation
 
+// BeautyOfFractals
+//
+// DoubleDouble.swift
+//
+// Extended floating-point arithmetic built from a compensated pair of Doubles.
+//
+// DoubleDouble provides substantially more precision than a single Double
+// while remaining lightweight enough for interactive deep-zoom navigation.
 nonisolated struct DoubleDouble: Sendable, Equatable, Comparable {
     let hi: Double
     let lo: Double

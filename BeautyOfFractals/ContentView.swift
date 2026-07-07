@@ -1,3 +1,15 @@
+// BeautyOfFractals
+//
+// ContentView.swift
+//
+// Main macOS user interface and render orchestration.
+//
+// This file owns the interactive fractal experience: navigation, controls,
+// favorites, progressive rendering, render status, export, and coordination
+// between the Metal preview and high-precision CPU rendering.
+//
+// Mathematical primitives and deep-zoom engines deliberately live in their
+// own files so the UI layer can remain focused on interaction and state.
 import SwiftUI
 import Foundation
 import Dispatch
@@ -739,6 +751,10 @@ nonisolated private func automaticDeepRenderMethod(
     return pixelScale <= directResolution ? .perturbation : .directDouble
 }
 
+/// Main macOS fractal explorer interface.
+///
+/// Coordinates UI state, navigation, render scheduling, favorites,
+/// quality selection, export, and presentation of progressive render results.
 struct ContentView: View {
     @State private var fractalMode: FractalMode = .mandelbrot
     @State private var fractalPalette: FractalPalette = .deepBlue
