@@ -313,6 +313,45 @@ static float3 paletteColor(
         color = base * lift
               + float3(0.52, 0.26, 0.03) * amberGlow
               + float3(0.05, 0.23, 0.30) * reefSpark;
+    } else if (palette == 13) {
+        float body = pow(relief, 0.58);
+        float ridgeGold = pow(ridge, 2.40);
+        float ridgeHot = pow(ridge, 5.20);
+        float ridgeChampagne = pow(ridge, 10.0);
+        float glowGold = pow(glow, 1.10);
+        float phase = fract(0.05 + 1.10 * relief + 1.35 * glow + 5.80 * ridge);
+        float band = smoothstep(0.26, 0.44, phase)
+                   * (1.0 - smoothstep(0.72, 0.90, phase));
+        float darkCrack = pow(1.0 - clamp(relief * 0.84 + glow * 0.36, 0.0, 1.0), 2.10) * pow(ridge, 1.25);
+        float facet = 0.5 + 0.5 * cos(96.0 * ridge + 23.0 * glow - 11.0 * relief);
+
+        float3 shadow = float3(0.015, 0.010, 0.004);
+        float3 darkBronze = float3(0.120, 0.055, 0.010);
+        float3 bronze = float3(0.360, 0.180, 0.035);
+        float3 antiqueGold = float3(0.780, 0.480, 0.090);
+        float3 hotGold = float3(1.000, 0.720, 0.160);
+        float3 champagne = float3(1.000, 0.940, 0.700);
+
+        float ramp = clamp(0.10 + 0.66 * body + 0.16 * glowGold, 0.0, 1.0);
+        float3 base;
+        if (ramp < 0.22) {
+            base = mix(shadow, darkBronze, ramp / 0.22);
+        } else if (ramp < 0.46) {
+            base = mix(darkBronze, bronze, (ramp - 0.22) / 0.24);
+        } else if (ramp < 0.72) {
+            base = mix(bronze, antiqueGold, (ramp - 0.46) / 0.26);
+        } else {
+            base = mix(antiqueGold, hotGold, (ramp - 0.72) / 0.28);
+        }
+
+        base = mix(base, antiqueGold, 0.34 * band * (0.40 + 0.60 * ridgeGold));
+        base = mix(base, hotGold, 0.58 * ridgeGold * (0.35 + 0.65 * glowGold));
+        base = mix(base, champagne, 0.86 * ridgeChampagne * (0.45 + 0.55 * facet));
+        base = mix(base, shadow, 0.46 * darkCrack);
+
+        color = base
+              + float3(0.24, 0.19, 0.10) * ridgeHot
+              + float3(0.04, 0.03, 0.015) * ridgeGold;
     } else {
         // Deep Current:
         // Explicit blue-gold ocean ramp with broad, clean amber phases.
@@ -359,8 +398,37 @@ static float3 paletteColor(
     return clamp(color, 0.0, 1.0);
 }
 
+static float3 auricInteriorColor(float2 uv) {
+    float x = uv.x * 2.0 - 1.0;
+    float y = uv.y * 2.0 - 1.0;
+    float radius = min(length(float2(x, y)), 1.35);
+
+    float3 body = float3(0.550, 0.340, 0.080);
+    float3 shadow = float3(0.160, 0.075, 0.015);
+    float3 hotGold = float3(0.950, 0.650, 0.160);
+    float3 champagne = float3(1.000, 0.920, 0.650);
+
+    float diagonal = 1.0 - smoothstep(0.08, 0.62, abs(x - y + 0.18));
+    float upperLeftGlow = exp(-5.2 * ((x + 0.42) * (x + 0.42) + (y + 0.38) * (y + 0.38)));
+    float edgeShadow = smoothstep(0.48, 1.12, radius);
+    float lowerShadow = smoothstep(-0.18, 0.92, y);
+    float facet = 0.5 + 0.5 * cos(18.0 * x - 13.0 * y + 7.0 * radius);
+    float band = 0.5 + 0.5 * cos(24.0 * (x - y) + 5.0 * radius);
+
+    float3 color = mix(shadow, body, clamp(0.84 + 0.10 * facet, 0.0, 1.0));
+    color = mix(color, shadow, clamp(0.34 * edgeShadow + 0.18 * lowerShadow, 0.0, 1.0));
+    color = mix(color, hotGold, clamp(0.28 * diagonal + 0.18 * upperLeftGlow + 0.06 * band, 0.0, 1.0));
+    color = mix(color, champagne, clamp(0.24 * pow(diagonal, 3.2) * (0.45 + 0.55 * facet), 0.0, 1.0));
+
+    return clamp(color, 0.0, 1.0);
+}
+
 static float3 insideColor(uint mode, uint palette) {
     if (mode == 0 || mode == 6) {
+        if (palette == 13) {
+            return float3(0.560, 0.345, 0.085);
+        }
+
         return float3(0.0, 0.0, 0.0);
     }
 
@@ -393,6 +461,8 @@ static float3 insideColor(uint mode, uint palette) {
             return float3(0.018, 0.008, 0.065);
         } else if (palette == 11) {
             return float3(0.003, 0.012, 0.060);
+        } else if (palette == 13) {
+            return float3(0.560, 0.345, 0.085);
         } else {
             return float3(0.004, 0.016, 0.072);
         }
@@ -449,6 +519,10 @@ static float4 renderMandelbrotRelief(
     );
     
     if (centerIteration == uniforms.maxIterations) {
+        if (uniforms.fractalPalette == 13) {
+            return float4(auricInteriorColor(uv), 1.0);
+        }
+
         return float4(0.0, 0.0, 0.0, 1.0);
     }
     
@@ -581,6 +655,12 @@ static float3 newtonPopRootColor(uint palette, uint rootIndex) {
         if (r == 2) return float3(0.78, 0.98, 1.00);
         if (r == 3) return float3(0.02, 0.04, 0.16);
         return float3(1.00, 0.62, 0.12);
+    } else if (palette == 13) {
+        if (r == 0) return float3(0.03, 0.025, 0.020);
+        if (r == 1) return float3(0.36, 0.18, 0.045);
+        if (r == 2) return float3(0.95, 0.66, 0.14);
+        if (r == 3) return float3(1.00, 0.92, 0.68);
+        return float3(0.12, 0.16, 0.19);
     } else {
         if (r == 0) return float3(0.01, 0.08, 0.30);
         if (r == 1) return float3(0.02, 0.64, 0.92);
@@ -871,6 +951,11 @@ fragment float4 fractal_fragment(
     );
     
     if (iteration == uniforms.maxIterations) {
+        if (uniforms.fractalPalette == 13 &&
+            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6)) {
+            return float4(auricInteriorColor(uv), 1.0);
+        }
+
         return float4(
             insideColor(
                 uniforms.fractalMode,

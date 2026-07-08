@@ -263,6 +263,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case rainbows = 10
     case abyss = 11
     case deepCurrent = 12
+    case auric = 13
 
     var id: Int {
         rawValue
@@ -296,6 +297,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Abyss"
         case .deepCurrent:
             return "Deep Current"
+        case .auric:
+            return "Auric"
         }
     }
 
@@ -327,6 +330,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Abyss"
         case .deepCurrent:
             return "DeepCurrent"
+        case .auric:
+            return "Auric"
         }
     }
 }
@@ -1173,7 +1178,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                        ? [.solarPop, .rainbows, .abyss, .deepCurrent]
+                        ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric]
                         : FractalPalette.allCases
 
                     ForEach(availablePalettes) { palette in
@@ -3204,7 +3209,15 @@ nonisolated func renderFractalSupersampled(
                         )
 
                         if iteration == maxIterations {
-                            color = insideColor(mode: mode, palette: palette)
+                            if palette == .auric,
+                               mode == .mandelbrot || mode == .mandelbrotRelief {
+                                color = auricInteriorColor(
+                                    normalizedX: sampleX / Double(sampleWidth),
+                                    normalizedY: sampleY / Double(sampleHeight)
+                                )
+                            } else {
+                                color = insideColor(mode: mode, palette: palette)
+                            }
                         } else {
                             let t = Double(iteration) / Double(maxIterations)
                             color = cpuPaletteColor(
@@ -3428,7 +3441,14 @@ nonisolated private func renderDirectMandelbrotParallel(
                 let color: (r: Double, g: Double, b: Double)
 
                 if iteration == localMaxIterations {
-                    color = insideColor(mode: .mandelbrot, palette: palette)
+                    if palette == .auric {
+                        color = auricInteriorColor(
+                            normalizedX: (Double(px) + 0.5) / Double(width),
+                            normalizedY: (Double(py) + 0.5) / Double(height)
+                        )
+                    } else {
+                        color = insideColor(mode: .mandelbrot, palette: palette)
+                    }
                 } else {
                     let t = Double(iteration) / Double(localMaxIterations)
                     color = cpuPaletteColor(
@@ -3709,7 +3729,14 @@ nonisolated private func renderPerturbationMandelbrotParallel(
             let color: (r: Double, g: Double, b: Double)
 
             if iteration == localMaxIterations {
-                color = insideColor(mode: .mandelbrot, palette: palette)
+                if palette == .auric {
+                    color = auricInteriorColor(
+                        normalizedX: (Double(px) + 0.5) / Double(width),
+                        normalizedY: (Double(py) + 0.5) / Double(height)
+                    )
+                } else {
+                    color = insideColor(mode: .mandelbrot, palette: palette)
+                }
             } else {
                 let t = Double(iteration) / Double(localMaxIterations)
 
@@ -3876,10 +3903,17 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
                 let color: (r: Double, g: Double, b: Double)
 
                 if iteration == localMaxIterations {
-                    color = insideColor(
-                        mode: .mandelbrot,
-                        palette: palette
-                    )
+                    if palette == .auric {
+                        color = auricInteriorColor(
+                            normalizedX: (Double(px) + 0.5) / Double(width),
+                            normalizedY: (Double(py) + 0.5) / Double(height)
+                        )
+                    } else {
+                        color = insideColor(
+                            mode: .mandelbrot,
+                            palette: palette
+                        )
+                    }
                 } else {
                     let t = Double(iteration) / Double(maxIterations)
 
@@ -4234,7 +4268,15 @@ nonisolated func renderFractal(
                 }
 
                 if iteration == localMaxIterations {
-                    color = insideColor(mode: mode, palette: palette)
+                    if palette == .auric,
+                       mode == .mandelbrot || mode == .mandelbrotRelief {
+                        color = auricInteriorColor(
+                            normalizedX: (Double(px) + 0.5) / Double(width),
+                            normalizedY: (Double(py) + 0.5) / Double(height)
+                        )
+                    } else {
+                        color = insideColor(mode: mode, palette: palette)
+                    }
                 } else {
                     let t = Double(iteration) / Double(localMaxIterations)
                     color = cpuPaletteColor(
@@ -4826,6 +4868,14 @@ nonisolated private func calculateNewtonColor(
             (0.92, 0.62, 0.16),
             (1.00, 0.30, 0.04)
         ]
+    case .auric:
+        colors = [
+            (0.03, 0.025, 0.020),
+            (0.36, 0.18, 0.045),
+            (0.95, 0.66, 0.14),
+            (1.00, 0.92, 0.68),
+            (0.12, 0.16, 0.19)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -5319,6 +5369,61 @@ nonisolated private func paletteBaseColor(
             clamp01(base.1 * lift + 0.72 * iceEdge + 0.31 * goldEdge),
             clamp01(base.2 * lift + 0.80 * iceEdge + 0.05 * goldEdge)
         )
+
+    case .auric:
+        let body = pow(relief, 0.58)
+        let ridgeGold = pow(ridge, 2.40)
+        let ridgeHot = pow(ridge, 5.20)
+        let ridgeChampagne = pow(ridge, 10.0)
+        let glowGold = pow(glow, 1.10)
+        let phase = (0.05 + 1.10 * relief + 1.35 * glow + 5.80 * ridge)
+            .truncatingRemainder(dividingBy: 1.0)
+        let band = smoothstep(edge0: 0.26, edge1: 0.44, x: phase)
+            * (1.0 - smoothstep(edge0: 0.72, edge1: 0.90, x: phase))
+        let darkCrack = pow(1.0 - clamp01(relief * 0.84 + glow * 0.36), 2.10) * pow(ridge, 1.25)
+        let facet = 0.5 + 0.5 * cos(96.0 * ridge + 23.0 * glow - 11.0 * relief)
+
+        func blend(
+            _ a: (Double, Double, Double),
+            _ b: (Double, Double, Double),
+            _ amount: Double
+        ) -> (Double, Double, Double) {
+            (
+                a.0 + (b.0 - a.0) * amount,
+                a.1 + (b.1 - a.1) * amount,
+                a.2 + (b.2 - a.2) * amount
+            )
+        }
+
+        let shadow = (0.015, 0.010, 0.004)
+        let darkBronze = (0.120, 0.055, 0.010)
+        let bronze = (0.360, 0.180, 0.035)
+        let antiqueGold = (0.780, 0.480, 0.090)
+        let hotGold = (1.000, 0.720, 0.160)
+        let champagne = (1.000, 0.940, 0.700)
+
+        var color: (Double, Double, Double)
+        let ramp = clamp01(0.10 + 0.66 * body + 0.16 * glowGold)
+        if ramp < 0.22 {
+            color = blend(shadow, darkBronze, ramp / 0.22)
+        } else if ramp < 0.46 {
+            color = blend(darkBronze, bronze, (ramp - 0.22) / 0.24)
+        } else if ramp < 0.72 {
+            color = blend(bronze, antiqueGold, (ramp - 0.46) / 0.26)
+        } else {
+            color = blend(antiqueGold, hotGold, (ramp - 0.72) / 0.28)
+        }
+
+        color = blend(color, antiqueGold, 0.34 * band * (0.40 + 0.60 * ridgeGold))
+        color = blend(color, hotGold, 0.58 * ridgeGold * (0.35 + 0.65 * glowGold))
+        color = blend(color, champagne, 0.86 * ridgeChampagne * (0.45 + 0.55 * facet))
+        color = blend(color, shadow, 0.46 * darkCrack)
+
+        return (
+            clamp01(color.0 + 0.24 * ridgeHot + 0.04 * ridgeGold),
+            clamp01(color.1 + 0.19 * ridgeHot + 0.03 * ridgeGold),
+            clamp01(color.2 + 0.10 * ridgeHot + 0.015 * ridgeGold)
+        )
     }
 }
 
@@ -5328,6 +5433,10 @@ nonisolated private func insideColor(
 ) -> (r: Double, g: Double, b: Double) {
 
     if mode == .mandelbrot || mode == .mandelbrotRelief {
+        if palette == .auric {
+            return (0.560, 0.345, 0.085)
+        }
+
         return (0.0, 0.0, 0.0)
     }
 
@@ -5363,10 +5472,53 @@ nonisolated private func insideColor(
             return (0.003, 0.012, 0.060)
         case .deepCurrent:
             return (0.004, 0.016, 0.072)
+        case .auric:
+            return (0.560, 0.345, 0.085)
         }
     }
 
     return (0.0, 0.0, 0.0)
+}
+
+nonisolated private func auricInteriorColor(
+    normalizedX: Double,
+    normalizedY: Double
+) -> (r: Double, g: Double, b: Double) {
+    let x = normalizedX * 2.0 - 1.0
+    let y = normalizedY * 2.0 - 1.0
+    let radius = min(sqrt(x * x + y * y), 1.35)
+
+    let body = (0.550, 0.340, 0.080)
+    let shadow = (0.160, 0.075, 0.015)
+    let hotGold = (0.950, 0.650, 0.160)
+    let champagne = (1.000, 0.920, 0.650)
+
+    func blend(
+        _ a: (Double, Double, Double),
+        _ b: (Double, Double, Double),
+        _ t: Double
+    ) -> (Double, Double, Double) {
+        let amount = clamp01(t)
+        return (
+            a.0 + (b.0 - a.0) * amount,
+            a.1 + (b.1 - a.1) * amount,
+            a.2 + (b.2 - a.2) * amount
+        )
+    }
+
+    let diagonal = 1.0 - smoothstep(edge0: 0.08, edge1: 0.62, x: abs(x - y + 0.18))
+    let upperLeftGlow = exp(-5.2 * ((x + 0.42) * (x + 0.42) + (y + 0.38) * (y + 0.38)))
+    let edgeShadow = smoothstep(edge0: 0.48, edge1: 1.12, x: radius)
+    let lowerShadow = smoothstep(edge0: -0.18, edge1: 0.92, x: y)
+    let facet = 0.5 + 0.5 * cos(18.0 * x - 13.0 * y + 7.0 * radius)
+    let band = 0.5 + 0.5 * cos(24.0 * (x - y) + 5.0 * radius)
+
+    var color = blend(shadow, body, 0.84 + 0.10 * facet)
+    color = blend(color, shadow, 0.34 * edgeShadow + 0.18 * lowerShadow)
+    color = blend(color, hotGold, 0.28 * diagonal + 0.18 * upperLeftGlow + 0.06 * band)
+    color = blend(color, champagne, 0.24 * pow(diagonal, 3.2) * (0.45 + 0.55 * facet))
+
+    return (clamp01(color.0), clamp01(color.1), clamp01(color.2))
 }
 
 nonisolated private func complexMul(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> SIMD2<Double> {
