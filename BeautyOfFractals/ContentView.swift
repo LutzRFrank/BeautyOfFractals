@@ -1933,9 +1933,16 @@ The zoom overlay is visible only in the app and is not included in exports.
         let snapshotCenterX = centerX
         let snapshotCenterY = centerY
         let snapshotScale = scale
+        let snapshotPreciseViewport = preciseViewport
         let snapshotSupersampling = max(1, min(supersampling, 2))
         let snapshotIterations = snapshotSupersampling > 1 ? ultraExportEffectiveIterations : exportEffectiveIterations
         let snapshotExportSuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
+        let snapshotDeepRenderMethod = snapshotSupersampling == 1
+            ? automaticDeepRenderMethod(
+                preciseViewport: snapshotPreciseViewport,
+                viewportHeight: exportHeight
+            )
+            : .directDouble
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
@@ -1980,7 +1987,10 @@ The zoom overlay is visible only in the app and is not included in exports.
                         centerX: snapshotCenterX,
                         centerY: snapshotCenterY,
                         scale: snapshotScale,
-                        maxIterations: snapshotIterations
+                        preciseViewport: snapshotPreciseViewport,
+                        maxIterations: snapshotIterations,
+                        perturbationEnabled: snapshotDeepRenderMethod == .perturbation,
+                        doubleDoubleEnabled: snapshotDeepRenderMethod == .doubleDouble
                     )
                 }
 
@@ -3196,7 +3206,10 @@ nonisolated func renderFractalSupersampled(
     centerX: Double,
     centerY: Double,
     scale: Double,
-    maxIterations: Int
+    preciseViewport: PreciseViewport? = nil,
+    maxIterations: Int,
+    perturbationEnabled: Bool = true,
+    doubleDoubleEnabled: Bool = false
 ) -> CGImage? {
     let factor = max(1, min(supersampling, 3))
 
@@ -3209,7 +3222,10 @@ nonisolated func renderFractalSupersampled(
             centerX: centerX,
             centerY: centerY,
             scale: scale,
-            maxIterations: maxIterations
+            preciseViewport: preciseViewport,
+            maxIterations: maxIterations,
+            perturbationEnabled: perturbationEnabled,
+            doubleDoubleEnabled: doubleDoubleEnabled
         )
     }
 
