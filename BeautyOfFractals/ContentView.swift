@@ -889,8 +889,10 @@ struct ContentView: View {
 
     private var ultraExportUnavailableInDeepZoom: Bool {
         guard fractalMode == .mandelbrot else { return false }
-        let preciseScale = abs(preciseViewport.scale.hi + preciseViewport.scale.lo)
-        return preciseScale.isFinite && preciseScale < highPrecisionScaleLimit
+        return automaticDeepRenderMethod(
+            preciseViewport: preciseViewport,
+            viewportHeight: 1600 * 2
+        ) != .directDouble
     }
 
     private func exportElapsedText(since startDate: Date) -> String {
