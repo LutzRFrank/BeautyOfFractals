@@ -812,6 +812,35 @@ struct ContentView: View {
         let maxIterations: Int
     }
 
+    private var diagnosticsZoomText: String {
+        let preciseScale = preciseViewport.scale.hi + preciseViewport.scale.lo
+        let scaleMagnitude = abs(preciseScale)
+
+        guard scaleMagnitude.isFinite, scaleMagnitude > 0 else {
+            return "Zoom exact: unavailable\nDepth: log10 unavailable"
+        }
+
+        let zoom = fractalMode.defaultScale / scaleMagnitude
+
+        return String(
+            format: "Zoom exact: ×%.6e\nDepth: log10 %.4f",
+            zoom,
+            log10(zoom)
+        )
+    }
+
+    private var preciseViewportDiagnosticsText: String {
+        [
+            diagnosticsZoomText,
+            String(format: "X hi: %+.17e", preciseViewport.centerX.hi),
+            String(format: "X lo: %+.17e", preciseViewport.centerX.lo),
+            String(format: "Y hi: %+.17e", preciseViewport.centerY.hi),
+            String(format: "Y lo: %+.17e", preciseViewport.centerY.lo),
+            String(format: "S hi: %+.17e", preciseViewport.scale.hi),
+            String(format: "S lo: %+.17e", preciseViewport.scale.lo)
+        ].joined(separator: "\n")
+    }
+
     private var effectiveIterations: Int {
         effectiveIterationCount(
             baseIterations: maxIterations,
@@ -1003,14 +1032,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 Text("Precise Viewport")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
 
-                Text(
-                    "X hi: \(String(format: "%+.17e", preciseViewport.centerX.hi))\n" +
-                    "X lo: \(String(format: "%+.17e", preciseViewport.centerX.lo))\n" +
-                    "Y hi: \(String(format: "%+.17e", preciseViewport.centerY.hi))\n" +
-                    "Y lo: \(String(format: "%+.17e", preciseViewport.centerY.lo))\n" +
-                    "S hi: \(String(format: "%+.17e", preciseViewport.scale.hi))\n" +
-                    "S lo: \(String(format: "%+.17e", preciseViewport.scale.lo))"
-                )
+                Text(preciseViewportDiagnosticsText)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.78))
                 .textSelection(.enabled)
