@@ -930,6 +930,7 @@ Explore Mandelbrot, Celtic Mandelbrot, Julia, Eight Rainbows, Burning Ship, Tric
 Palettes:
 Choose a palette from the Palette menu. Available palettes depend on the selected mode.
 Julia supports Solar Pop and Rainbows. Eight Rainbows opens with the Rainbows palette.
+Auric adds metallic gold with medallion-like Mandelbrot interiors, ornamental Julia spirals and polished Relief highlights.
 
 Quality and iterations:
 Choose Fast, High or Deep. Quality and zoom depth adjust the effective iteration budget shown below the controls.
