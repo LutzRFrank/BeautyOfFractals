@@ -440,7 +440,18 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     }
 
     var zoomText: String {
-        formatMagnification(mode.defaultScale / max(scale, 1e-18))
+        guard let scaleHi, let scaleLo else {
+            return formatMagnification(mode.defaultScale / max(scale, 1e-18))
+        }
+
+        let preciseScale = scaleHi + scaleLo
+        let scaleMagnitude = abs(preciseScale)
+
+        guard scaleMagnitude.isFinite, scaleMagnitude > 0 else {
+            return formatMagnification(mode.defaultScale / max(scale, 1e-18))
+        }
+
+        return formatCompactPreciseMagnification(mode.defaultScale / scaleMagnitude)
     }
 }
 
@@ -812,15 +823,21 @@ struct ContentView: View {
         let maxIterations: Int
     }
 
-    private var diagnosticsZoomText: String {
+    private var preciseMagnificationFactor: Double? {
         let preciseScale = preciseViewport.scale.hi + preciseViewport.scale.lo
         let scaleMagnitude = abs(preciseScale)
 
         guard scaleMagnitude.isFinite, scaleMagnitude > 0 else {
-            return "Zoom exact: unavailable\nDepth: log10 unavailable"
+            return nil
         }
 
-        let zoom = fractalMode.defaultScale / scaleMagnitude
+        return fractalMode.defaultScale / scaleMagnitude
+    }
+
+    private var diagnosticsZoomText: String {
+        guard let zoom = preciseMagnificationFactor else {
+            return "Zoom exact: unavailable\nDepth: log10 unavailable"
+        }
 
         return String(
             format: "Zoom exact: ×%.6e\nDepth: log10 %.4f",
@@ -2065,8 +2082,27 @@ struct MandelbrotView: View {
         fractalMode.defaultScale / max(scale, 0.000000000000000001)
     }
 
+    private var preciseMagnificationFactor: Double? {
+        let preciseScale = preciseViewport.scale.hi + preciseViewport.scale.lo
+        let scaleMagnitude = abs(preciseScale)
+
+        guard scaleMagnitude.isFinite, scaleMagnitude > 0 else {
+            return nil
+        }
+
+        return fractalMode.defaultScale / scaleMagnitude
+    }
+
     private var magnificationText: String {
         formatMagnification(magnificationFactor)
+    }
+
+    private var preciseMagnificationText: String {
+        guard let preciseMagnificationFactor else {
+            return magnificationText
+        }
+
+        return formatCompactPreciseMagnification(preciseMagnificationFactor)
     }
 
     private var precisionStatusText: String? {
@@ -2236,7 +2272,7 @@ struct MandelbrotView: View {
                 }
 
                 HStack {
-                    Text("Zoom \(magnificationText)")
+                    Text("Zoom \(preciseMagnificationText)")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.88))
                         .monospacedDigit()
@@ -5578,6 +5614,15 @@ nonisolated private func formatMagnification(_ value: Double) -> String {
     }
 
     return "×\(String(format: "%.2e", value))"
+}
+
+nonisolated private func formatCompactPreciseMagnification(_ value: Double) -> String {
+    if value < 1_000_000_000_000_000_000 {
+        return formatMagnification(value)
+    }
+
+    return "×" + String(format: "%.3e", value)
+        .replacingOccurrences(of: "e+", with: "e")
 }
 
 nonisolated private func makeCGImage(
