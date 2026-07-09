@@ -799,6 +799,8 @@ struct ContentView: View {
 
     @State private var maxIterations: Int = 300
     @State private var isSavingSnapshot: Bool = false
+    @State private var exportStartDate: Date?
+    @State private var exportStatusText: String?
     @State private var showHelp: Bool = false
     @State private var showFavoritesPanel: Bool = false
     @State private var favoriteName: String = ""
@@ -885,6 +887,24 @@ struct ContentView: View {
         )
     }
 
+    private var ultraExportUnavailableInDeepZoom: Bool {
+        guard fractalMode == .mandelbrot else { return false }
+        let preciseScale = abs(preciseViewport.scale.hi + preciseViewport.scale.lo)
+        return preciseScale.isFinite && preciseScale < highPrecisionScaleLimit
+    }
+
+    private func exportElapsedText(since startDate: Date) -> String {
+        let elapsed = max(0, Date().timeIntervalSince(startDate))
+        let minutes = Int(elapsed) / 60
+        let seconds = elapsed.truncatingRemainder(dividingBy: 60)
+        return String(format: "%02d:%04.1f", minutes, seconds)
+    }
+
+    private func clearExportStatus() {
+        exportStartDate = nil
+        exportStatusText = nil
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             MandelbrotView(
@@ -900,6 +920,7 @@ struct ContentView: View {
                 navigationStarted: recordNavigationStep,
                 navigationRevision: navigationRevision,
                 latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG,
+                exportStatusText: exportStatusText,
                 showDiagnostics: showPerturbationStats,
                 diagnosticsOffset: perturbationStatsOffset,
                 activeFloatingPanel: $activeFloatingPanel,
@@ -1223,6 +1244,7 @@ The zoom overlay is visible only in the app and is not included in exports.
 
                     ForEach(availablePalettes) { palette in
                         Button {
+                            clearExportStatus()
                             fractalPalette = palette
                         } label: {
                             Text(
@@ -1329,13 +1351,19 @@ The zoom overlay is visible only in the app and is not included in exports.
 
                     Divider()
 
+                    if ultraExportUnavailableInDeepZoom {
+                        Text("Use normal export for deep zoom")
+                    }
+
                     Button("Ultra Export 1440 × 900 PNG · 2×") {
                         saveSnapshot(width: 1440, height: 900, supersampling: 2)
                     }
+                    .disabled(ultraExportUnavailableInDeepZoom)
 
                     Button("Ultra Export 2560 × 1600 PNG · 2×") {
                         saveSnapshot(width: 2560, height: 1600, supersampling: 2)
                     }
+                    .disabled(ultraExportUnavailableInDeepZoom)
 
                     // 2880 × 1800 stays normal export only.
                     // Ultra 2× at this size allocates a 5760 × 3600 render buffer and can stall macOS on smaller systems.
@@ -1794,6 +1822,7 @@ The zoom overlay is visible only in the app and is not included in exports.
 
 
     private func applyPreciseViewport(_ viewport: PreciseViewport) {
+        clearExportStatus()
         preciseViewport = viewport
 
         let projection = viewport.doubleProjection
@@ -1955,6 +1984,8 @@ The zoom overlay is visible only in the app and is not included in exports.
             }
 
             isSavingSnapshot = true
+            exportStartDate = Date()
+            exportStatusText = nil
 
             Task.detached(priority: .userInitiated) {
                 let cgImage: CGImage?
@@ -1997,6 +2028,8 @@ The zoom overlay is visible only in the app and is not included in exports.
                 guard let finalImage = cgImage else {
                     await MainActor.run {
                         isSavingSnapshot = false
+                        exportStartDate = nil
+                        exportStatusText = "failed"
                     }
                     return
                 }
@@ -2009,17 +2042,28 @@ The zoom overlay is visible only in the app and is not included in exports.
                 ) else {
                     await MainActor.run {
                         isSavingSnapshot = false
+                        exportStartDate = nil
+                        exportStatusText = "failed"
                     }
                     return
                 }
 
+                let exportSucceeded: Bool
                 do {
                     try pngData.write(to: url)
+                    exportSucceeded = true
                 } catch {
                     print("Snapshot konnte nicht gespeichert werden:", error)
+                    exportSucceeded = false
                 }
 
                 await MainActor.run {
+                    if exportSucceeded, let exportStartDate {
+                        exportStatusText = exportElapsedText(since: exportStartDate)
+                    } else {
+                        exportStatusText = "failed"
+                    }
+                    exportStartDate = nil
                     isSavingSnapshot = false
                 }
             }
@@ -2051,6 +2095,7 @@ struct MandelbrotView: View {
     let navigationStarted: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
+    let exportStatusText: String?
     let showDiagnostics: Bool
     let diagnosticsOffset: CGSize
     @Binding var activeFloatingPanel: FloatingRenderPanel
@@ -2251,6 +2296,7 @@ struct MandelbrotView: View {
                             renderRevision: navigationRevision,
                             renderQualityKey: renderQuality.rawValue,
                             deepRenderMethod: deepRenderMethod,
+                            exportStatusText: exportStatusText,
                             showDiagnostics: showDiagnostics,
                             diagnosticsOffset: diagnosticsOffset,
                             activeFloatingPanel: $activeFloatingPanel,
@@ -2582,6 +2628,7 @@ struct HighPrecisionFractalPreview: View {
     let renderRevision: UInt
     let renderQualityKey: String
     let deepRenderMethod: DeepRenderMethod
+    let exportStatusText: String?
     let showDiagnostics: Bool
     let diagnosticsOffset: CGSize
     @Binding var activeFloatingPanel: FloatingRenderPanel
@@ -2704,7 +2751,7 @@ struct HighPrecisionFractalPreview: View {
                     )
             }
 
-            if isRendering || showRenderStatus {
+            if isRendering || showRenderStatus || exportStatusText != nil {
                 TimelineView(.periodic(from: .now, by: 0.25)) { timeline in
                     VStack(spacing: 14) {
                         ZStack {
@@ -2727,11 +2774,11 @@ struct HighPrecisionFractalPreview: View {
                                 .rotationEffect(.degrees(-90))
 
                             VStack(spacing: 5) {
-                                Text(isRendering ? "Rendering…" : "Render Status")
+                                Text(isRendering ? "Rendering…" : (exportStatusText == nil ? "Render Status" : (exportStatusText == "failed" ? "Export failed" : "Export ready")))
                                     .font(.system(size: 13, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.82))
 
-                                Text(renderPercentText)
+                                Text(isRendering || exportStatusText == nil ? renderPercentText : "Done")
                                     .font(.system(size: 34, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
 
@@ -2747,11 +2794,15 @@ struct HighPrecisionFractalPreview: View {
                         .frame(width: 158, height: 158)
 
                         VStack(spacing: 2) {
-                            Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : "Ready")
+                            Text(isRendering ? "Elapsed: \(elapsedText(at: timeline.date))" : (exportStatusText == nil ? "Ready" : (exportStatusText == "failed" ? "Export failed" : "Export finished")))
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.78))
 
-                            if !isRendering, let lastRenderDurationText {
+                            if !isRendering, let exportStatusText, exportStatusText != "failed" {
+                                Text("Time: \(exportStatusText)")
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.58))
+                            } else if !isRendering, let lastRenderDurationText, exportStatusText == nil {
                                 Text("Time: \(lastRenderDurationText)")
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.58))
