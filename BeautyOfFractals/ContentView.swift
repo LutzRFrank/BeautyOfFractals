@@ -920,6 +920,7 @@ struct ContentView: View {
                 renderQuality: renderQuality,
                 deepRenderMethod: deepRenderMethod,
                 navigationStarted: recordNavigationStep,
+                clearExportStatus: clearExportStatus,
                 navigationRevision: navigationRevision,
                 latestHighPrecisionThumbnailPNG: $latestHighPrecisionThumbnailPNG,
                 exportStatusText: exportStatusText,
@@ -1263,6 +1264,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 Menu {
                     ForEach(RenderQuality.allCases) { quality in
                         Button {
+                            clearExportStatus()
                             renderQuality = quality
                         } label: {
                             Text("\(renderQuality == quality ? "✓ " : "   ")\(quality.rawValue)")
@@ -1403,6 +1405,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                             Double(maxIterations)
                         },
                         set: {
+                            clearExportStatus()
                             maxIterations = Int(($0 / 100).rounded()) * 100
                         }
                     ),
@@ -1412,7 +1415,13 @@ The zoom overlay is visible only in the app and is not included in exports.
 
                 Stepper(
                     "",
-                    value: $maxIterations,
+                    value: Binding(
+                        get: { maxIterations },
+                        set: {
+                            clearExportStatus()
+                            maxIterations = $0
+                        }
+                    ),
                     in: 300...24000,
                     step: 100
                 )
@@ -1844,6 +1853,8 @@ The zoom overlay is visible only in the app and is not included in exports.
     }
 
     private func recordNavigationStep() {
+        clearExportStatus()
+
         let snapshot = currentViewportSnapshot()
 
         guard navigationHistory.last != snapshot else { return }
@@ -2095,6 +2106,7 @@ struct MandelbrotView: View {
     let renderQuality: RenderQuality
     let deepRenderMethod: DeepRenderMethod
     let navigationStarted: () -> Void
+    let clearExportStatus: () -> Void
     let navigationRevision: UInt
     @Binding var latestHighPrecisionThumbnailPNG: Data?
     let exportStatusText: String?
@@ -2546,6 +2558,7 @@ struct MandelbrotView: View {
     }
 
     private func applyPreciseViewport(_ viewport: PreciseViewport) {
+        clearExportStatus()
         preciseViewport = viewport
 
         let projection = viewport.doubleProjection
