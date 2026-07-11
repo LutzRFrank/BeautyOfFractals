@@ -807,6 +807,7 @@ struct ContentView: View {
     @State private var exportStartDate: Date?
     @State private var exportStatusText: String?
     @State private var showHelp: Bool = false
+    @State private var showControls: Bool = true
     @State private var showFavoritesPanel: Bool = false
     @State private var favoriteName: String = ""
     @State private var isSyncingFavorites: Bool = false
@@ -948,9 +949,13 @@ struct ContentView: View {
                 }
             }
 
-            controlsOverlay
-                .padding(.bottom, 26)
+            if showControls {
+                controlsOverlay
+                    .padding(.bottom, 26)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showControls)
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: showFavoritesPanel)
         .background(Color.black)
         .preferredColorScheme(.dark)
@@ -965,6 +970,9 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .resetFractal)) { _ in
             resetView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleFractalControls)) { _ in
+            showControls.toggle()
         }
         .focusedValue(\.fractalActions, FractalActions(
             snap: {
@@ -5302,10 +5310,10 @@ nonisolated private func paletteBaseColor(
         )
 
     case .aurora:
-        // Deep Blue atmosphere with narrow spectral accents reserved for detail ridges.
-        let body = pow(relief, 0.68)
-        let detail = pow(ridge, 2.05)
-        let light = pow(glow, 1.45)
+        // Keep the deep-blue atmosphere while lifting midtones and fine information edges.
+        let body = pow(relief, 0.56)
+        let detail = pow(ridge, 1.35)
+        let light = pow(glow, 1.15)
         let rawPhase = 0.10 + 3.60 * pow(relief, 0.62) + 5.40 * ridge + 0.55 * glow
         let phase = rawPhase - floor(rawPhase)
 
@@ -5320,10 +5328,10 @@ nonisolated private func paletteBaseColor(
         let warmBand = smoothstep(edge0: 0.76, edge1: 0.82, x: phase)
             * (1.0 - smoothstep(edge0: 0.88, edge1: 0.94, x: phase))
 
-        var r = 0.004 + 0.022 * body + 0.26 * light
-        var g = 0.016 + 0.42 * body + 0.34 * light
-        var b = 0.11 + 0.82 * body + 0.08 * light
-        let accent = detail * (0.24 + 0.76 * body)
+        var r = 0.006 + 0.036 * body + 0.31 * light
+        var g = 0.022 + 0.50 * body + 0.40 * light
+        var b = 0.135 + 0.91 * body + 0.11 * light
+        let accent = detail * (0.30 + 0.78 * body)
 
         r += accent * (0.03 * cyanBand + 0.62 * violetBand + 1.02 * magentaBand + 0.14 * greenBand + 1.08 * warmBand)
         g += accent * (0.78 * cyanBand + 0.08 * violetBand + 0.08 * magentaBand + 1.02 * greenBand + 0.62 * warmBand)

@@ -200,10 +200,10 @@ static float3 paletteColor(
             0.18 + 1.05 * cyanEdge + 0.18 * yellowSpark + 0.18 * ridge
         );
     } else if (palette == 14) {
-        // Deep Blue atmosphere; spectral color appears only on narrow information edges.
-        float body = pow(relief, 0.68);
-        float detail = pow(ridge, 2.05);
-        float light = pow(glow, 1.45);
+        // Keep the deep-blue atmosphere while lifting midtones and fine information edges.
+        float body = pow(relief, 0.56);
+        float detail = pow(ridge, 1.35);
+        float light = pow(glow, 1.15);
         float phase = fract(0.10 + 3.60 * pow(relief, 0.62) + 5.40 * ridge + 0.55 * glow);
         float cyanBand = smoothstep(0.01, 0.06, phase) * (1.0 - smoothstep(0.12, 0.17, phase));
         float violetBand = smoothstep(0.19, 0.24, phase) * (1.0 - smoothstep(0.31, 0.36, phase));
@@ -212,11 +212,11 @@ static float3 paletteColor(
         float warmBand = smoothstep(0.76, 0.82, phase) * (1.0 - smoothstep(0.88, 0.94, phase));
 
         color = float3(
-            0.004 + 0.022 * body + 0.26 * light,
-            0.016 + 0.42 * body + 0.34 * light,
-            0.110 + 0.82 * body + 0.08 * light
+            0.006 + 0.036 * body + 0.31 * light,
+            0.022 + 0.50 * body + 0.40 * light,
+            0.135 + 0.91 * body + 0.11 * light
         );
-        float accent = detail * (0.24 + 0.76 * body);
+        float accent = detail * (0.30 + 0.78 * body);
         color += accent * (
             float3(0.03, 0.78, 1.12) * cyanBand
             + float3(0.62, 0.08, 0.90) * violetBand

@@ -54,6 +54,14 @@ struct MandelbrotExplorerApp: App {
                 .keyboardShortcut("r", modifiers: .command)
                 
                 Divider()
+
+                Button("Show / Hide Controls") {
+                    NotificationCenter.default.post(
+                        name: .toggleFractalControls,
+                        object: nil
+                    )
+                }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
                 
                 Button("Show / Hide Render Status") {
                     NotificationCenter.default.post(
@@ -105,6 +113,7 @@ extension Notification.Name {
     static let zoomInFractal = Notification.Name("zoomInFractal")
     static let zoomOutFractal = Notification.Name("zoomOutFractal")
     static let resetFractal = Notification.Name("resetFractal")
+    static let toggleFractalControls = Notification.Name("toggleFractalControls")
     static let toggleRenderStatus = Notification.Name("toggleRenderStatus")
 }
 
