@@ -264,6 +264,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case abyss = 11
     case deepCurrent = 12
     case auric = 13
+    case aurora = 14
 
     var id: Int {
         rawValue
@@ -299,6 +300,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Deep Current"
         case .auric:
             return "Auric"
+        case .aurora:
+            return "Aurora"
         }
     }
 
@@ -332,6 +335,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "DeepCurrent"
         case .auric:
             return "Auric"
+        case .aurora:
+            return "Aurora"
         }
     }
 }
@@ -5017,6 +5022,14 @@ nonisolated private func calculateNewtonColor(
             (1.00, 0.92, 0.68),
             (0.12, 0.16, 0.19)
         ]
+    case .aurora:
+        colors = [
+            (0.01, 0.08, 0.30),
+            (0.04, 0.68, 0.96),
+            (0.48, 0.10, 0.82),
+            (0.94, 0.10, 0.62),
+            (1.00, 0.68, 0.08)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -5287,6 +5300,36 @@ nonisolated private func paletteBaseColor(
             clamp01(0.04 + 0.70 * cyanEdge + 0.95 * yellowSpark + 0.20 * ridge),
             clamp01(0.18 + 1.05 * cyanEdge + 0.18 * yellowSpark + 0.18 * ridge)
         )
+
+    case .aurora:
+        // Deep Blue atmosphere with narrow spectral accents reserved for detail ridges.
+        let body = pow(relief, 0.68)
+        let detail = pow(ridge, 2.05)
+        let light = pow(glow, 1.45)
+        let rawPhase = 0.10 + 3.60 * pow(relief, 0.62) + 5.40 * ridge + 0.55 * glow
+        let phase = rawPhase - floor(rawPhase)
+
+        let cyanBand = smoothstep(edge0: 0.01, edge1: 0.06, x: phase)
+            * (1.0 - smoothstep(edge0: 0.12, edge1: 0.17, x: phase))
+        let violetBand = smoothstep(edge0: 0.19, edge1: 0.24, x: phase)
+            * (1.0 - smoothstep(edge0: 0.31, edge1: 0.36, x: phase))
+        let magentaBand = smoothstep(edge0: 0.40, edge1: 0.45, x: phase)
+            * (1.0 - smoothstep(edge0: 0.53, edge1: 0.58, x: phase))
+        let greenBand = smoothstep(edge0: 0.60, edge1: 0.64, x: phase)
+            * (1.0 - smoothstep(edge0: 0.69, edge1: 0.73, x: phase))
+        let warmBand = smoothstep(edge0: 0.76, edge1: 0.82, x: phase)
+            * (1.0 - smoothstep(edge0: 0.88, edge1: 0.94, x: phase))
+
+        var r = 0.004 + 0.022 * body + 0.26 * light
+        var g = 0.016 + 0.42 * body + 0.34 * light
+        var b = 0.11 + 0.82 * body + 0.08 * light
+        let accent = detail * (0.24 + 0.76 * body)
+
+        r += accent * (0.03 * cyanBand + 0.62 * violetBand + 1.02 * magentaBand + 0.14 * greenBand + 1.08 * warmBand)
+        g += accent * (0.78 * cyanBand + 0.08 * violetBand + 0.08 * magentaBand + 1.02 * greenBand + 0.62 * warmBand)
+        b += accent * (1.12 * cyanBand + 0.90 * violetBand + 0.82 * magentaBand + 0.18 * greenBand + 0.03 * warmBand)
+
+        return (clamp01(r), clamp01(g), clamp01(b))
 
     case .solarCoral:
         let detail = pow(ridge, 0.72)
@@ -5615,6 +5658,8 @@ nonisolated private func insideColor(
             return (0.004, 0.016, 0.072)
         case .auric:
             return (0.560, 0.345, 0.085)
+        case .aurora:
+            return (0.004, 0.010, 0.060)
         }
     }
 

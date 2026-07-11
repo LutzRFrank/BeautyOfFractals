@@ -199,6 +199,31 @@ static float3 paletteColor(
             0.04 + 0.70 * cyanEdge + 0.95 * yellowSpark + 0.20 * ridge,
             0.18 + 1.05 * cyanEdge + 0.18 * yellowSpark + 0.18 * ridge
         );
+    } else if (palette == 14) {
+        // Deep Blue atmosphere; spectral color appears only on narrow information edges.
+        float body = pow(relief, 0.68);
+        float detail = pow(ridge, 2.05);
+        float light = pow(glow, 1.45);
+        float phase = fract(0.10 + 3.60 * pow(relief, 0.62) + 5.40 * ridge + 0.55 * glow);
+        float cyanBand = smoothstep(0.01, 0.06, phase) * (1.0 - smoothstep(0.12, 0.17, phase));
+        float violetBand = smoothstep(0.19, 0.24, phase) * (1.0 - smoothstep(0.31, 0.36, phase));
+        float magentaBand = smoothstep(0.40, 0.45, phase) * (1.0 - smoothstep(0.53, 0.58, phase));
+        float greenBand = smoothstep(0.60, 0.64, phase) * (1.0 - smoothstep(0.69, 0.73, phase));
+        float warmBand = smoothstep(0.76, 0.82, phase) * (1.0 - smoothstep(0.88, 0.94, phase));
+
+        color = float3(
+            0.004 + 0.022 * body + 0.26 * light,
+            0.016 + 0.42 * body + 0.34 * light,
+            0.110 + 0.82 * body + 0.08 * light
+        );
+        float accent = detail * (0.24 + 0.76 * body);
+        color += accent * (
+            float3(0.03, 0.78, 1.12) * cyanBand
+            + float3(0.62, 0.08, 0.90) * violetBand
+            + float3(1.02, 0.08, 0.82) * magentaBand
+            + float3(0.14, 1.02, 0.18) * greenBand
+            + float3(1.08, 0.62, 0.03) * warmBand
+        );
     } else if (palette == 7) {
         float detail = pow(ridge, 0.72);
         float warmBody = pow(relief, 0.58);
@@ -661,6 +686,12 @@ static float3 newtonPopRootColor(uint palette, uint rootIndex) {
         if (r == 2) return float3(0.95, 0.66, 0.14);
         if (r == 3) return float3(1.00, 0.92, 0.68);
         return float3(0.12, 0.16, 0.19);
+    } else if (palette == 14) {
+        if (r == 0) return float3(0.01, 0.08, 0.30);
+        if (r == 1) return float3(0.04, 0.68, 0.96);
+        if (r == 2) return float3(0.48, 0.10, 0.82);
+        if (r == 3) return float3(0.94, 0.10, 0.62);
+        return float3(1.00, 0.68, 0.08);
     } else {
         if (r == 0) return float3(0.01, 0.08, 0.30);
         if (r == 1) return float3(0.02, 0.64, 0.92);
