@@ -2324,6 +2324,7 @@ struct MandelbrotView: View {
                             renderQualityKey: renderQuality.rawValue,
                             deepRenderMethod: deepRenderMethod,
                             exportStatusText: exportStatusText,
+                            clearExportStatus: clearExportStatus,
                             showDiagnostics: showDiagnostics,
                             diagnosticsOffset: diagnosticsOffset,
                             activeFloatingPanel: $activeFloatingPanel,
@@ -2657,6 +2658,7 @@ struct HighPrecisionFractalPreview: View {
     let renderQualityKey: String
     let deepRenderMethod: DeepRenderMethod
     let exportStatusText: String?
+    let clearExportStatus: () -> Void
     let showDiagnostics: Bool
     let diagnosticsOffset: CGSize
     @Binding var activeFloatingPanel: FloatingRenderPanel
@@ -2747,6 +2749,17 @@ struct HighPrecisionFractalPreview: View {
         let minutes = Int(elapsed) / 60
         let seconds = elapsed.truncatingRemainder(dividingBy: 60)
         return String(format: "%02d:%04.1f", minutes, seconds)
+    }
+
+    private func toggleRenderStatusPin() {
+        if showRenderStatus {
+            showRenderStatus = false
+            if exportStatusText != nil {
+                clearExportStatus()
+            }
+        } else {
+            showRenderStatus = true
+        }
     }
 
     var body: some View {
@@ -2841,7 +2854,7 @@ struct HighPrecisionFractalPreview: View {
                     .frame(width: 230)
                     .overlay(alignment: .topTrailing) {
                         Button {
-                            showRenderStatus.toggle()
+                            toggleRenderStatusPin()
                         } label: {
                             Image(systemName: showRenderStatus ? "pin.fill" : "pin")
                                 .font(.system(size: 12, weight: .bold))
@@ -2886,7 +2899,22 @@ struct HighPrecisionFractalPreview: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleRenderStatus)) { _ in
-            showRenderStatus.toggle()
+            toggleRenderStatusPin()
+        }
+        .task(id: exportStatusText) {
+            guard exportStatusText != nil else { return }
+
+            do {
+                try await Task.sleep(nanoseconds: 4_000_000_000)
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled, !showRenderStatus, !isRendering else {
+                return
+            }
+
+            clearExportStatus()
         }
         .task(id: renderID) {
             await renderPreview()
