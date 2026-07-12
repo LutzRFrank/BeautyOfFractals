@@ -485,15 +485,17 @@ static float3 pearlInteriorColor(float2 uv) {
     float x = uv.x * 2.0 - 1.0;
     float y = uv.y * 2.0 - 1.0;
     float radius = min(length(float2(x, y)), 1.35);
-    float facet = 0.5 + 0.5 * cos(18.0 * x - 13.0 * y + 7.0 * radius);
-    float diagonal = 1.0 - smoothstep(0.08, 0.62, abs(x - y + 0.18));
-    float edge = smoothstep(0.48, 1.12, radius);
-    float3 pearl = float3(0.94, 0.95, 0.93);
-    float3 silver = float3(0.48, 0.52, 0.58);
-    float3 white = float3(1.0, 1.0, 0.99);
-    float3 color = mix(silver, pearl, 0.78 + 0.14 * facet);
-    color = mix(color, silver, 0.20 * edge);
-    color = mix(color, white, 0.34 * diagonal);
+    float warp = 0.22 * sin(5.0 * y + 2.4 * sin(3.0 * x));
+    float veinSignal = abs(sin(8.5 * x + 4.2 * y + warp));
+    float fineSignal = abs(sin(20.0 * x - 11.0 * y + 3.0 * sin(4.0 * y)));
+    float vein = pow(max(0.0, 1.0 - veinSignal * 4.8), 1.8);
+    float fineVein = pow(max(0.0, 1.0 - fineSignal * 8.0), 2.2);
+    float facet = 0.5 + 0.5 * cos(13.0 * x - 9.0 * y + 6.0 * radius);
+    float highlight = exp(-18.0 * (x - y + 0.28) * (x - y + 0.28));
+    float edge = smoothstep(0.48, 1.18, radius);
+    float tone = 0.86 + 0.075 * facet + 0.13 * highlight
+               - 0.24 * vein - 0.09 * fineVein - 0.12 * edge;
+    float3 color = float3(tone * 1.015, tone * 1.020, tone * 1.010);
     return clamp(color, 0.0, 1.0);
 }
 
