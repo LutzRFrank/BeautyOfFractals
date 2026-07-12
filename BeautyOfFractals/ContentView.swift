@@ -1487,6 +1487,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                             get: { Double(exponent) },
                             set: {
                                 clearExportStatus()
+                                latestHighPrecisionThumbnailPNG = nil
                                 fractalMode = .power(Int($0.rounded()))
                             }
                         ),
@@ -1871,7 +1872,8 @@ The zoom overlay is visible only in the app and is not included in exports.
 
 
     private func currentHighPrecisionThumbnailForFavorite() -> Data? {
-        guard fractalMode.supportsHighPrecisionPreview else {
+        guard fractalMode.supportsHighPrecisionPreview,
+              scale < highPrecisionScaleLimit else {
             return nil
         }
 
