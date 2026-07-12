@@ -51,7 +51,7 @@ static uint fractalIteration(
     float cx;
     float cy;
     
-    if (mode == 0 || mode == 6 || mode == 9 || mode == 10) {
+    if (mode == 0 || mode == 6 || mode == 9 || mode == 10 || mode == 11) {
         x = 0.0;
         y = 0.0;
         cx = x0;
@@ -113,6 +113,12 @@ static uint fractalIteration(
 
             x = x4 * x4 - y4 * y4 + cx;
             y = 2.0 * x4 * y4 + cy;
+        } else if (mode == 11) {
+            float x2 = x * x - y * y;
+            float y2 = 2.0 * x * y;
+
+            x = x2 * x2 - y2 * y2 + cx;
+            y = 2.0 * x2 * y2 + cy;
         } else if (mode == 4) {
             float r2 = x * x + y * y + 0.000001;
             
@@ -338,6 +344,26 @@ static float3 paletteColor(
         color = base * lift
               + float3(0.52, 0.26, 0.03) * amberGlow
               + float3(0.05, 0.23, 0.30) * reefSpark;
+    } else if (palette == 15) {
+        // Pearl: a cool monochrome counterpart to Auric.
+        float body = pow(relief, 0.58);
+        float detail = pow(ridge, 2.40);
+        float sparkle = pow(ridge, 9.0);
+        float light = pow(glow, 1.10);
+        float crack = pow(1.0 - clamp(relief * 0.84 + glow * 0.36, 0.0, 1.0), 2.10) * pow(ridge, 1.25);
+        float phase = fract(0.05 + 1.10 * relief + 1.35 * glow + 5.80 * ridge);
+        float band = smoothstep(0.26, 0.44, phase) * (1.0 - smoothstep(0.72, 0.90, phase));
+
+        float tone = clamp(0.035 + 0.70 * body + 0.18 * light, 0.0, 1.0);
+        float3 graphite = float3(0.018, 0.022, 0.028);
+        float3 silver = float3(0.48, 0.51, 0.55);
+        float3 ivory = float3(0.91, 0.92, 0.90);
+        float3 white = float3(1.0, 1.0, 0.985);
+        float3 base = mix(graphite, silver, min(tone / 0.58, 1.0));
+        base = mix(base, ivory, max((tone - 0.58) / 0.42, 0.0));
+        base = mix(base, white, 0.52 * detail + 0.72 * sparkle);
+        base = mix(base, ivory, 0.28 * band);
+        color = mix(base, graphite, 0.48 * crack);
     } else if (palette == 13) {
         float body = pow(relief, 0.58);
         float ridgeGold = pow(ridge, 2.40);
@@ -445,6 +471,22 @@ static float3 auricInteriorColor(float2 uv) {
     color = mix(color, hotGold, clamp(0.28 * diagonal + 0.18 * upperLeftGlow + 0.06 * band, 0.0, 1.0));
     color = mix(color, champagne, clamp(0.24 * pow(diagonal, 3.2) * (0.45 + 0.55 * facet), 0.0, 1.0));
 
+    return clamp(color, 0.0, 1.0);
+}
+
+static float3 pearlInteriorColor(float2 uv) {
+    float x = uv.x * 2.0 - 1.0;
+    float y = uv.y * 2.0 - 1.0;
+    float radius = min(length(float2(x, y)), 1.35);
+    float facet = 0.5 + 0.5 * cos(18.0 * x - 13.0 * y + 7.0 * radius);
+    float diagonal = 1.0 - smoothstep(0.08, 0.62, abs(x - y + 0.18));
+    float edge = smoothstep(0.48, 1.12, radius);
+    float3 pearl = float3(0.94, 0.95, 0.93);
+    float3 silver = float3(0.48, 0.52, 0.58);
+    float3 white = float3(1.0, 1.0, 0.99);
+    float3 color = mix(silver, pearl, 0.78 + 0.14 * facet);
+    color = mix(color, silver, 0.20 * edge);
+    color = mix(color, white, 0.34 * diagonal);
     return clamp(color, 0.0, 1.0);
 }
 
@@ -982,6 +1024,11 @@ fragment float4 fractal_fragment(
     );
     
     if (iteration == uniforms.maxIterations) {
+        if (uniforms.fractalPalette == 15 &&
+            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 || uniforms.fractalMode == 11)) {
+            return float4(pearlInteriorColor(uv), 1.0);
+        }
+
         if (uniforms.fractalPalette == 13 &&
             (uniforms.fractalMode == 0 || uniforms.fractalMode == 6)) {
             return float4(auricInteriorColor(uv), 1.0);
