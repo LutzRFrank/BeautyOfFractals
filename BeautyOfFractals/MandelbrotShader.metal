@@ -351,6 +351,14 @@ static float3 paletteColor(
         color = base * lift
               + float3(0.52, 0.26, 0.03) * amberGlow
               + float3(0.05, 0.23, 0.30) * reefSpark;
+    } else if (palette == 16) {
+        float body = pow(relief, 0.58);
+        float detail = pow(ridge, 2.40);
+        float sheen = 0.5 + 0.5 * sin(8.0 * relief + 11.0 * glow + 17.0 * ridge);
+        float gray = clamp(0.04 + 0.72 * body + 0.22 * detail, 0.0, 1.0);
+        color = clamp(float3(gray + 0.07 * sheen,
+                             gray + 0.045,
+                             gray + 0.08 * (1.0 - sheen)), 0.0, 1.0);
     } else if (palette == 15) {
         // Pearl: a cool monochrome counterpart to Auric.
         float body = pow(relief, 0.58);
@@ -524,6 +532,30 @@ static float3 pearlInteriorColor(float2 uv) {
     float tone = 0.88 + cloudy + 0.060 * facet + 0.12 * highlight
                - 0.20 * vein - 0.065 * fineVein - 0.10 * edge;
     float3 color = float3(tone * 1.015, tone * 1.020, tone * 1.010);
+    return clamp(color, 0.0, 1.0);
+}
+
+static float3 motherOfPearlInteriorColor(float2 uv) {
+    float x = uv.x * 2.0 - 1.0;
+    float y = uv.y * 2.0 - 1.0;
+    float radius = min(length(float2(x, y)), 1.35);
+    float2 p = float2(x, y) * 2.8 + float2(7.3, 11.9);
+    float2 warp = float2(marbleFBM(p + 3.7), marbleFBM(p - 5.1)) - 0.5;
+    float stone = marbleFBM(p + 2.2 * warp);
+    float detail = marbleFBM(p * 2.7 - 1.4 * warp);
+    float vein = pow(1.0 - smoothstep(0.012, 0.055, abs(detail - 0.49)), 2.2);
+    float highlight = exp(-16.0 * (x - y + 0.28) * (x - y + 0.28));
+    float edge = smoothstep(0.50, 1.18, radius);
+    float3 ivory = float3(0.91, 0.90, 0.87) + (stone - 0.5) * 0.08;
+    float3 rose = float3(1.0, 0.78, 0.84);
+    float3 ice = float3(0.72, 0.88, 1.0);
+    float3 champagne = float3(1.0, 0.86, 0.55);
+    float roseSheen = 0.5 + 0.5 * sin(5.2 * stone + 3.3 * x - 1.7 * y);
+    float iceSheen = 0.5 + 0.5 * sin(6.1 * detail - 2.1 * x + 4.2 * y);
+    float3 color = mix(ivory, rose, 0.13 * roseSheen);
+    color = mix(color, ice, 0.12 * iceSheen);
+    color = mix(color, champagne, 0.10 * highlight + 0.18 * vein);
+    color -= 0.055 * edge;
     return clamp(color, 0.0, 1.0);
 }
 
@@ -1061,6 +1093,12 @@ fragment float4 fractal_fragment(
     );
     
     if (iteration == uniforms.maxIterations) {
+        if (uniforms.fractalPalette == 16 &&
+            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 ||
+             (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+            return float4(motherOfPearlInteriorColor(uv), 1.0);
+        }
+
         if (uniforms.fractalPalette == 15 &&
             (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 ||
              (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
