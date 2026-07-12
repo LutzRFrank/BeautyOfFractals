@@ -1262,6 +1262,17 @@ The zoom overlay is visible only in the app and is not included in exports.
 
                     Spacer(minLength: 190)
 
+                    Button {
+                        NotificationCenter.default.post(
+                            name: .toggleRenderStatus,
+                            object: nil
+                        )
+                    } label: {
+                        Image(systemName: "gauge.with.dots.needle.50percent")
+                    }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+                    .help("Show / Hide Render Status (⇧⌘P)")
+
                     Menu {
                         ForEach(RenderQuality.allCases) { quality in
                             Button {
