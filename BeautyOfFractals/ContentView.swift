@@ -1223,35 +1223,177 @@ The zoom overlay is visible only in the app and is not included in exports.
     }
 
     private var controlsOverlay: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                Menu {
-                    modeMenuButton(.mandelbrot)
-                    modeMenuButton(.celtic)
-                    modeMenuButton(.julia)
-                    modeMenuButton(.eightRainbows)
+        VStack(spacing: 0) {
+            ZStack {
+                HStack(spacing: 8) {
+                    Button {
+                        undoView()
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                    }
+                    .disabled(navigationHistory.isEmpty)
+                    .keyboardShortcut("z", modifiers: .command)
+                    .help("Undo last zoom, pan or reset")
 
-                    Divider()
+                    Button {
+                        zoomOut()
+                    } label: {
+                        Image(systemName: "minus.magnifyingglass")
+                    }
+                    .keyboardShortcut("-", modifiers: [])
+                    .help("Zoom Out")
 
-                    modeMenuButton(.burningShip)
-                    modeMenuButton(.tricorn)
-                    modeMenuButton(.kleinian)
-                    modeMenuButton(.mandelbrotRelief)
+                    Button {
+                        zoomIn()
+                    } label: {
+                        Image(systemName: "plus.magnifyingglass")
+                    }
+                    .keyboardShortcut("+", modifiers: [])
+                    .keyboardShortcut("=", modifiers: [])
+                    .help("Zoom In")
 
-                    Divider()
+                    Button {
+                        resetView()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Reset View")
 
-                    modeMenuButton(.mandelbulb3D)
-                    modeMenuButton(.mandelbox3D)
+                    Spacer(minLength: 190)
 
-                    Divider()
+                    Menu {
+                        ForEach(RenderQuality.allCases) { quality in
+                            Button {
+                                clearExportStatus()
+                                renderQuality = quality
+                            } label: {
+                                Text("\(renderQuality == quality ? "✓ " : "   ")\(quality.rawValue)")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "dial.medium")
+                    }
+                    .help("Quality: \(renderQuality.rawValue)")
 
-                    modeMenuButton(.newton)
-                } label: {
-                    Text("Mode: \(fractalMode.displayName)")
-                        .frame(width: 160, alignment: .leading)
+                    Menu {
+                        ForEach(DeepRenderMethod.allCases) { method in
+                            Button {
+                                deepRenderMethod = method
+                                latestHighPrecisionThumbnailPNG = nil
+                                lastPerturbationStatsText = nil
+                                navigationRevision &+= 1
+                            } label: {
+                                Text("\(deepRenderMethod == method ? "◉" : "○")  \(method.rawValue)")
+                            }
+                            .disabled(fractalMode != .mandelbrot)
+                        }
+
+                        Divider()
+
+                        Button("Show Diagnostics") {
+                            showPerturbationStats = true
+                        }
+                    } label: {
+                        Image(systemName: "waveform.path.ecg")
+                    }
+                    .help("Render diagnostics")
+
+                    Button {
+                        showFavoritesPanel.toggle()
+                    } label: {
+                        Image(systemName: showFavoritesPanel ? "star.fill" : "star")
+                    }
+                    .help("Favorite Spots")
+
+                    Menu {
+                        Button("Export 1440 × 900 PNG") {
+                            saveSnapshot(width: 1440, height: 900)
+                        }
+
+                        Button("Export 2560 × 1600 PNG") {
+                            saveSnapshot(width: 2560, height: 1600)
+                        }
+
+                        Button("Export 2880 × 1800 PNG") {
+                            saveSnapshot(width: 2880, height: 1800)
+                        }
+
+                        Divider()
+
+                        if ultraExportUnavailableInDeepZoom {
+                            Text("Use normal export for deep zoom")
+                        }
+
+                        Button("Ultra Export 1440 × 900 PNG · 2×") {
+                            saveSnapshot(width: 1440, height: 900, supersampling: 2)
+                        }
+                        .disabled(ultraExportUnavailableInDeepZoom)
+
+                        Button("Ultra Export 2560 × 1600 PNG · 2×") {
+                            saveSnapshot(width: 2560, height: 1600, supersampling: 2)
+                        }
+                        .disabled(ultraExportUnavailableInDeepZoom)
+                    } label: {
+                        Image(systemName: isSavingSnapshot ? "hourglass" : "square.and.arrow.up")
+                    }
+                    .disabled(isSavingSnapshot)
+                    .help(isSavingSnapshot ? "Rendering…" : "Export")
+
+                    Button {
+                        showHelp = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .help("Show controls")
                 }
-                .help("Choose fractal mode")
+                .font(.system(size: 17, weight: .semibold))
+                .buttonStyle(.plain)
 
+                HStack(spacing: 9) {
+                    Image(systemName: "hurricane")
+                        .font(.system(size: 22, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+
+                    Menu {
+                        modeMenuButton(.mandelbrot)
+                        modeMenuButton(.celtic)
+                        modeMenuButton(.julia)
+                        modeMenuButton(.eightRainbows)
+
+                        Divider()
+
+                        modeMenuButton(.burningShip)
+                        modeMenuButton(.tricorn)
+                        modeMenuButton(.kleinian)
+                        modeMenuButton(.mandelbrotRelief)
+
+                        Divider()
+
+                        modeMenuButton(.mandelbulb3D)
+                        modeMenuButton(.mandelbox3D)
+
+                        Divider()
+
+                        modeMenuButton(.newton)
+                    } label: {
+                        Text(fractalMode.displayName)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    }
+                    .menuIndicator(.hidden)
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Choose fractal mode")
+                }
+            }
+            .padding(.horizontal, 24)
+            .frame(height: 64)
+
+            Divider()
+                .overlay(.white.opacity(0.12))
+                .padding(.horizontal, 24)
+
+            HStack(spacing: 12) {
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
@@ -1269,143 +1411,12 @@ The zoom overlay is visible only in the app and is not included in exports.
                         }
                     }
                 } label: {
-                    Text("Palette: \(fractalPalette.displayName)")
-                        .frame(width: 130, alignment: .leading)
+                    Label(fractalPalette.displayName, systemImage: "paintpalette")
+                        .frame(width: 154, alignment: .leading)
                 }
                 .help("Choose color palette")
+                Spacer()
 
-                Menu {
-                    ForEach(RenderQuality.allCases) { quality in
-                        Button {
-                            clearExportStatus()
-                            renderQuality = quality
-                        } label: {
-                            Text("\(renderQuality == quality ? "✓ " : "   ")\(quality.rawValue)")
-                        }
-                    }
-                } label: {
-                    Text("Quality: \(renderQuality.rawValue)")
-                        .frame(width: 104, alignment: .leading)
-                }
-                .help("Choose render quality")
-
-                Menu {
-                    ForEach(DeepRenderMethod.allCases) { method in
-                        Button {
-                            deepRenderMethod = method
-                            latestHighPrecisionThumbnailPNG = nil
-                            lastPerturbationStatsText = nil
-                            navigationRevision &+= 1
-                        } label: {
-                            Text(
-                                "\(deepRenderMethod == method ? "◉" : "○")  \(method.rawValue)"
-                            )
-                        }
-                        .disabled(fractalMode != .mandelbrot)
-                    }
-
-                    Divider()
-
-                    Button("Show Diagnostics") {
-                        showPerturbationStats = true
-                    }
-                } label: {
-                    Image(systemName: "waveform.path.ecg")
-                        .frame(width: 22)
-                }
-                .help("Render diagnostics")
-
-                Button {
-                    zoomOut()
-                } label: {
-                    Image(systemName: "minus.magnifyingglass")
-                        .frame(width: 20)
-                }
-                .keyboardShortcut("-", modifiers: [])
-                .help("Zoom Out")
-
-                Button {
-                    zoomIn()
-                } label: {
-                    Image(systemName: "plus.magnifyingglass")
-                        .frame(width: 20)
-                }
-                .keyboardShortcut("+", modifiers: [])
-                .keyboardShortcut("=", modifiers: [])
-                .help("Zoom In")
-
-                Button {
-                    undoView()
-                } label: {
-                    Image(systemName: "arrow.uturn.backward")
-                        .frame(width: 20)
-                }
-                .disabled(navigationHistory.isEmpty)
-                .keyboardShortcut("z", modifiers: .command)
-                .help("Undo last zoom, pan or reset")
-
-                Button {
-                    resetView()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .frame(width: 20)
-                }
-                .keyboardShortcut("r", modifiers: .command)
-                .help("Reset View")
-
-                Menu(isSavingSnapshot ? "Rendering…" : "Export") {
-                    Button("Export 1440 × 900 PNG") {
-                        saveSnapshot(width: 1440, height: 900)
-                    }
-
-                    Button("Export 2560 × 1600 PNG") {
-                        saveSnapshot(width: 2560, height: 1600)
-                    }
-
-                    Button("Export 2880 × 1800 PNG") {
-                        saveSnapshot(width: 2880, height: 1800)
-                    }
-
-                    Divider()
-
-                    if ultraExportUnavailableInDeepZoom {
-                        Text("Use normal export for deep zoom")
-                    }
-
-                    Button("Ultra Export 1440 × 900 PNG · 2×") {
-                        saveSnapshot(width: 1440, height: 900, supersampling: 2)
-                    }
-                    .disabled(ultraExportUnavailableInDeepZoom)
-
-                    Button("Ultra Export 2560 × 1600 PNG · 2×") {
-                        saveSnapshot(width: 2560, height: 1600, supersampling: 2)
-                    }
-                    .disabled(ultraExportUnavailableInDeepZoom)
-
-                    // 2880 × 1800 stays normal export only.
-                    // Ultra 2× at this size allocates a 5760 × 3600 render buffer and can stall macOS on smaller systems.
-                }
-                .disabled(isSavingSnapshot)
-
-                Button {
-                    showFavoritesPanel.toggle()
-                } label: {
-                    Image(systemName: showFavoritesPanel ? "star.fill" : "star")
-                        .frame(width: 20)
-                }
-                .help("Favorite Spots")
-
-                Button("?") {
-                    showHelp = true
-                }
-                .help("Show controls")
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(.ultraThinMaterial)
-            .clipShape(Capsule())
-
-            HStack(spacing: 10) {
                 Text("Iterations: \(effectiveIterations.formatted())")
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
@@ -1424,7 +1435,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                     ),
                     in: 300...24000
                 )
-                .frame(width: 220)
+                .frame(width: 260)
 
                 Stepper(
                     "",
@@ -1439,19 +1450,23 @@ The zoom overlay is visible only in the app and is not included in exports.
                     step: 100
                 )
                 .labelsHidden()
+
+                Spacer()
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
-            .clipShape(Capsule())
+            .padding(.horizontal, 24)
+            .frame(height: 48)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.borderless)
         .controlSize(.regular)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .frame(maxWidth: 900)
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 10)
+        .background(Color.black.opacity(0.16))
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.42), radius: 26, x: 0, y: 12)
         .padding(.horizontal, 24)
     }
 
