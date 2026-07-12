@@ -481,20 +481,48 @@ static float3 auricInteriorColor(float2 uv) {
     return clamp(color, 0.0, 1.0);
 }
 
+static float marbleHash(float2 p) {
+    return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+
+static float marbleNoise(float2 p) {
+    float2 cell = floor(p);
+    float2 local = fract(p);
+    float2 smoothLocal = local * local * (3.0 - 2.0 * local);
+    float a = marbleHash(cell);
+    float b = marbleHash(cell + float2(1.0, 0.0));
+    float c = marbleHash(cell + float2(0.0, 1.0));
+    float d = marbleHash(cell + float2(1.0, 1.0));
+    return mix(mix(a, b, smoothLocal.x), mix(c, d, smoothLocal.x), smoothLocal.y);
+}
+
+static float marbleFBM(float2 p) {
+    float value = 0.0;
+    float amplitude = 0.55;
+    for (uint octave = 0; octave < 4; ++octave) {
+        value += amplitude * marbleNoise(p);
+        p = float2(1.63 * p.x - 1.17 * p.y, 1.17 * p.x + 1.63 * p.y) + 4.31;
+        amplitude *= 0.5;
+    }
+    return value;
+}
+
 static float3 pearlInteriorColor(float2 uv) {
     float x = uv.x * 2.0 - 1.0;
     float y = uv.y * 2.0 - 1.0;
     float radius = min(length(float2(x, y)), 1.35);
-    float warp = 0.22 * sin(5.0 * y + 2.4 * sin(3.0 * x));
-    float veinSignal = abs(sin(8.5 * x + 4.2 * y + warp));
-    float fineSignal = abs(sin(20.0 * x - 11.0 * y + 3.0 * sin(4.0 * y)));
-    float vein = pow(max(0.0, 1.0 - veinSignal * 4.8), 1.8);
-    float fineVein = pow(max(0.0, 1.0 - fineSignal * 8.0), 2.2);
+    float2 p = float2(x, y) * 2.8 + float2(7.3, 11.9);
+    float2 warp = float2(marbleFBM(p + 3.7), marbleFBM(p - 5.1)) - 0.5;
+    float stone = marbleFBM(p + 2.2 * warp);
+    float detail = marbleFBM(p * 2.7 - 1.4 * warp);
+    float vein = pow(1.0 - smoothstep(0.035, 0.18, abs(stone - 0.53)), 1.45);
+    float fineVein = pow(1.0 - smoothstep(0.018, 0.095, abs(detail - 0.49)), 1.8);
     float facet = 0.5 + 0.5 * cos(13.0 * x - 9.0 * y + 6.0 * radius);
     float highlight = exp(-18.0 * (x - y + 0.28) * (x - y + 0.28));
     float edge = smoothstep(0.48, 1.18, radius);
-    float tone = 0.86 + 0.075 * facet + 0.13 * highlight
-               - 0.24 * vein - 0.09 * fineVein - 0.12 * edge;
+    float cloudy = (stone - 0.5) * 0.09;
+    float tone = 0.88 + cloudy + 0.060 * facet + 0.12 * highlight
+               - 0.20 * vein - 0.065 * fineVein - 0.10 * edge;
     float3 color = float3(tone * 1.015, tone * 1.020, tone * 1.010);
     return clamp(color, 0.0, 1.0);
 }

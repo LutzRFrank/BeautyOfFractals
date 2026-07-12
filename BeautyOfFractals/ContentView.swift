@@ -5910,23 +5910,47 @@ nonisolated private func pearlInteriorColor(
     normalizedX: Double,
     normalizedY: Double
 ) -> (r: Double, g: Double, b: Double) {
+    func hash(_ x: Double, _ y: Double) -> Double {
+        let value = sin(x * 127.1 + y * 311.7) * 43_758.5453
+        return value - floor(value)
+    }
+    func noise(_ x: Double, _ y: Double) -> Double {
+        let ix = floor(x), iy = floor(y)
+        let fx = x - ix, fy = y - iy
+        let ux = fx * fx * (3.0 - 2.0 * fx)
+        let uy = fy * fy * (3.0 - 2.0 * fy)
+        let a = hash(ix, iy), b = hash(ix + 1.0, iy)
+        let c = hash(ix, iy + 1.0), d = hash(ix + 1.0, iy + 1.0)
+        return (a + (b - a) * ux) + ((c + (d - c) * ux) - (a + (b - a) * ux)) * uy
+    }
+    func fbm(_ sourceX: Double, _ sourceY: Double) -> Double {
+        var px = sourceX, py = sourceY
+        var value = 0.0, amplitude = 0.55
+        for _ in 0..<4 {
+            value += amplitude * noise(px, py)
+            let nextX = 1.63 * px - 1.17 * py + 4.31
+            py = 1.17 * px + 1.63 * py + 4.31
+            px = nextX
+            amplitude *= 0.5
+        }
+        return value
+    }
     let x = normalizedX * 2.0 - 1.0
     let y = normalizedY * 2.0 - 1.0
     let radius = min(sqrt(x * x + y * y), 1.35)
-
-    // Layered low-frequency waves form soft marble veins; a narrow diagonal
-    // highlight and radial falloff give the otherwise flat interior a polished finish.
-    let warp = 0.22 * sin(5.0 * y + 2.4 * sin(3.0 * x))
-    let veinSignal = abs(sin(8.5 * x + 4.2 * y + warp))
-    let fineSignal = abs(sin(20.0 * x - 11.0 * y + 3.0 * sin(4.0 * y)))
-    let vein = pow(max(0.0, 1.0 - veinSignal * 4.8), 1.8)
-    let fineVein = pow(max(0.0, 1.0 - fineSignal * 8.0), 2.2)
+    let px = x * 2.8 + 7.3, py = y * 2.8 + 11.9
+    let warpX = fbm(px + 3.7, py + 3.7) - 0.5
+    let warpY = fbm(px - 5.1, py - 5.1) - 0.5
+    let stone = fbm(px + 2.2 * warpX, py + 2.2 * warpY)
+    let detail = fbm(px * 2.7 - 1.4 * warpX, py * 2.7 - 1.4 * warpY)
+    let vein = pow(1.0 - smoothstep(edge0: 0.035, edge1: 0.18, x: abs(stone - 0.53)), 1.45)
+    let fineVein = pow(1.0 - smoothstep(edge0: 0.018, edge1: 0.095, x: abs(detail - 0.49)), 1.8)
     let facet = 0.5 + 0.5 * cos(13.0 * x - 9.0 * y + 6.0 * radius)
     let highlight = exp(-18.0 * pow(x - y + 0.28, 2.0))
     let edgeShade = smoothstep(edge0: 0.48, edge1: 1.18, x: radius)
 
-    var tone = 0.86 + 0.075 * facet + 0.13 * highlight
-    tone -= 0.24 * vein + 0.09 * fineVein + 0.12 * edgeShade
+    var tone = 0.88 + (stone - 0.5) * 0.09 + 0.060 * facet + 0.12 * highlight
+    tone -= 0.20 * vein + 0.065 * fineVein + 0.10 * edgeShade
 
     return (
         clamp01(tone * 1.015),
