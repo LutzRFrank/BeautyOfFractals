@@ -51,7 +51,7 @@ static uint fractalIteration(
     float cx;
     float cy;
     
-    if (mode == 0 || mode == 6 || mode == 9 || mode == 10 || mode == 11) {
+    if (mode == 0 || mode == 6 || mode == 9 || mode == 10 || (mode >= 11 && mode <= 21)) {
         x = 0.0;
         y = 0.0;
         cx = x0;
@@ -113,12 +113,19 @@ static uint fractalIteration(
 
             x = x4 * x4 - y4 * y4 + cx;
             y = 2.0 * x4 * y4 + cy;
-        } else if (mode == 11) {
-            float x2 = x * x - y * y;
-            float y2 = 2.0 * x * y;
-
-            x = x2 * x2 - y2 * y2 + cx;
-            y = 2.0 * x2 * y2 + cy;
+        } else if (mode >= 11 && mode <= 21) {
+            uint exponent = mode == 21 ? 2 : (mode == 11 ? 4 : (mode == 12 ? 3 : mode - 8));
+            float baseX = x;
+            float baseY = y;
+            float powerX = x;
+            float powerY = y;
+            for (uint p = 1; p < exponent; ++p) {
+                float nextX = powerX * baseX - powerY * baseY;
+                powerY = powerX * baseY + powerY * baseX;
+                powerX = nextX;
+            }
+            x = powerX + cx;
+            y = powerY + cy;
         } else if (mode == 4) {
             float r2 = x * x + y * y + 0.000001;
             
@@ -1025,12 +1032,14 @@ fragment float4 fractal_fragment(
     
     if (iteration == uniforms.maxIterations) {
         if (uniforms.fractalPalette == 15 &&
-            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 || uniforms.fractalMode == 11)) {
+            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 ||
+             (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
             return float4(pearlInteriorColor(uv), 1.0);
         }
 
         if (uniforms.fractalPalette == 13 &&
-            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6)) {
+            (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 ||
+             (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
             return float4(auricInteriorColor(uv), 1.0);
         }
 

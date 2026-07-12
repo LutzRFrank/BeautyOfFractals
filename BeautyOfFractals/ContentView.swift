@@ -73,6 +73,38 @@ enum FractalMode: Int, CaseIterable, Identifiable {
     case eightRainbows = 9
     case celtic = 10
     case power4 = 11
+    case power3 = 12
+    case power5 = 13
+    case power6 = 14
+    case power7 = 15
+    case power8 = 16
+    case power9 = 17
+    case power10 = 18
+    case power11 = 19
+    case power12 = 20
+    case power2 = 21
+
+    nonisolated var powerExponent: Int? {
+        switch self {
+        case .power2: return 2
+        case .power3: return 3
+        case .power4: return 4
+        case .power5: return 5
+        case .power6: return 6
+        case .power7: return 7
+        case .power8: return 8
+        case .power9: return 9
+        case .power10: return 10
+        case .power11: return 11
+        case .power12: return 12
+        default: return nil
+        }
+    }
+
+    nonisolated static func power(_ exponent: Int) -> FractalMode {
+        if exponent == 2 { return .power2 }
+        return [.power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12][exponent - 3]
+    }
 
     var id: Int {
         rawValue
@@ -102,8 +134,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Eight Rainbows"
         case .celtic:
             return "Celtic Mandelbrot"
-        case .power4:
-            return "Power of 4"
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+            return "Power of \(powerExponent!)"
         }
     }
 
@@ -131,8 +163,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Rainbows"
         case .celtic:
             return "Celtic"
-        case .power4:
-            return "Power of 4"
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+            return "Power of \(powerExponent!)"
         }
     }
 
@@ -160,8 +192,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "EightRainbows"
         case .celtic:
             return "CelticMandelbrot"
-        case .power4:
-            return "Power4"
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+            return "Power\(powerExponent!)"
         }
     }
 
@@ -189,7 +221,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         case .celtic:
             return -0.5
-        case .power4:
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return 0.0
         }
     }
@@ -218,7 +250,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         case .celtic:
             return 0.0
-        case .power4:
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return 0.0
         }
     }
@@ -247,14 +279,14 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 3.0
         case .celtic:
             return 3.0
-        case .power4:
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return 2.5
         }
     }
 
     var supportsHighPrecisionPreview: Bool {
         switch self {
-        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows, .celtic, .power4:
+        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows, .celtic, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return true
         case .mandelbrotRelief, .mandelbulb3D, .mandelbox3D:
             return false
@@ -1445,6 +1477,24 @@ The zoom overlay is visible only in the app and is not included in exports.
                         .frame(width: 154, alignment: .leading)
                 }
                 .help("Choose color palette")
+
+                if let exponent = fractalMode.powerExponent {
+                    Text("Power: \(exponent)")
+                        .monospacedDigit()
+                        .frame(width: 72, alignment: .trailing)
+                    Slider(
+                        value: Binding(
+                            get: { Double(exponent) },
+                            set: {
+                                clearExportStatus()
+                                fractalMode = .power(Int($0.rounded()))
+                            }
+                        ),
+                        in: 2...12,
+                        step: 1
+                    )
+                    .frame(width: 150)
+                }
                 Spacer()
 
                 Text("Iterations: \(effectiveIterations.formatted())")
@@ -1832,7 +1882,7 @@ The zoom overlay is visible only in the app and is not included in exports.
 
     private func fallbackThumbnailForCurrentFavorite() -> Data? {
         switch fractalMode {
-        case .mandelbrot, .celtic, .julia, .burningShip, .tricorn, .newton, .eightRainbows, .power4:
+        case .mandelbrot, .celtic, .julia, .burningShip, .tricorn, .newton, .eightRainbows, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return makeFavoriteThumbnailPNG(
                 mode: fractalMode,
                 palette: fractalPalette,
@@ -5179,7 +5229,7 @@ nonisolated private func calculateFractalIteration(
     var cy: Double
 
     switch mode {
-    case .mandelbrot, .mandelbrotRelief, .celtic, .power4:
+    case .mandelbrot, .mandelbrotRelief, .celtic, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
         x = 0.0
         y = 0.0
         cx = x0
@@ -5252,12 +5302,19 @@ nonisolated private func calculateFractalIteration(
             x = x4 * x4 - y4 * y4 + cx
             y = 2.0 * x4 * y4 + cy
 
-        case .power4:
-            let x2 = x * x - y * y
-            let y2 = 2.0 * x * y
-
-            x = x2 * x2 - y2 * y2 + cx
-            y = 2.0 * x2 * y2 + cy
+        case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+            let exponent = mode.powerExponent!
+            let baseX = x
+            let baseY = y
+            var powerX = x
+            var powerY = y
+            for _ in 1..<exponent {
+                let nextX = powerX * baseX - powerY * baseY
+                powerY = powerX * baseY + powerY * baseX
+                powerX = nextX
+            }
+            x = powerX + cx
+            y = powerY + cy
 
         case .kleinian:
             let r2 = x * x + y * y + 0.000001
@@ -5719,8 +5776,12 @@ nonisolated private func insideColor(
     palette: FractalPalette
 ) -> (r: Double, g: Double, b: Double) {
 
-    if palette == .pearl && (mode == .mandelbrot || mode == .mandelbrotRelief || mode == .power4) {
+    if palette == .pearl && (mode == .mandelbrot || mode == .mandelbrotRelief || mode.powerExponent != nil) {
         return (0.94, 0.95, 0.93)
+    }
+
+    if palette == .auric && mode.powerExponent != nil {
+        return (0.560, 0.345, 0.085)
     }
 
     if mode == .mandelbrot || mode == .mandelbrotRelief {

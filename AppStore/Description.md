@@ -8,10 +8,11 @@ Explore the Mandelbrot set and a diverse collection of related fractals with smo
 
 FEATURES
 
-- Explore Mandelbrot, Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight Rainbows
+- Explore Mandelbrot, Power of n (2–12), Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight Rainbows
 - Navigate fluidly with zooming and panning
 - Reveal deep structures with high-precision rendering
-- Choose from a wide range of distinctive color palettes, including Aurora and Auric
+- Choose from a wide range of distinctive color palettes, including Aurora, Auric, and the monochrome Pearl palette
+- Change the exponent of the Power of n family interactively and discover new symmetries
 - Adjust quality and iteration depth while watching the image respond
 - Save and revisit favorite fractal locations
 - Export high-resolution PNG images, including supersampled Ultra Export options
@@ -28,10 +29,11 @@ Explore the Mandelbrot set and a diverse collection of related fractals with nat
 
 FEATURES
 
-- Explore Mandelbrot, Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight Rainbows
+- Explore Mandelbrot, Power of n (2–12), Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight Rainbows
 - Navigate naturally with pinch-to-zoom and touch gestures
 - Reveal deep structures with high-precision rendering and progressive refinement
-- Choose from a wide range of distinctive color palettes, including Aurora and Auric
+- Choose from a wide range of distinctive color palettes, including Aurora, Auric, and the monochrome Pearl palette
+- Change the exponent of the Power of n family interactively and discover new symmetries
 - Adjust quality and iteration depth while watching the image respond
 - Save and revisit favorite fractal locations
 - Export PNG images directly on your device

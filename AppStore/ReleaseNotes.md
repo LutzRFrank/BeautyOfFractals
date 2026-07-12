@@ -1,19 +1,19 @@
 # App Store Release Notes
 
-## Version 2.8
+## Version 2.9
 
 ### macOS
 
-- Discover **Aurora**, a new atmospheric palette featuring electric blues, vivid spectral accents, and enhanced fine detail.
-- Hide or reveal the controls with **Command–Shift–C** for a more immersive fractal view.
-- Improved deep-zoom exports and Ultra Export availability.
-- More accurate zoom information and improved thumbnails for saved favorites.
-- Additional stability and interface improvements.
+- Explore the new **Power of n** fractal family with an interactive exponent slider from 2 through 12.
+- Discover **Pearl**, a luminous monochrome palette with white interiors and silver-to-graphite detail.
+- Auric now gives Power of n interiors a rich gold finish.
+- Power values are preserved in favorites and reflected in export filenames.
+- Additional rendering and interface improvements.
 
 ### iPhone and iPad
 
-- Discover **Aurora**, a new atmospheric palette featuring electric blues, vivid spectral accents, and enhanced fine detail.
-- Improved deep-zoom exports and export format selection.
-- Refined render and export status behavior.
-- More accurate zoom information and improved thumbnails for saved favorites.
-- Additional stability and interface improvements.
+- Explore the new **Power of n** fractal family with an interactive exponent slider from 2 through 12.
+- Discover **Pearl**, a luminous monochrome palette with white interiors and silver-to-graphite detail.
+- Auric now gives Power of n interiors a rich gold finish.
+- Power values are preserved in favorites and reflected in export filenames.
+- Additional rendering and interface improvements.

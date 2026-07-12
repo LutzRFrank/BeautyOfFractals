@@ -66,6 +66,8 @@ bleiben, soweit die jeweilige Funktion unterstützt wird.
 | FR-003 | Die aktuelle Ansicht kann auf die Standardansicht des gewählten Fraktals zurückgesetzt werden. | Muss | Umgesetzt | Reset stellt Mittelpunkt und Skalierung des Modus wieder her. |
 | FR-004 | Navigationsschritte können rückgängig gemacht werden. | Muss | Umgesetzt | Der vorherige Zoom-, Pan- oder Reset-Zustand wird vollständig wiederhergestellt. |
 | FR-005 | Der aktuelle Zoomfaktor wird in der App angezeigt, ohne in Bildexporte übernommen zu werden. | Soll | Umgesetzt | Anzeige stimmt mit der aktuellen Skalierung überein; exportierte PNGs enthalten sie nicht. |
+| FR-006 | Die App bietet eine Power-of-n-Fraktalfamilie mit ganzzahligem Exponenten von 2 bis 12. | Muss | Umgesetzt | Der Exponent kann per Slider gewählt werden; Darstellung und Modusname reagieren ohne Absturz. |
+| FR-007 | Der gewählte Power-of-n-Exponent bleibt in Favoriten und Exportbezeichnungen erhalten. | Muss | Umgesetzt | Wiederöffnen eines Favoriten reproduziert den Exponenten; der Exportdateiname enthält ihn. |
 
 ### 5.2 Rendering und Präzision
 
@@ -97,6 +99,8 @@ Speicherbedarf und erwartete Laufzeit anhand gemeinsamer Referenzpunkte vergleic
 | FR-200 | Nutzer können zwischen den angebotenen Farbpaletten wechseln. | Muss | Umgesetzt | Die aktive Ansicht wird mit der gewählten Palette neu dargestellt. |
 | FR-201 | Die Bedienoberfläche passt Material, Kontrast und Lesbarkeit an den Bildinhalt und die Plattform an. | Soll | Umgesetzt | Controls bleiben auf hellen und dunklen Fraktalbereichen erkennbar. |
 | FR-202 | Die macOS-Hauptbedienung erscheint als kompakte, schwebende Kontrollleiste. | Soll | Umgesetzt | Navigation, Modus, Renderfunktionen, Favoriten, Export und Hilfe sind erreichbar. |
+| FR-203 | Die Palette Pearl stellt Fraktale in Weiß-, Elfenbein-, Silber- und Graphitabstufungen dar. | Soll | Umgesetzt | GPU-Vorschau und CPU-Export zeigen eine konsistente monochrome Abstufung mit hellem Innenkörper. |
+| FR-204 | Auric färbt die Innenkörper der Power-of-n-Familie gold. | Soll | Umgesetzt | Für jeden Exponenten von 2 bis 12 ist der Innenkörper in Vorschau und Export nicht schwarz, sondern goldfarben. |
 
 ### 5.4 Favoriten und iCloud
 
@@ -202,6 +206,8 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 - kompakte macOS-Kontrollleiste
 - direkter Zugriff auf Renderstatus, Diagnose, Favoriten und Export
 - verlässliche iCloud-Favoriten und klare Render-/Exportzustände
+- Power-of-n-Fraktalfamilie mit Exponenten von 2 bis 12
+- neue Pearl-Palette sowie Auric-Innenfärbung für Power of n
 
 ### Nachfolgende Produktlinien
 
