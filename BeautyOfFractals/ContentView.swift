@@ -135,7 +135,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
         case .celtic:
             return "Celtic Mandelbrot"
         case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
-            return "Power of \(powerExponent!)"
+            return "Powerⁿ"
         }
     }
 
@@ -164,7 +164,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
         case .celtic:
             return "Celtic"
         case .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
-            return "Power of \(powerExponent!)"
+            return "Powerⁿ"
         }
     }
 
