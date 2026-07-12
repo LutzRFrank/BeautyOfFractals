@@ -3493,24 +3493,12 @@ nonisolated func renderFractalSupersampled(
                         )
 
                         if iteration == maxIterations {
-                            if palette == .motherOfPearl,
-                               mode == .mandelbrot || mode == .mandelbrotRelief || mode.powerExponent != nil {
-                                color = motherOfPearlInteriorColor(normalizedX: sampleX / Double(sampleWidth), normalizedY: sampleY / Double(sampleHeight))
-                            } else if palette == .pearl,
-                               mode == .mandelbrot || mode == .mandelbrotRelief || mode.powerExponent != nil {
-                                color = pearlInteriorColor(
-                                    normalizedX: sampleX / Double(sampleWidth),
-                                    normalizedY: sampleY / Double(sampleHeight)
-                                )
-                            } else if palette == .auric,
-                               mode == .mandelbrot || mode == .mandelbrotRelief {
-                                color = auricInteriorColor(
-                                    normalizedX: sampleX / Double(sampleWidth),
-                                    normalizedY: sampleY / Double(sampleHeight)
-                                )
-                            } else {
-                                color = insideColor(mode: mode, palette: palette)
-                            }
+                            color = texturedInsideColor(
+                                mode: mode,
+                                palette: palette,
+                                normalizedX: sampleX / Double(sampleWidth),
+                                normalizedY: sampleY / Double(sampleHeight)
+                            )
                         } else {
                             let t = Double(iteration) / Double(maxIterations)
                             color = cpuPaletteColor(
@@ -4582,24 +4570,12 @@ nonisolated func renderFractal(
                 }
 
                 if iteration == localMaxIterations {
-                    if palette == .motherOfPearl,
-                       mode == .mandelbrot || mode == .mandelbrotRelief || mode.powerExponent != nil {
-                        color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
-                    } else if palette == .pearl,
-                       mode == .mandelbrot || mode == .mandelbrotRelief || mode.powerExponent != nil {
-                        color = pearlInteriorColor(
-                            normalizedX: (Double(px) + 0.5) / Double(width),
-                            normalizedY: (Double(py) + 0.5) / Double(height)
-                        )
-                    } else if palette == .auric,
-                       mode == .mandelbrot || mode == .mandelbrotRelief {
-                        color = auricInteriorColor(
-                            normalizedX: (Double(px) + 0.5) / Double(width),
-                            normalizedY: (Double(py) + 0.5) / Double(height)
-                        )
-                    } else {
-                        color = insideColor(mode: mode, palette: palette)
-                    }
+                    color = texturedInsideColor(
+                        mode: mode,
+                        palette: palette,
+                        normalizedX: (Double(px) + 0.5) / Double(width),
+                        normalizedY: (Double(py) + 0.5) / Double(height)
+                    )
                 } else {
                     let t = Double(iteration) / Double(localMaxIterations)
                     color = cpuPaletteColor(
@@ -5897,6 +5873,47 @@ nonisolated private func insideColor(
     return (0.0, 0.0, 0.0)
 }
 
+nonisolated private func texturedInsideColor(
+    mode: FractalMode,
+    palette: FractalPalette,
+    normalizedX: Double,
+    normalizedY: Double
+) -> (r: Double, g: Double, b: Double) {
+    let supportsPearlInterior =
+        mode == .mandelbrot
+        || mode == .mandelbrotRelief
+        || mode.powerExponent != nil
+
+    if supportsPearlInterior {
+        switch palette {
+        case .motherOfPearl:
+            return motherOfPearlInteriorColor(
+                normalizedX: normalizedX,
+                normalizedY: normalizedY
+            )
+
+        case .pearl:
+            return pearlInteriorColor(
+                normalizedX: normalizedX,
+                normalizedY: normalizedY
+            )
+
+        default:
+            break
+        }
+    }
+
+    if palette == .auric,
+       mode == .mandelbrot || mode == .mandelbrotRelief {
+        return auricInteriorColor(
+            normalizedX: normalizedX,
+            normalizedY: normalizedY
+        )
+    }
+
+    return insideColor(mode: mode, palette: palette)
+}
+
 nonisolated private func auricInteriorColor(
     normalizedX: Double,
     normalizedY: Double
@@ -5991,11 +6008,83 @@ nonisolated private func pearlInteriorColor(
     )
 }
 
-nonisolated private func motherOfPearlInteriorColor(normalizedX: Double, normalizedY: Double) -> (r: Double, g: Double, b: Double) {
-    let marble = pearlInteriorColor(normalizedX: normalizedX, normalizedY: normalizedY)
-    let rose = 0.5 + 0.5 * sin(19.0 * normalizedX + 7.0 * normalizedY)
-    let ice = 0.5 + 0.5 * sin(11.0 * normalizedX - 17.0 * normalizedY)
-    return (clamp01(marble.r + 0.055 * rose), clamp01(marble.g + 0.025), clamp01(marble.b + 0.060 * ice))
+nonisolated private func motherOfPearlInteriorColor(
+    normalizedX: Double,
+    normalizedY: Double
+) -> (r: Double, g: Double, b: Double) {
+    func hash(_ x: Double, _ y: Double) -> Double {
+        let value = sin(x * 127.1 + y * 311.7) * 43_758.5453
+        return value - floor(value)
+    }
+    func noise(_ x: Double, _ y: Double) -> Double {
+        let ix = floor(x), iy = floor(y)
+        let fx = x - ix, fy = y - iy
+        let ux = fx * fx * (3.0 - 2.0 * fx)
+        let uy = fy * fy * (3.0 - 2.0 * fy)
+        let a = hash(ix, iy), b = hash(ix + 1.0, iy)
+        let c = hash(ix, iy + 1.0), d = hash(ix + 1.0, iy + 1.0)
+        return (a + (b - a) * ux)
+            + ((c + (d - c) * ux) - (a + (b - a) * ux)) * uy
+    }
+    func fbm(_ sourceX: Double, _ sourceY: Double) -> Double {
+        var px = sourceX, py = sourceY
+        var value = 0.0, amplitude = 0.55
+        for _ in 0..<4 {
+            value += amplitude * noise(px, py)
+            let nextX = 1.63 * px - 1.17 * py + 4.31
+            py = 1.17 * px + 1.63 * py + 4.31
+            px = nextX
+            amplitude *= 0.5
+        }
+        return value
+    }
+    func blend(
+        _ a: (Double, Double, Double),
+        _ b: (Double, Double, Double),
+        _ amount: Double
+    ) -> (Double, Double, Double) {
+        let t = clamp01(amount)
+        return (
+            a.0 + (b.0 - a.0) * t,
+            a.1 + (b.1 - a.1) * t,
+            a.2 + (b.2 - a.2) * t
+        )
+    }
+
+    let x = normalizedX * 2.0 - 1.0
+    let y = normalizedY * 2.0 - 1.0
+    let radius = min(sqrt(x * x + y * y), 1.35)
+    let px = x * 2.8 + 7.3, py = y * 2.8 + 11.9
+    let warpX = fbm(px + 3.7, py + 3.7) - 0.5
+    let warpY = fbm(px - 5.1, py - 5.1) - 0.5
+    let stone = fbm(px + 2.2 * warpX, py + 2.2 * warpY)
+    let detail = fbm(px * 2.7 - 1.4 * warpX, py * 2.7 - 1.4 * warpY)
+    let vein = pow(
+        1.0 - smoothstep(edge0: 0.012, edge1: 0.055, x: abs(detail - 0.49)),
+        2.2
+    )
+    let highlight = exp(-16.0 * pow(x - y + 0.28, 2.0))
+    let edge = smoothstep(edge0: 0.50, edge1: 1.18, x: radius)
+    let ivory = (
+        0.91 + (stone - 0.5) * 0.08,
+        0.90 + (stone - 0.5) * 0.08,
+        0.87 + (stone - 0.5) * 0.08
+    )
+    let rose = (1.0, 0.78, 0.84)
+    let ice = (0.72, 0.88, 1.0)
+    let champagne = (1.0, 0.86, 0.55)
+    let roseSheen = 0.5 + 0.5 * sin(5.2 * stone + 3.3 * x - 1.7 * y)
+    let iceSheen = 0.5 + 0.5 * sin(6.1 * detail - 2.1 * x + 4.2 * y)
+
+    var color = blend(ivory, rose, 0.13 * roseSheen)
+    color = blend(color, ice, 0.12 * iceSheen)
+    color = blend(color, champagne, 0.10 * highlight + 0.18 * vein)
+
+    return (
+        clamp01(color.0 - 0.055 * edge),
+        clamp01(color.1 - 0.055 * edge),
+        clamp01(color.2 - 0.055 * edge)
+    )
 }
 
 nonisolated private func complexMul(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> SIMD2<Double> {
