@@ -99,8 +99,9 @@ Speicherbedarf und erwartete Laufzeit anhand gemeinsamer Referenzpunkte vergleic
 | FR-200 | Nutzer können zwischen den angebotenen Farbpaletten wechseln. | Muss | Umgesetzt | Die aktive Ansicht wird mit der gewählten Palette neu dargestellt. |
 | FR-201 | Die Bedienoberfläche passt Material, Kontrast und Lesbarkeit an den Bildinhalt und die Plattform an. | Soll | Umgesetzt | Controls bleiben auf hellen und dunklen Fraktalbereichen erkennbar. |
 | FR-202 | Die macOS-Hauptbedienung erscheint als kompakte, schwebende Kontrollleiste. | Soll | Umgesetzt | Navigation, Modus, Renderfunktionen, Favoriten, Export und Hilfe sind erreichbar. |
-| FR-203 | Die Palette Pearl stellt Fraktale in Weiß-, Elfenbein-, Silber- und Graphitabstufungen dar. | Soll | Umgesetzt | GPU-Vorschau und CPU-Export zeigen eine konsistente monochrome Abstufung mit hellem Innenkörper. |
+| FR-203 | Die Palette Pearl verbindet irisierende Außendetails mit organisch marmorierten, leuchtenden Innenkörpern. | Soll | Umgesetzt | GPU-Vorschau und CPU-Export zeigen eine konsistente Irisierung und Marmorstruktur für Mandelbrot, Relief und Power of n. |
 | FR-204 | Auric färbt die Innenkörper der Power-of-n-Familie gold. | Soll | Umgesetzt | Für jeden Exponenten von 2 bis 12 ist der Innenkörper in Vorschau und Export nicht schwarz, sondern goldfarben. |
+| FR-205 | Pearl stellt Innenkörper der vollständigen Power-of-n-Familie konsistent dar. | Muss | Umgesetzt | Für jeden Exponenten von 2 bis 12 stimmen Innenfärbung und organische Textur zwischen GPU-Vorschau, CPU-Render und Export überein. |
 
 ### 5.4 Favoriten und iCloud
 
@@ -116,6 +117,7 @@ Speicherbedarf und erwartete Laufzeit anhand gemeinsamer Referenzpunkte vergleic
 | FR-307 | Der Import unterstützt ein sicheres Zusammenführen mit vorhandenen Favoriten. | Muss | Geplant | Bestehende Favoriten werden nicht stillschweigend überschrieben; Dubletten werden erkannt und als Überspringen, Duplizieren oder Ersetzen behandelt. |
 | FR-308 | Das Austauschformat ist versioniert und vorwärts erweiterbar. | Muss | Geplant | Dateien enthalten eine Formatversion; unbekannte neuere Pflichtfelder führen zu einer verständlichen Fehlermeldung statt zu Datenverlust. |
 | FR-309 | Fehlerhafte oder manipulierte Importdateien dürfen weder bestehende Favoriten beschädigen noch unkontrolliert Dateien außerhalb des vorgesehenen Imports lesen oder schreiben. | Muss | Geplant | Validierung erfolgt vor dem Merge; bei einem Fehler bleibt der bestehende Datenbestand unverändert. |
+| FR-310 | Favoriten der Power-of-n-Familie bewahren Exponent und passende Vorschau. | Muss | Umgesetzt | Favorit und Thumbnail zeigen nach Speichern, Synchronisieren und erneutem Öffnen denselben Exponenten und Bildausschnitt. |
 
 #### Vorgaben für das portable Favoritenformat
 
@@ -207,7 +209,8 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 - direkter Zugriff auf Renderstatus, Diagnose, Favoriten und Export
 - verlässliche iCloud-Favoriten und klare Render-/Exportzustände
 - Power-of-n-Fraktalfamilie mit Exponenten von 2 bis 12
-- neue Pearl-Palette sowie Auric-Innenfärbung für Power of n
+- weiterentwickelte Pearl-Palette mit Irisierung und organischen Marmor-Innenkörpern
+- konsistente Pearl- und Auric-Innenfärbung für die Power-of-n-Familie
 
 ### Nachfolgende Produktlinien
 
