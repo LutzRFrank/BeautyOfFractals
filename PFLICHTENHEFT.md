@@ -178,6 +178,38 @@ Die animierte Zoomreise überführt gespeicherte Einzelansichten in eine fließe
   Favoriten; eine automatische geometrische Nachbarschaftserkennung ist nicht
   Voraussetzung der ersten Version.
 
+### 5.7 Animierte Iterationsreise
+
+Die Iterationsreise hält den räumlichen Viewport fest und macht sichtbar, wie
+sich extrem langsam entkommende Bereiche mit wachsender Berechnungstiefe vom
+scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
+
+| ID | Anforderung | Priorität | Status | Abnahmekriterium |
+|---|---|---:|---|---|
+| FR-600 | Nutzer können eine aktuelle Ansicht oder einen Favoriten als festen Ausgangspunkt einer Iterationsreise wählen. | Soll | Geplant | Mittelpunkt, Skalierung, Fraktalmodus und Palette werden vollständig übernommen. |
+| FR-601 | Für die Reise können Start- und Zieliterationszahl festgelegt werden. | Muss | Geplant | Die Zieliterationszahl liegt über der Startiterationszahl; unzulässige Werte werden verständlich abgewiesen. |
+| FR-602 | Mittelpunkt und Skalierung bleiben während der gesamten Iterationsreise exakt konstant. | Muss | Geplant | Alle Frames verwenden denselben hochpräzisen Viewport ohne Drift oder Koordinatensprung. |
+| FR-603 | Die maximale Iterationszahl steigt über die Reisedauer monoton und nach einer eindeutig festgelegten Interpolationskurve. | Muss | Geplant | Jeder nachfolgende Frame verwendet mindestens dieselbe und planmäßig eine höhere Iterationsgrenze als sein Vorgänger. |
+| FR-604 | Die Farbnormalisierung der Iterationsreise ist explizit wählbar oder festgelegt. | Muss | Geplant | Ein reproduzierbarer Modus mit gemeinsamer Farbskala macht geometrische Änderungen vergleichbar; eine dynamische Normalisierung kann zusätzlich als ästhetische Option angeboten werden. |
+| FR-605 | Jeder Frame verwendet die für Viewport und Iterationstiefe erforderliche Präzisionsmethode. | Muss | Geplant | Auch im Extreme-Precision-Bereich entstehen keine Kachel-, Naht- oder Methodenwechselartefakte. |
+| FR-606 | Eine Iterationsreise kann als Vorschau gestartet, pausiert und abgebrochen werden. | Soll | Geplant | Alle drei Aktionen reagieren kontrolliert; Ausgangsansicht und Favoriten bleiben unverändert. |
+| FR-607 | Die Iterationsreise kann als Videodatei exportiert werden. | Soll | Geplant | Das Video besitzt die gewählte Auflösung, Bildrate und Dauer, enthält keine Bedienelemente und reproduziert die konfigurierte Iterationsentwicklung. |
+| FR-608 | Einzelne Iterationsstufen können als vergleichbare Schlüsselbilder ausgegeben werden. | Kann | Geplant | Eine gewählte Folge, beispielsweise 61.440, 96.000 und 128.000 Iterationen, wird mit identischem Viewport und dokumentierten Parametern erzeugt. |
+
+#### Fachliche Regeln für Iterationsreisen
+
+- Eine Iterationsreise verändert weder Mittelpunkt noch Skalierung.
+- Der Ausgangspunkt muss die hochpräzisen Viewport-Komponenten vollständig
+  enthalten, sobald normale Double-Koordinaten nicht mehr ausreichen.
+- Die Iterationsentwicklung beschreibt die numerische Annäherung an die
+  Mandelbrot-Klassifikation; ein bei endlicher Iterationszahl dunkler Bereich
+  darf nicht als mathematisch bewiesener Innenraum bezeichnet werden.
+- Bei dynamischer Farbnormalisierung können gleiche Escape-Zeiten zwischen
+  Frames unterschiedlich gefärbt erscheinen. Für analytische Vergleiche wird
+  deshalb eine gemeinsame, feste Farbskala verwendet.
+- Die e39-Slow-Escape-Fundstelle mit Vergleichsbildern bei 61.440, 96.000 und
+  128.000 Iterationen dient als Referenzfall für Abnahme und Demonstration.
+
 ## 6. Nichtfunktionale Anforderungen
 
 | ID | Anforderung | Priorität | Abnahmekriterium |
@@ -235,6 +267,8 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 ### Produktlinie 3.0 und nachfolgende Produktlinien
 
 - animierte Reise zwischen zwei benachbarten Zoomfavoriten
+- Iterationsreise bei festem Viewport zur sichtbaren Entwicklung von
+  Slow-Escape-Strukturen
 - Videoexport der Reise
 - bei Bedarf mehrteilige Reisen über eine Favoritensequenz
 - Import und Export portabler Favoriten über iCloud- und Apple-ID-Grenzen hinweg
