@@ -2,8 +2,8 @@
 
 ## macOS
 
-Explore Power of n from 2 to 12, Pearl's iridescent marble glow, high-precision deep zooms, fluid Metal rendering, and high-resolution PNG export.
+Explore around 10^38× with automatic Extreme Precision, an experimental 10^39× frontier, expressive palettes, favorites, and true high-resolution export.
 
 ## iPhone and iPad
 
-Explore Power of n from 2 to 12, Pearl's iridescent marble glow, fluid touch navigation, high-precision deep zooms, and local PNG export.
+Take Mandelbrot around 10^38× with automatic Extreme Precision, an experimental 10^39× frontier, touch navigation, favorites, and local PNG export.

@@ -1,10 +1,10 @@
 # Pflichtenheft – Beauty of Fractals
 
-Stand: 12. Juli 2026
+Stand: 13. Juli 2026
 
 Dokumentstatus: Lebendes Produktdokument
 
-Aktuelle Produktlinie: 2.9
+Aktuelle Produktlinie: 2.10
 
 ## 1. Zweck des Dokuments
 
@@ -79,18 +79,25 @@ bleiben, soweit die jeweilige Funktion unterstützt wird.
 | FR-103 | Ein Renderstatus zeigt Fortschritt, Iterationen und verstrichene Zeit. | Soll | Umgesetzt | Das Panel aktualisiert sich während eines Renders und zeigt einen abgeschlossenen Zustand. |
 | FR-104 | Der Renderstatus kann über Oberfläche und `Shift–Cmd–P` geöffnet oder geschlossen werden. | Soll | Umgesetzt | Button und Tastaturkürzel schalten dasselbe Panel. |
 | FR-105 | Technische Renderdiagnosen können bei Bedarf eingeblendet werden. | Soll | Umgesetzt | Diagnoseansicht zeigt die für den aktuellen Render verfügbaren Werte. |
-| FR-106 | Für Zoomtiefen oberhalb der zuverlässig nutzbaren Double-Double-Präzision steht ein Triple-/Double-Refinement zur Verfügung. | Soll | Geplant | Eine definierte Referenzmenge tiefer Zoompunkte wird ohne Koordinatensprung und mit gegenüber Double-Double nachweisbar höherer stabiler Präzision gerendert. |
-| FR-107 | Die App wählt Triple-/Double-Refinement nur dann, wenn die günstigeren Präzisionsmethoden nicht mehr ausreichen. | Muss | Geplant | Die automatische Methodenwahl bleibt bei flacheren Zooms auf der schnellsten nachweislich stabilen Methode und wechselt reproduzierbar an einer dokumentierten Präzisionsgrenze. |
-| FR-108 | Ein Triple-/Double-Refinement beginnt mit einer schnellen Vorschau und verfeinert sie anschließend sichtbarkeitsarm zum Endergebnis. | Soll | Geplant | Während der Berechnung bleibt eine nutzbare Vorschau sichtbar; das Endergebnis enthält keine Naht-, Kachel- oder Methodenwechselartefakte. |
-| FR-109 | Renderstatus und Diagnosen weisen die tatsächlich verwendete Präzisions- und Refinement-Methode aus. | Soll | Geplant | Bei einem Triple-/Double-Render sind Methode, Refinement-Phase und relevante Präzisionsdaten eindeutig erkennbar. |
+| FR-106 | Für Zoomtiefen oberhalb der zuverlässig nutzbaren Double-Double-Präzision steht ein Triple-Double-gestütztes Refinement zur Verfügung. | Soll | Umgesetzt | Definierte Referenzpunkte werden ohne Koordinatensprung und mit gegenüber Double-Double höherer stabiler Präzision gerendert. |
+| FR-107 | Die App wählt Extreme Precision nur dann, wenn günstigere Präzisionsmethoden nicht mehr ausreichen. | Muss | Umgesetzt | Automatic bleibt bei flacheren Zooms auf der schnellsten stabilen Methode und wechselt bei Bedarf über Direct, Deep Reference und Maximum Precision zu Extreme Precision. |
+| FR-108 | Extreme Precision berechnet direkt einen begrenzten, responsiven Endrender, ohne zuvor eine potenziell falsche Double-Vorschau anzuzeigen. | Soll | Umgesetzt | Das Endergebnis wird ohne Naht-, Kachel- oder Methodenwechselartefakte aufgebaut; Fortschritt und Abbruch bleiben verfügbar. |
+| FR-109 | Renderstatus und Diagnosen weisen die tatsächlich verwendete Präzisions- und Refinement-Methode aus. | Soll | Umgesetzt | Bei Extreme Precision sind Modus, Triple-Double-Mittelpunktsvergleich, Referenzorbit-Anzahl und relevante Präzisionsdaten erkennbar. |
 
-#### Offene Festlegung zum Triple-/Double-Refinement
+#### Technische Festlegung zu Extreme Precision
 
-Vor Beginn der Implementierung wird in einem technischen Konzept festgelegt, ob
-„Triple/Double“ eine Triple-Double-Arithmetik, ein mehrstufiges Refinement aus
-Double- und Double-Double-Ergebnissen oder eine Kombination mit Perturbation und
-Referenzorbits bezeichnet. Das Konzept muss Fehlergrenzen, Umschaltschwellen,
-Speicherbedarf und erwartete Laufzeit anhand gemeinsamer Referenzpunkte vergleichen.
+Extreme Precision kombiniert eine exakte Triple-Double-Repräsentation des
+Viewports mit einem lokalen 3×3-Feld aus neun hochpräzisen Referenzorbits. Die
+Pixelberechnung verwendet ein projiziertes Double-Perturbations-/Rebase-Verfahren,
+während ein direkter Triple-Double-Mittelpunktslauf die Klassifikation absichert.
+Automatic wählt abhängig von Zoomtiefe und Stabilität zwischen Direct, Deep
+Reference, Maximum Precision und Extreme Precision.
+
+Der verlässlich beworbene Bereich reicht bei geeigneten Mandelbrot-Fundstellen bis
+ungefähr `10^38×`. Zooms um `10^39×` bilden eine ausdrücklich experimentelle
+Spitzenzone, die in realen Tests erreicht wurde. Oberhalb davon können je nach
+Fundstelle sichtbare Perturbationsartefakte auftreten; die Anzeige darf solche
+Ergebnisse nicht als allgemein garantierte Präzision darstellen.
 
 ### 5.3 Paletten und Erscheinungsbild
 
@@ -118,6 +125,7 @@ Speicherbedarf und erwartete Laufzeit anhand gemeinsamer Referenzpunkte vergleic
 | FR-308 | Das Austauschformat ist versioniert und vorwärts erweiterbar. | Muss | Geplant | Dateien enthalten eine Formatversion; unbekannte neuere Pflichtfelder führen zu einer verständlichen Fehlermeldung statt zu Datenverlust. |
 | FR-309 | Fehlerhafte oder manipulierte Importdateien dürfen weder bestehende Favoriten beschädigen noch unkontrolliert Dateien außerhalb des vorgesehenen Imports lesen oder schreiben. | Muss | Geplant | Validierung erfolgt vor dem Merge; bei einem Fehler bleibt der bestehende Datenbestand unverändert. |
 | FR-310 | Favoriten der Power-of-n-Familie bewahren Exponent und passende Vorschau. | Muss | Umgesetzt | Favorit und Thumbnail zeigen nach Speichern, Synchronisieren und erneutem Öffnen denselben Exponenten und Bildausschnitt. |
+| FR-311 | Deep-Zoom-Favoriten bewahren Triple-Double-Koordinaten, Renderqualität und effektive Iterationszahl. | Muss | Umgesetzt | Ein Favorit kann auf macOS und iOS ohne vermeidbaren Präzisionsverlust geöffnet werden; ältere Favoriten bleiben kompatibel. |
 
 #### Vorgaben für das portable Favoritenformat
 
@@ -140,6 +148,7 @@ Speicherbedarf und erwartete Laufzeit anhand gemeinsamer Referenzpunkte vergleic
 | FR-401 | Für geeignete Ansichten steht ein höher aufgelöster Ultra-Export zur Verfügung. | Soll | Umgesetzt | Das Ergebnis wird mit dem angebotenen Supersampling gerendert. |
 | FR-402 | Während des Exports zeigt die Kontrollleiste einen eindeutigen Arbeitszustand. | Soll | Umgesetzt | Das Export-Symbol wird während der Berechnung als Sanduhr dargestellt und ist nicht erneut auslösbar. |
 | FR-403 | Erfolg oder Fehler eines Exports wird nachvollziehbar angezeigt. | Muss | Umgesetzt | Nach Abschluss ist der Ergebniszustand sichtbar und schließt sich gemäß UI-Konzept wieder. |
+| FR-404 | Deep-Zoom-Exporte werden für die gewählte Zielauflösung mit dem präzisen Viewport neu berechnet. | Muss | Umgesetzt | macOS und iOS erzeugen bei Extreme Precision ein vollständiges, kachelfreies PNG in der gewählten Größe statt eine hochskalierte Bildschirmvorschau. |
 
 ### 5.6 Animierte Zoomreise
 
@@ -202,6 +211,17 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 
 ## 9. Release-Leitlinie
 
+### Produktlinie 2.10
+
+- Extreme Precision mit Triple-Double-Viewport und neun lokalen Referenzorbits
+- automatische Wahl der schnellsten stabilen Renderstrategie
+- verlässliche Mandelbrot-Deep-Zooms bis ungefähr `10^38×` und experimentelle
+  Erkundung der `10^39×`-Zone
+- präzise, plattformübergreifend kompatible Deep-Zoom-Favoriten
+- zielauflösungsgenauer Deep-Zoom-PNG-Export auf macOS und iOS
+- erweiterte Renderdiagnosen für Triple-Double-Mittelpunktsvergleich und
+  Referenzorbits
+
 ### Produktlinie 2.9
 
 - Stabilisierung und Verfeinerung der bestehenden macOS- und iOS-Funktionen
@@ -212,13 +232,12 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 - weiterentwickelte Pearl-Palette mit Irisierung und organischen Marmor-Innenkörpern
 - konsistente Pearl- und Auric-Innenfärbung für die Power-of-n-Familie
 
-### Nachfolgende Produktlinien
+### Produktlinie 3.0 und nachfolgende Produktlinien
 
 - animierte Reise zwischen zwei benachbarten Zoomfavoriten
 - Videoexport der Reise
 - bei Bedarf mehrteilige Reisen über eine Favoritensequenz
 - Import und Export portabler Favoriten über iCloud- und Apple-ID-Grenzen hinweg
-- zusätzliche Deep-Zoom-Stufe durch Triple-/Double-Refinement
 
 Die konkrete Versionszuordnung geplanter Anforderungen wird erst bei Aufnahme in
 einen Release festgelegt.

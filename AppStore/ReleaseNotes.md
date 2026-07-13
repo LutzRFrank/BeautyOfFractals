@@ -1,22 +1,21 @@
 # App Store Release Notes
 
-## Version 2.9
+## Version 2.10
 
 ### macOS
 
-- Explore the new **Power of n** fractal family with an interactive exponent slider from 2 through 12.
-- Discover the evolved **Pearl** palette with iridescent color, organic marble texture, and luminous interiors.
-- Auric now gives Power of n interiors a rich gold finish.
-- Pearl now remains visually consistent between interactive previews, final high-precision renders, favorite thumbnails, and exports across Mandelbrot, Relief, and the complete Power of n family.
-- Power values are preserved in favorites, favorite thumbnails, and export filenames.
-- A redesigned compact control bar brings navigation, render status, diagnostics, favorites, and export into one harmonious interface.
-- Render and export states are easier to follow, including direct render-status access and a live export indicator.
+- New **Extreme Precision** rendering combines Triple-Double coordinates with local reference-orbit refinement for extraordinary Mandelbrot depth.
+- Explore reliably around 10^38× magnification, with an explicitly experimental frontier around 10^39×.
+- Automatic mode now selects the fastest stable strategy as you move between normal views and deep precision ranges.
+- Deep-zoom favorites preserve their precise coordinates, render quality, and effective iteration depth.
+- High-resolution deep-zoom PNG exports are recalculated for the selected output size.
+- Expanded diagnostics show precision coordinates, center verification, and reference-orbit information.
 
 ### iPhone and iPad
 
-- Explore the new **Power of n** fractal family with an interactive exponent slider from 2 through 12.
-- Discover the evolved **Pearl** palette with iridescent color, organic marble texture, and luminous interiors.
-- Auric now gives Power of n interiors a rich gold finish.
-- Pearl interiors now render consistently across Mandelbrot, Relief, and the complete Power of n family.
-- Power values are preserved in favorites, favorite thumbnails, and export filenames.
-- Additional rendering and interface refinements improve consistency across previews, favorites, and exports.
+- New **Extreme Precision** rendering combines Triple-Double coordinates with local reference-orbit refinement for extraordinary Mandelbrot depth.
+- Explore reliably around 10^38× magnification, with an explicitly experimental frontier around 10^39×.
+- Automatic mode now selects the fastest stable strategy as you move between normal views and deep precision ranges.
+- Deep-zoom favorites preserve their precise coordinates, render quality, and effective iteration depth across Mac, iPhone, and iPad.
+- Deep-zoom PNG exports are recalculated locally for the selected output size.
+- Render progress and cancellation remain available during longer calculations.
