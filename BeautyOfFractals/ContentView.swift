@@ -972,8 +972,12 @@ struct ContentView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: renderQuality == .deep ? 100_000 : 80_000
+            cap: renderQuality == .deep ? 160_000 : 80_000
         )
+    }
+
+    private var maximumBaseIterations: Int {
+        renderQuality == .deep ? 40_000 : 24_000
     }
 
     private var exportEffectiveIterations: Int {
@@ -982,7 +986,7 @@ struct ContentView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: renderQuality == .deep ? 100_000 : 80_000
+            cap: renderQuality == .deep ? 160_000 : 80_000
         )
     }
 
@@ -1378,6 +1382,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                             Button {
                                 clearExportStatus()
                                 renderQuality = quality
+                                maxIterations = min(maxIterations, maximumBaseIterations)
                             } label: {
                                 Text("\(renderQuality == quality ? "✓ " : "   ")\(quality.rawValue)")
                             }
@@ -1564,7 +1569,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                             maxIterations = Int(($0 / 100).rounded()) * 100
                         }
                     ),
-                    in: 300...24000
+                    in: 300...Double(maximumBaseIterations)
                 )
                 .frame(width: 260)
 
@@ -1577,7 +1582,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                             maxIterations = $0
                         }
                     ),
-                    in: 300...24000,
+                    in: 300...maximumBaseIterations,
                     step: 100
                 )
                 .labelsHidden()
@@ -2401,7 +2406,7 @@ struct MandelbrotView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: renderQuality == .deep ? 100_000 : 80_000
+            cap: renderQuality == .deep ? 160_000 : 80_000
         )
     }
 
