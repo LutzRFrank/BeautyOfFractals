@@ -89,8 +89,8 @@ nonisolated func compareMandelbrotDoubleAndDoubleDouble(
 
             let doubleDoubleIteration =
                 calculateMandelbrotIterationDoubleDouble(
-                    cX: doubleDoubleX,
-                    cY: doubleDoubleY,
+                    cX: doubleDoubleX.doubleDoubleValue,
+                    cY: doubleDoubleY.doubleDoubleValue,
                     maxIterations: maxIterations
                 )
 

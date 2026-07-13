@@ -1,32 +1,16 @@
 import Foundation
 
-/// A high-precision Mandelbrot viewport.
+/// A three-component viewport for the 3.0 extreme-precision renderer.
 ///
-/// This intentionally has no SwiftUI or CoreGraphics dependency. UI gestures
-/// convert their coordinates to normalized Double fractions before calling it.
-/// The current Double-based UI and Metal preview can use `doubleProjection`;
-/// a later extreme-zoom CPU renderer can consume the precise values directly.
-
-nonisolated struct PreciseViewport: Sendable, Equatable {
+/// It mirrors `PreciseViewport` while remaining opt-in. This lets the
+/// correctness and persistence work land before the production UI switches
+/// from DoubleDouble to TripleDouble.
+nonisolated struct TripleDoubleViewport: Sendable, Equatable {
     var centerX: TripleDouble
     var centerY: TripleDouble
     var scale: TripleDouble
 
-    init(
-        centerX: Double,
-        centerY: Double,
-        scale: Double
-    ) {
-        self.centerX = TripleDouble(centerX)
-        self.centerY = TripleDouble(centerY)
-        self.scale = TripleDouble(scale)
-    }
-
-    init(
-        centerX: DoubleDouble,
-        centerY: DoubleDouble,
-        scale: DoubleDouble
-    ) {
+    init(centerX: Double, centerY: Double, scale: Double) {
         self.centerX = TripleDouble(centerX)
         self.centerY = TripleDouble(centerY)
         self.scale = TripleDouble(scale)
@@ -42,25 +26,30 @@ nonisolated struct PreciseViewport: Sendable, Equatable {
         self.scale = scale
     }
 
+    init(_ viewport: PreciseViewport) {
+        centerX = viewport.centerX
+        centerY = viewport.centerY
+        scale = viewport.scale
+    }
+
     var doubleProjection: (centerX: Double, centerY: Double, scale: Double) {
-        (
-            centerX.doubleValue,
-            centerY.doubleValue,
-            scale.doubleValue
+        (centerX.doubleValue, centerY.doubleValue, scale.doubleValue)
+    }
+
+    var doubleDoubleProjection: PreciseViewport {
+        PreciseViewport(
+            centerX: centerX.doubleDoubleValue,
+            centerY: centerY.doubleDoubleValue,
+            scale: scale.doubleDoubleValue
         )
     }
 
-    /// Returns the complex coordinate at a normalized viewport location.
-    ///
-    /// `horizontalFraction` and `verticalFraction` use the same convention as
-    /// the existing renderer: 0.0 is the left/top edge and 1.0 the right/bottom.
     func complexPoint(
         horizontalFraction: Double,
         verticalFraction: Double,
         aspectRatio: Double
     ) -> (x: TripleDouble, y: TripleDouble) {
-        let horizontalOffset =
-            (horizontalFraction - 0.5) * aspectRatio
+        let horizontalOffset = (horizontalFraction - 0.5) * aspectRatio
         let verticalOffset = verticalFraction - 0.5
 
         return (
@@ -69,46 +58,39 @@ nonisolated struct PreciseViewport: Sendable, Equatable {
         )
     }
 
-    /// Returns the viewport after a pan expressed as fractions of the current
-    /// viewport width and height.
     func panned(
         horizontalFraction: Double,
         verticalFraction: Double,
         aspectRatio: Double
-    ) -> PreciseViewport {
-        PreciseViewport(
+    ) -> TripleDoubleViewport {
+        TripleDoubleViewport(
             centerX: centerX - scale * (horizontalFraction * aspectRatio),
             centerY: centerY - scale * verticalFraction,
             scale: scale
         )
     }
 
-    /// Returns the viewport after a selection zoom.
-    ///
-    /// The supplied normalized point is the selected rectangle's centre.
-    /// `zoomFactor` is normally max(selectionWidth/viewWidth,
-    /// selectionHeight/viewHeight), matching the existing UI behaviour.
     func zoomed(
         toHorizontalFraction horizontalFraction: Double,
         verticalFraction: Double,
         aspectRatio: Double,
         zoomFactor: Double
-    ) -> PreciseViewport {
+    ) -> TripleDoubleViewport {
         let newCenter = complexPoint(
             horizontalFraction: horizontalFraction,
             verticalFraction: verticalFraction,
             aspectRatio: aspectRatio
         )
 
-        return PreciseViewport(
+        return TripleDoubleViewport(
             centerX: newCenter.x,
             centerY: newCenter.y,
             scale: scale * zoomFactor
         )
     }
 
-    func zoomed(by factor: Double) -> PreciseViewport {
-        PreciseViewport(
+    func zoomed(by factor: Double) -> TripleDoubleViewport {
+        TripleDoubleViewport(
             centerX: centerX,
             centerY: centerY,
             scale: scale * factor
