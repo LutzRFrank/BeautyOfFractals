@@ -2,14 +2,14 @@
 
 Do not store credentials, private contact details, or other secrets in this file.
 
-## Version 2.10 — macOS
+## Version 2.10.1 — macOS
 
 Thank you for reviewing Beauty of Fractals.
 
 - No account, sign-in, subscription, or purchase is required.
 - The app does not collect user data and does not require network access.
 - All fractal rendering and PNG export are performed locally.
-- Version 2.10 adds Extreme Precision for Mandelbrot deep zooms. Automatic mode selects Direct, Deep Reference, Maximum Precision, or Extreme Precision according to the current depth.
+- Version 2.10.1 extends the manually selectable Deep quality range to 160,000 effective iterations. Automatic mode keeps the responsive limits introduced in version 2.10.
 - Extreme Precision reaches approximately 10^38× at suitable locations. The app labels the frontier around 10^39× as Experimental because results can depend on the selected location.
 - Use the controls at the bottom of the window to select a fractal mode, palette, render quality, and iteration depth.
 - Select Power of n from the fractal menu, then use the Power slider to choose an integer exponent from 2 through 12.
@@ -21,14 +21,14 @@ Thank you for reviewing Beauty of Fractals.
 - Press Command–Shift–P, use the gauge button, or choose Fractal > Show / Hide Render Status to toggle the render status panel.
 - During PNG export, the Export button changes to an hourglass and remains unavailable until rendering completes.
 
-## Version 2.10 — iPhone and iPad
+## Version 2.10.1 — iPhone and iPad
 
 Thank you for reviewing Beauty of Fractals.
 
 - No account, sign-in, subscription, or purchase is required.
 - The app does not collect user data and does not require network access.
 - All fractal rendering and PNG export are performed locally on the device.
-- Version 2.10 adds Extreme Precision for Mandelbrot deep zooms. Automatic mode selects the appropriate rendering strategy for the current depth.
+- Version 2.10.1 extends the manually selectable Deep quality range to 128,000 effective iterations. Automatic mode keeps the responsive limits introduced in version 2.10.
 - Extreme Precision reaches approximately 10^38× at suitable locations. The app labels the frontier around 10^39× as Experimental because results can depend on the selected location.
 - Use the controls to select a fractal mode, palette, render quality, and iteration depth.
 - Select Power of n from the fractal menu, then use the Power slider to choose an integer exponent from 2 through 12.

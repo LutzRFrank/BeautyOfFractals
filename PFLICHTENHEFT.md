@@ -1,10 +1,10 @@
 # Pflichtenheft – Beauty of Fractals
 
-Stand: 13. Juli 2026
+Stand: 14. Juli 2026
 
 Dokumentstatus: Lebendes Produktdokument
 
-Aktuelle Produktlinie: 2.10
+Aktuelle Produktlinie: 2.10.1
 
 ## 1. Zweck des Dokuments
 
@@ -242,6 +242,15 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 - verlustfreie Echtzeit-Videoberechnung bei beliebiger Deep-Zoom-Tiefe
 
 ## 9. Release-Leitlinie
+
+### Produktlinie 2.10.1
+
+- Wartungsrelease auf Basis von 2.10
+- manuell erweiterter Deep-Bereich bis 160.000 Iterationen auf macOS und 128.000
+  Iterationen auf iPhone und iPad
+- unveränderte responsive Grenzwerte im Automatic-Modus
+- kleinere Korrekturen und Stabilitätsverbesserungen, soweit bis zur Freigabe
+  bestätigt
 
 ### Produktlinie 2.10
 
