@@ -17,6 +17,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
     let centerY: Double
     let scale: Double
     let maxIterations: Int
+    let colorNormalizationIterations: Int?
     /// Shared with SwiftUI navigation and CPU refinement. This must not be derived
     /// independently from the rounded MTK drawable size.
     let viewportAspectRatio: Double
@@ -55,6 +56,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
         context.coordinator.centerY = Float(centerY)
         context.coordinator.scale = Float(scale)
         context.coordinator.maxIterations = UInt32(maxIterations)
+        context.coordinator.colorNormalizationIterations = colorNormalizationIterations.map {
+            UInt32(max($0, 1))
+        } ?? 0
         context.coordinator.viewportAspectRatio = Float(viewportAspectRatio)
         
         nsView.setNeedsDisplay(nsView.bounds)
@@ -71,6 +75,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
         var centerY: Float = 0.0
         var scale: Float = 3.0
         var maxIterations: UInt32 = 300
+        /// Zero selects the normal flowing scale; a positive value selects a
+        /// fixed, cyclic scale for Iteration Journey's Stable mode.
+        var colorNormalizationIterations: UInt32 = 0
         var viewportAspectRatio: Float = 1.0
         
         struct Uniforms {
@@ -78,6 +85,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
             var centerY: Float
             var scale: Float
             var maxIterations: UInt32
+            var colorNormalizationIterations: UInt32
             var aspectRatio: Float
             var fractalMode: UInt32
             var fractalPalette: UInt32
@@ -132,6 +140,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
                 centerY: centerY,
                 scale: scale,
                 maxIterations: maxIterations,
+                colorNormalizationIterations: colorNormalizationIterations,
                 aspectRatio: aspectRatio,
                 fractalMode: fractalMode,
                 fractalPalette: fractalPalette

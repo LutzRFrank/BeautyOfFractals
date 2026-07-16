@@ -19,6 +19,7 @@ struct Uniforms {
     float centerY;
     float scale;
     uint maxIterations;
+    uint colorNormalizationIterations;
     float aspectRatio;
     uint fractalMode;
     uint fractalPalette;
@@ -1120,7 +1121,14 @@ fragment float4 fractal_fragment(
         );
     }
     
-    float t = float(iteration) / float(uniforms.maxIterations);
+    bool usesStableColorScale = uniforms.colorNormalizationIterations > 0u;
+    uint normalizationIterations = usesStableColorScale
+        ? uniforms.colorNormalizationIterations
+        : uniforms.maxIterations;
+    float rawT = float(iteration) / float(max(normalizationIterations, 1u));
+    // Preserve the complete starting palette, then repeat its fixed phase for
+    // escape times beyond that range instead of saturating relief above 1.0.
+    float t = usesStableColorScale && rawT > 1.0 ? fract(rawT) : rawT;
     float k = sqrt(t);
     
     float relief;

@@ -828,6 +828,13 @@ enum FloatingRenderPanel {
     case diagnostics
 }
 
+private enum IterationJourneyColorMode: String, CaseIterable, Identifiable {
+    case flowing = "Flowing"
+    case stable = "Stable"
+
+    var id: String { rawValue }
+}
+
 enum DeepRenderMethod: String, CaseIterable, Identifiable {
     case automatic = "Automatic"
     case directDouble = "Direct"
@@ -910,6 +917,7 @@ struct ContentView: View {
     @State private var journeyStartIterations: Int = 300
     @State private var journeyEndIterations: Int = 2_000
     @State private var journeyDuration: Double = 6.0
+    @State private var journeyColorMode: IterationJourneyColorMode = .flowing
     @State private var journeyProgress: Double = 0
     @State private var isIterationJourneyRunning: Bool = false
     @State private var isIterationJourneyPaused: Bool = false
@@ -1036,6 +1044,9 @@ struct ContentView: View {
                 scale: $scale,
                 preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
+                colorNormalizationIterations: showIterationJourneyPanel && journeyColorMode == .stable
+                    ? journeyStartIterations
+                    : nil,
                 renderQuality: renderQuality,
                 deepRenderMethod: deepRenderMethod,
                 navigationStarted: recordNavigationStep,
@@ -1656,7 +1667,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 .buttonStyle(.borderless)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 journeyValueField("Start", value: $journeyStartIterations)
                 Image(systemName: "arrow.right")
                     .foregroundStyle(.secondary)
@@ -1668,11 +1679,29 @@ The zoom overlay is visible only in the app and is not included in exports.
                 Text("Duration")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
+                    .fixedSize()
                 Slider(value: $journeyDuration, in: 2...20, step: 1)
-                    .frame(width: 110)
+                    .frame(width: 100)
                 Text("\(Int(journeyDuration)) s")
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .frame(width: 34, alignment: .trailing)
+
+                Divider()
+                    .frame(height: 28)
+
+                Picker("Colors", selection: $journeyColorMode) {
+                    ForEach(IterationJourneyColorMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 140)
+                .help(
+                    journeyColorMode == .stable
+                        ? "Use one shared color scale for analytical comparison"
+                        : "Let the palette flow with the changing iteration depth"
+                )
             }
             .disabled(isIterationJourneyRunning)
 
@@ -1686,6 +1715,12 @@ The zoom overlay is visible only in the app and is not included in exports.
 
                 Spacer()
 
+                if iterationJourneyRequiresRenderedExport, !isIterationJourneyRunning {
+                    Text("Extreme Deep Zoom requires rendered export")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
                 if isIterationJourneyRunning {
                     Button(isIterationJourneyPaused ? "Resume" : "Pause") {
                         isIterationJourneyPaused.toggle()
@@ -1698,7 +1733,15 @@ The zoom overlay is visible only in the app and is not included in exports.
                     Button("Preview") {
                         startIterationJourney()
                     }
-                    .disabled(journeyEndIterations <= journeyStartIterations)
+                    .disabled(
+                        journeyEndIterations <= journeyStartIterations
+                            || iterationJourneyRequiresRenderedExport
+                    )
+                    .help(
+                        iterationJourneyRequiresRenderedExport
+                            ? "Extreme Deep Zoom journeys will use rendered movie export"
+                            : "Preview the iteration journey"
+                    )
                     .keyboardShortcut(.return, modifiers: [])
                 }
             }
@@ -1706,7 +1749,7 @@ The zoom overlay is visible only in the app and is not included in exports.
             .controlSize(.small)
         }
         .padding(16)
-        .frame(width: 580)
+        .frame(width: 700)
         .background(.ultraThinMaterial)
         .background(Color.black.opacity(0.2))
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -1734,6 +1777,16 @@ The zoom overlay is visible only in the app and is not included in exports.
         journeyStartIterations = current
         journeyEndIterations = min(160_000, max(current + 1_000, current * 4))
         journeyProgress = 0
+    }
+
+    private var iterationJourneyUsesProgressiveCPU: Bool {
+        fractalMode.supportsHighPrecisionPreview
+            && scale < deepCPUPreviewScaleLimit
+    }
+
+    private var iterationJourneyRequiresRenderedExport: Bool {
+        fractalMode.supportsHighPrecisionPreview
+            && scale < directDeepMandelbrotScaleLimit
     }
 
     private func baseIterations(closestTo target: Int) -> Int {
@@ -1769,7 +1822,11 @@ The zoom overlay is visible only in the app and is not included in exports.
         let start = journeyStartIterations
         let end = journeyEndIterations
         let duration = journeyDuration
-        let frameCount = max(1, Int(duration * 30.0))
+        // Progressive CPU frames need time to publish useful work. Driving them
+        // at display refresh rates only cancels each render before it can appear.
+        let framesPerSecond = iterationJourneyUsesProgressiveCPU ? 4.0 : 30.0
+        let frameCount = max(1, Int(duration * framesPerSecond))
+        let frameDelay = 1.0 / framesPerSecond
 
         iterationJourneyTask = Task { @MainActor in
             for frame in 0...frameCount {
@@ -1786,7 +1843,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 journeyProgress = progress
 
                 if frame < frameCount {
-                    try? await Task.sleep(for: .milliseconds(33))
+                    try? await Task.sleep(for: .seconds(frameDelay))
                 }
             }
 
@@ -2481,6 +2538,7 @@ struct MandelbrotView: View {
     @Binding var scale: Double
     @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
+    let colorNormalizationIterations: Int?
     let renderQuality: RenderQuality
     let deepRenderMethod: DeepRenderMethod
     let navigationStarted: () -> Void
@@ -2676,6 +2734,7 @@ struct MandelbrotView: View {
                         centerY: centerY,
                         scale: scale,
                         maxIterations: metalDisplayedIterations,
+                        colorNormalizationIterations: colorNormalizationIterations,
                         viewportAspectRatio: viewportAspectRatio
                     )
 
@@ -2691,6 +2750,7 @@ struct MandelbrotView: View {
                             preciseViewport: state.preciseViewport,
                             maxIterations: state.iterations,
                             displayIterations: effectiveIterations,
+                            colorNormalizationIterations: colorNormalizationIterations,
                             viewSize: geometry.size,
                             viewportAspectRatio: viewportAspectRatio,
                             progressiveCPUPreview: useDeepCPUPreview,
@@ -3021,6 +3081,7 @@ struct HighPrecisionFractalPreview: View {
     let preciseViewport: PreciseViewport
     let maxIterations: Int
     let displayIterations: Int
+    let colorNormalizationIterations: Int?
     let viewSize: CGSize
     let viewportAspectRatio: Double
     /// Requests a fast CPU frame before the full CPU refinement. Both stages use
@@ -3072,6 +3133,7 @@ struct HighPrecisionFractalPreview: View {
             String(preciseViewport.scale.lo.bitPattern, radix: 16),
             maxIterations.description,
             displayIterations.description,
+            colorNormalizationIterations?.description ?? "flowing",
             Int(viewSize.width).description,
             Int(viewSize.height).description,
             progressiveCPUPreview.description,
@@ -3468,6 +3530,7 @@ struct HighPrecisionFractalPreview: View {
                     scale: currentScale,
                     preciseViewport: precise,
                     maxIterations: previewIterations,
+                    colorNormalizationIterations: colorNormalizationIterations,
                     requestID: requestID,
                     perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
                     doubleDoubleEnabled: false,
@@ -3527,6 +3590,7 @@ struct HighPrecisionFractalPreview: View {
             scale: currentScale,
             preciseViewport: precise,
             maxIterations: finalRenderIterations,
+            colorNormalizationIterations: colorNormalizationIterations,
             requestID: requestID,
             progressStart: 0.82,
             perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
@@ -3582,6 +3646,7 @@ struct HighPrecisionFractalPreview: View {
         scale: Double,
         preciseViewport: PreciseViewport,
         maxIterations: Int,
+        colorNormalizationIterations: Int?,
         requestID: String,
         progressStart: Double? = nil,
         perturbationEnabled: Bool,
@@ -3605,6 +3670,7 @@ struct HighPrecisionFractalPreview: View {
                 scale: scale,
                 preciseViewport: preciseViewport,
                 maxIterations: maxIterations,
+                colorNormalizationIterations: colorNormalizationIterations,
                 viewportAspectRatio: aspectRatio,
                 perturbationEnabled: perturbationEnabled,
                 doubleDoubleEnabled: doubleDoubleEnabled && isFinalRender,
@@ -3931,6 +3997,7 @@ nonisolated private func renderDirectMandelbrotParallel(
     centerY: Double,
     scale: Double,
     maxIterations: Int,
+    colorNormalizationIterations: Int?,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -4042,7 +4109,11 @@ nonisolated private func renderDirectMandelbrotParallel(
                         color = insideColor(mode: .mandelbrot, palette: palette)
                     }
                 } else {
-                    let t = Double(iteration) / Double(localMaxIterations)
+                    let t = iterationJourneyColorPosition(
+                        iteration: iteration,
+                        activeMaxIterations: localMaxIterations,
+                        fixedNormalizationIterations: colorNormalizationIterations
+                    )
                     color = cpuPaletteColor(
                         t: t,
                         mode: .mandelbrot,
@@ -4159,6 +4230,7 @@ nonisolated private func renderPerturbationMandelbrotParallel(
     centerY: Double,
     scale: Double,
     maxIterations: Int,
+    colorNormalizationIterations: Int?,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -4337,7 +4409,11 @@ nonisolated private func renderPerturbationMandelbrotParallel(
                     color = insideColor(mode: .mandelbrot, palette: palette)
                 }
             } else {
-                let t = Double(iteration) / Double(localMaxIterations)
+                let t = iterationJourneyColorPosition(
+                    iteration: iteration,
+                    activeMaxIterations: localMaxIterations,
+                    fixedNormalizationIterations: colorNormalizationIterations
+                )
 
                 color = cpuPaletteColor(
                     t: t,
@@ -4429,6 +4505,7 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
     palette: FractalPalette,
     preciseViewport: PreciseViewport,
     maxIterations: Int,
+    colorNormalizationIterations: Int?,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -4522,7 +4599,11 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
                         )
                     }
                 } else {
-                    let t = Double(iteration) / Double(maxIterations)
+                    let t = iterationJourneyColorPosition(
+                        iteration: iteration,
+                        activeMaxIterations: maxIterations,
+                        fixedNormalizationIterations: colorNormalizationIterations
+                    )
 
                     color = cpuPaletteColor(
                         t: t,
@@ -4573,6 +4654,7 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
     palette: FractalPalette,
     preciseViewport: PreciseViewport,
     maxIterations: Int,
+    colorNormalizationIterations: Int?,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -4684,7 +4766,11 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                     }
                 } else {
                     color = cpuPaletteColor(
-                        t: Double(iteration) / Double(maxIterations),
+                        t: iterationJourneyColorPosition(
+                            iteration: iteration,
+                            activeMaxIterations: maxIterations,
+                            fixedNormalizationIterations: colorNormalizationIterations
+                        ),
                         mode: .mandelbrot,
                         palette: palette
                     )
@@ -4726,6 +4812,7 @@ nonisolated func renderFractal(
     scale: Double,
     preciseViewport: PreciseViewport? = nil,
     maxIterations: Int,
+    colorNormalizationIterations: Int? = nil,
     viewportAspectRatio: Double? = nil,
     perturbationEnabled: Bool = true,
     doubleDoubleEnabled: Bool = false,
@@ -4762,6 +4849,7 @@ nonisolated func renderFractal(
             palette: palette,
             preciseViewport: preciseViewport,
             maxIterations: maxIterations,
+            colorNormalizationIterations: colorNormalizationIterations,
             viewportAspectRatio: aspectRatio,
             statsCallback: statsCallback,
             progressCallback: progressCallback
@@ -4784,6 +4872,7 @@ nonisolated func renderFractal(
             palette: palette,
             preciseViewport: preciseViewport,
             maxIterations: maxIterations,
+            colorNormalizationIterations: colorNormalizationIterations,
             viewportAspectRatio: aspectRatio,
             progressCallback: progressCallback
         )
@@ -4806,6 +4895,7 @@ nonisolated func renderFractal(
             centerY: centerY,
             scale: scale,
             maxIterations: maxIterations,
+            colorNormalizationIterations: colorNormalizationIterations,
             viewportAspectRatio: aspectRatio,
             statsCallback: statsCallback,
             progressCallback: progressCallback
@@ -4825,6 +4915,7 @@ nonisolated func renderFractal(
             centerY: centerY,
             scale: scale,
             maxIterations: maxIterations,
+            colorNormalizationIterations: colorNormalizationIterations,
             viewportAspectRatio: aspectRatio,
             statsCallback: statsCallback,
             progressCallback: progressCallback
@@ -5052,7 +5143,11 @@ nonisolated func renderFractal(
                         normalizedY: (Double(py) + 0.5) / Double(height)
                     )
                 } else {
-                    let t = Double(iteration) / Double(localMaxIterations)
+                    let t = iterationJourneyColorPosition(
+                        iteration: iteration,
+                        activeMaxIterations: localMaxIterations,
+                        fixedNormalizationIterations: colorNormalizationIterations
+                    )
                     color = cpuPaletteColor(
                         t: t,
                         mode: mode,
@@ -5886,6 +5981,25 @@ nonisolated private func cpuPaletteColor(
     }
 
     return base
+}
+
+nonisolated private func iterationJourneyColorPosition(
+    iteration: Int,
+    activeMaxIterations: Int,
+    fixedNormalizationIterations: Int?
+) -> Double {
+    let usesStableColorScale = fixedNormalizationIterations != nil
+    let normalizationIterations = max(
+        fixedNormalizationIterations ?? activeMaxIterations,
+        1
+    )
+    let rawPosition = Double(iteration) / Double(normalizationIterations)
+
+    guard usesStableColorScale, rawPosition > 1.0 else {
+        return rawPosition
+    }
+
+    return rawPosition - floor(rawPosition)
 }
 
 nonisolated private func paletteBaseColor(

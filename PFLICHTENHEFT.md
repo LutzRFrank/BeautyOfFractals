@@ -190,7 +190,7 @@ scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
 | FR-601 | Für die Reise können Start- und Zieliterationszahl festgelegt werden. | Muss | In Arbeit | Die Zieliterationszahl liegt über der Startiterationszahl; unzulässige Werte werden verständlich abgewiesen. |
 | FR-602 | Mittelpunkt und Skalierung bleiben während der gesamten Iterationsreise exakt konstant. | Muss | In Arbeit | Alle Frames verwenden denselben hochpräzisen Viewport ohne Drift oder Koordinatensprung. |
 | FR-603 | Die maximale Iterationszahl steigt über die Reisedauer monoton und nach einer eindeutig festgelegten Interpolationskurve. | Muss | In Arbeit | Jeder nachfolgende Frame verwendet mindestens dieselbe und planmäßig eine höhere Iterationsgrenze als sein Vorgänger. |
-| FR-604 | Die Farbnormalisierung der Iterationsreise ist explizit wählbar oder festgelegt. | Muss | Geplant | Ein reproduzierbarer Modus mit gemeinsamer Farbskala macht geometrische Änderungen vergleichbar; eine dynamische Normalisierung kann zusätzlich als ästhetische Option angeboten werden. |
+| FR-604 | Die Farbnormalisierung der Iterationsreise ist explizit wählbar oder festgelegt. | Muss | In Arbeit | Ein reproduzierbarer Modus mit gemeinsamer Farbskala macht geometrische Änderungen vergleichbar; eine dynamische Normalisierung kann zusätzlich als ästhetische Option angeboten werden. |
 | FR-605 | Jeder Frame verwendet die für Viewport und Iterationstiefe erforderliche Präzisionsmethode. | Muss | Geplant | Auch im Extreme-Precision-Bereich entstehen keine Kachel-, Naht- oder Methodenwechselartefakte. |
 | FR-606 | Eine Iterationsreise kann als Vorschau gestartet, pausiert und abgebrochen werden. | Soll | In Arbeit | Alle drei Aktionen reagieren kontrolliert; Ausgangsansicht und Favoriten bleiben unverändert. |
 | FR-607 | Die Iterationsreise kann als Videodatei exportiert werden. | Soll | Geplant | Das Video besitzt die gewählte Auflösung, Bildrate und Dauer, enthält keine Bedienelemente und reproduziert die konfigurierte Iterationsentwicklung. |
@@ -207,6 +207,12 @@ scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
 - Bei dynamischer Farbnormalisierung können gleiche Escape-Zeiten zwischen
   Frames unterschiedlich gefärbt erscheinen. Für analytische Vergleiche wird
   deshalb eine gemeinsame, feste Farbskala verwendet.
+- Die Live-Vorschau bietet **Flowing** als ästhetischen Modus mit wandernder
+  Palette und **Stable** mit gemeinsamer Farbskala für analytische Vergleiche.
+- Im noch interaktiv berechenbaren CPU-Deep-Zoom-Bereich wird die Vorschau
+  adaptiv gedrosselt, damit progressive Frames sichtbar fertigstellen können.
+  Erst im zeitlich nicht mehr echtzeitfähigen Extreme-Precision-Bereich wird
+  auf den geplanten, vollständig ausgerenderten Offline-Videoexport verwiesen.
 - Die e39-Slow-Escape-Fundstelle mit Vergleichsbildern bei 61.440, 96.000 und
   128.000 Iterationen dient als Referenzfall für Abnahme und Demonstration.
 
