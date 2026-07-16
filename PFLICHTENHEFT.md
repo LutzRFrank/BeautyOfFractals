@@ -186,13 +186,13 @@ scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
 
 | ID | Anforderung | Priorität | Status | Abnahmekriterium |
 |---|---|---:|---|---|
-| FR-600 | Nutzer können eine aktuelle Ansicht oder einen Favoriten als festen Ausgangspunkt einer Iterationsreise wählen. | Soll | Geplant | Mittelpunkt, Skalierung, Fraktalmodus und Palette werden vollständig übernommen. |
-| FR-601 | Für die Reise können Start- und Zieliterationszahl festgelegt werden. | Muss | Geplant | Die Zieliterationszahl liegt über der Startiterationszahl; unzulässige Werte werden verständlich abgewiesen. |
-| FR-602 | Mittelpunkt und Skalierung bleiben während der gesamten Iterationsreise exakt konstant. | Muss | Geplant | Alle Frames verwenden denselben hochpräzisen Viewport ohne Drift oder Koordinatensprung. |
-| FR-603 | Die maximale Iterationszahl steigt über die Reisedauer monoton und nach einer eindeutig festgelegten Interpolationskurve. | Muss | Geplant | Jeder nachfolgende Frame verwendet mindestens dieselbe und planmäßig eine höhere Iterationsgrenze als sein Vorgänger. |
+| FR-600 | Nutzer können eine aktuelle Ansicht oder einen Favoriten als festen Ausgangspunkt einer Iterationsreise wählen. | Soll | In Arbeit | Mittelpunkt, Skalierung, Fraktalmodus und Palette werden vollständig übernommen. |
+| FR-601 | Für die Reise können Start- und Zieliterationszahl festgelegt werden. | Muss | In Arbeit | Die Zieliterationszahl liegt über der Startiterationszahl; unzulässige Werte werden verständlich abgewiesen. |
+| FR-602 | Mittelpunkt und Skalierung bleiben während der gesamten Iterationsreise exakt konstant. | Muss | In Arbeit | Alle Frames verwenden denselben hochpräzisen Viewport ohne Drift oder Koordinatensprung. |
+| FR-603 | Die maximale Iterationszahl steigt über die Reisedauer monoton und nach einer eindeutig festgelegten Interpolationskurve. | Muss | In Arbeit | Jeder nachfolgende Frame verwendet mindestens dieselbe und planmäßig eine höhere Iterationsgrenze als sein Vorgänger. |
 | FR-604 | Die Farbnormalisierung der Iterationsreise ist explizit wählbar oder festgelegt. | Muss | Geplant | Ein reproduzierbarer Modus mit gemeinsamer Farbskala macht geometrische Änderungen vergleichbar; eine dynamische Normalisierung kann zusätzlich als ästhetische Option angeboten werden. |
 | FR-605 | Jeder Frame verwendet die für Viewport und Iterationstiefe erforderliche Präzisionsmethode. | Muss | Geplant | Auch im Extreme-Precision-Bereich entstehen keine Kachel-, Naht- oder Methodenwechselartefakte. |
-| FR-606 | Eine Iterationsreise kann als Vorschau gestartet, pausiert und abgebrochen werden. | Soll | Geplant | Alle drei Aktionen reagieren kontrolliert; Ausgangsansicht und Favoriten bleiben unverändert. |
+| FR-606 | Eine Iterationsreise kann als Vorschau gestartet, pausiert und abgebrochen werden. | Soll | In Arbeit | Alle drei Aktionen reagieren kontrolliert; Ausgangsansicht und Favoriten bleiben unverändert. |
 | FR-607 | Die Iterationsreise kann als Videodatei exportiert werden. | Soll | Geplant | Das Video besitzt die gewählte Auflösung, Bildrate und Dauer, enthält keine Bedienelemente und reproduziert die konfigurierte Iterationsentwicklung. |
 | FR-608 | Einzelne Iterationsstufen können als vergleichbare Schlüsselbilder ausgegeben werden. | Kann | Geplant | Eine gewählte Folge, beispielsweise 61.440, 96.000 und 128.000 Iterationen, wird mit identischem Viewport und dokumentierten Parametern erzeugt. |
 

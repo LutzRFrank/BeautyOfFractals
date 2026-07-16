@@ -906,6 +906,15 @@ struct ContentView: View {
     @State private var showHelp: Bool = false
     @State private var showControls: Bool = true
     @State private var showFavoritesPanel: Bool = false
+    @State private var showIterationJourneyPanel: Bool = false
+    @State private var journeyStartIterations: Int = 300
+    @State private var journeyEndIterations: Int = 2_000
+    @State private var journeyDuration: Double = 6.0
+    @State private var journeyProgress: Double = 0
+    @State private var isIterationJourneyRunning: Bool = false
+    @State private var isIterationJourneyPaused: Bool = false
+    @State private var iterationJourneyTask: Task<Void, Never>?
+    @State private var journeyOriginalBaseIterations: Int?
     @State private var favoriteName: String = ""
     @State private var isSyncingFavorites: Bool = false
     @State private var favoriteSort: FavoriteSort = .newest
@@ -1058,9 +1067,16 @@ struct ContentView: View {
                     .padding(.bottom, 26)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            if showIterationJourneyPanel {
+                iterationJourneyPanel
+                    .padding(.bottom, 154)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showControls)
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: showFavoritesPanel)
+        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showIterationJourneyPanel)
         .background(Color.black)
         .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: .exportDefaultFractal)) { _ in
@@ -1422,6 +1438,19 @@ The zoom overlay is visible only in the app and is not included in exports.
                     }
                     .help("Favorite Spots")
 
+                    Button {
+                        if showIterationJourneyPanel {
+                            cancelIterationJourney(restoreOriginal: true)
+                            showIterationJourneyPanel = false
+                        } else {
+                            prepareIterationJourney()
+                            showIterationJourneyPanel = true
+                        }
+                    } label: {
+                        Image(systemName: showIterationJourneyPanel ? "film.fill" : "film")
+                    }
+                    .help("Iteration Journey")
+
                     Menu {
                         Button("Export 1440 × 900 PNG") {
                             saveSnapshot(width: 1440, height: 900)
@@ -1604,6 +1633,182 @@ The zoom overlay is visible only in the app and is not included in exports.
         }
         .shadow(color: .black.opacity(0.42), radius: 26, x: 0, y: 12)
         .padding(.horizontal, 24)
+    }
+
+    private var iterationJourneyPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Iteration Journey", systemImage: "film")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+
+                Spacer()
+
+                Text(fractalMode.displayName)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    cancelIterationJourney(restoreOriginal: true)
+                    showIterationJourneyPanel = false
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+            }
+
+            HStack(spacing: 12) {
+                journeyValueField("Start", value: $journeyStartIterations)
+                Image(systemName: "arrow.right")
+                    .foregroundStyle(.secondary)
+                journeyValueField("End", value: $journeyEndIterations)
+
+                Divider()
+                    .frame(height: 28)
+
+                Text("Duration")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Slider(value: $journeyDuration, in: 2...20, step: 1)
+                    .frame(width: 110)
+                Text("\(Int(journeyDuration)) s")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .frame(width: 34, alignment: .trailing)
+            }
+            .disabled(isIterationJourneyRunning)
+
+            ProgressView(value: journeyProgress)
+                .tint(.cyan)
+
+            HStack {
+                Text("\(Int((journeyProgress * 100).rounded()))%")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if isIterationJourneyRunning {
+                    Button(isIterationJourneyPaused ? "Resume" : "Pause") {
+                        isIterationJourneyPaused.toggle()
+                    }
+
+                    Button("Cancel", role: .cancel) {
+                        cancelIterationJourney(restoreOriginal: true)
+                    }
+                } else {
+                    Button("Preview") {
+                        startIterationJourney()
+                    }
+                    .disabled(journeyEndIterations <= journeyStartIterations)
+                    .keyboardShortcut(.return, modifiers: [])
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(16)
+        .frame(width: 580)
+        .background(.ultraThinMaterial)
+        .background(Color.black.opacity(0.2))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.4), radius: 22, x: 0, y: 10)
+    }
+
+    private func journeyValueField(_ title: String, value: Binding<Int>) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            TextField(title, value: value, format: .number.grouping(.never))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 76)
+        }
+    }
+
+    private func prepareIterationJourney() {
+        let current = effectiveIterations
+        journeyStartIterations = current
+        journeyEndIterations = min(160_000, max(current + 1_000, current * 4))
+        journeyProgress = 0
+    }
+
+    private func baseIterations(closestTo target: Int) -> Int {
+        let clampedTarget = max(300, min(target, renderQuality == .deep ? 160_000 : 80_000))
+        var bestBase = 300
+        var bestDistance = Int.max
+
+        for candidate in stride(from: 300, through: maximumBaseIterations, by: 100) {
+            let effective = effectiveIterationCount(
+                baseIterations: candidate,
+                renderQuality: renderQuality,
+                scale: scale,
+                defaultScale: fractalMode.defaultScale,
+                cap: renderQuality == .deep ? 160_000 : 80_000
+            )
+            let distance = abs(effective - clampedTarget)
+            if distance < bestDistance {
+                bestBase = candidate
+                bestDistance = distance
+            }
+        }
+
+        return bestBase
+    }
+
+    private func startIterationJourney() {
+        cancelIterationJourney(restoreOriginal: false)
+        journeyOriginalBaseIterations = maxIterations
+        isIterationJourneyRunning = true
+        isIterationJourneyPaused = false
+        journeyProgress = 0
+
+        let start = journeyStartIterations
+        let end = journeyEndIterations
+        let duration = journeyDuration
+        let frameCount = max(1, Int(duration * 30.0))
+
+        iterationJourneyTask = Task { @MainActor in
+            for frame in 0...frameCount {
+                guard !Task.isCancelled else { return }
+
+                while isIterationJourneyPaused {
+                    try? await Task.sleep(for: .milliseconds(50))
+                    guard !Task.isCancelled else { return }
+                }
+
+                let progress = Double(frame) / Double(frameCount)
+                let target = Int((Double(start) + Double(end - start) * progress).rounded())
+                maxIterations = baseIterations(closestTo: target)
+                journeyProgress = progress
+
+                if frame < frameCount {
+                    try? await Task.sleep(for: .milliseconds(33))
+                }
+            }
+
+            isIterationJourneyRunning = false
+            isIterationJourneyPaused = false
+            iterationJourneyTask = nil
+            journeyOriginalBaseIterations = nil
+        }
+    }
+
+    private func cancelIterationJourney(restoreOriginal: Bool) {
+        iterationJourneyTask?.cancel()
+        iterationJourneyTask = nil
+
+        if restoreOriginal, let journeyOriginalBaseIterations {
+            maxIterations = journeyOriginalBaseIterations
+        }
+
+        journeyOriginalBaseIterations = nil
+        isIterationJourneyRunning = false
+        isIterationJourneyPaused = false
+        journeyProgress = 0
     }
 
 
