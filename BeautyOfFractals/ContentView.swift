@@ -587,6 +587,44 @@ final class FavoritesStore: ObservableObject {
         load()
     }
 
+    nonisolated private static func readCloudFile(at url: URL) -> FavoriteSpotsCloudFile? {
+        var result: FavoriteSpotsCloudFile?
+        var coordinationError: NSError?
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+
+        coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) { coordinatedURL in
+            guard let data = try? Data(contentsOf: coordinatedURL) else { return }
+            result = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data)
+        }
+
+        return result
+    }
+
+    nonisolated private static func writeCloudFile(
+        _ cloudFile: FavoriteSpotsCloudFile,
+        to url: URL
+    ) throws {
+        let data = try JSONEncoder().encode(cloudFile)
+        var coordinationError: NSError?
+        var writeError: Error?
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+
+        coordinator.coordinate(
+            writingItemAt: url,
+            options: .forReplacing,
+            error: &coordinationError
+        ) { coordinatedURL in
+            do {
+                try data.write(to: coordinatedURL, options: .atomic)
+            } catch {
+                writeError = error
+            }
+        }
+
+        if let coordinationError { throw coordinationError }
+        if let writeError { throw writeError }
+    }
+
     func spots(for mode: FractalMode) -> [FavoriteSpot] {
         spots.filter { $0.mode == mode && !$0.deleted }
             .sorted { $0.created > $1.created }
@@ -664,8 +702,7 @@ final class FavoritesStore: ObservableObject {
             let cloudSpots: [FavoriteSpot]
             let cloudReadSucceeded: Bool
 
-            if let data = try? Data(contentsOf: cloudFileURL),
-               let cloudFile = try? JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data) {
+            if let cloudFile = Self.readCloudFile(at: cloudFileURL) {
                 cloudSpots = cloudFile.favorites
                 cloudReadSucceeded = true
             } else {
@@ -731,9 +768,8 @@ final class FavoritesStore: ObservableObject {
             favorites: spots
         )
 
-        guard let data = try? JSONEncoder().encode(cloudFile) else { return }
         do {
-            try data.write(to: cloudFileURL, options: .atomic)
+            try Self.writeCloudFile(cloudFile, to: cloudFileURL)
             print("☁️ Favorites iCloud wrote", spots.count, "spots to", cloudFileURL.path)
         } catch {
             print("☁️ Favorites iCloud write failed:", error)

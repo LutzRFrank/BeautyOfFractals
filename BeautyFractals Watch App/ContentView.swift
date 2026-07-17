@@ -12,55 +12,90 @@ struct ContentView: View {
     @StateObject private var mirror = WatchFractalMirrorStore()
 
     var body: some View {
-        ZStack {
-            FractalBackdrop()
+        GeometryReader { geometry in
+            ZStack {
+                FractalBackdrop()
 
-            if let image = mirror.image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-                    .overlay(.black.opacity(0.14))
-            }
+                if let image = mirror.image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .ignoresSafeArea()
+                        .overlay(.black.opacity(0.14))
+                }
 
-            VStack(spacing: 5) {
-                if mirror.image == nil {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(.white)
+                if mirror.isRendering {
+                    ZStack {
+                        Circle()
+                            .stroke(.black.opacity(0.42), lineWidth: 8)
 
-                    Text("Beauty of\nFractals")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .multilineTextAlignment(.center)
+                        Circle()
+                            .trim(from: 0, to: mirror.renderProgress)
+                            .stroke(
+                                Color.cyan,
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
 
-                    Text(mirror.statusText)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.78))
-                } else {
+                        Text(mirror.renderPercentText)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                    }
+                    .frame(width: 82, height: 82)
+                    .padding(10)
+                    .background(.black.opacity(0.46), in: Circle())
+                    .shadow(color: .black.opacity(0.28), radius: 7, y: 3)
+                    .accessibilityLabel("Render progress")
+                    .accessibilityValue(mirror.renderPercentText)
+                }
+
+                VStack(spacing: 5) {
+                    if mirror.image == nil {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(.white)
+
+                        Text("Beauty of\nFractals")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .multilineTextAlignment(.center)
+
+                        Text(mirror.statusText)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.78))
+                    } else {
+                        Spacer(minLength: 0)
+                    }
+
                     Spacer(minLength: 0)
                 }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 9)
 
-                Spacer(minLength: 0)
-
-                VStack(spacing: 2) {
-                    Text(mirror.zoomText)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    Text(mirror.statusText)
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.72))
-                }
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.black.opacity(0.44), in: Capsule())
-                .padding(.bottom, 3)
+                Text(mirror.zoomText)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.78), in: Capsule())
+                    .frame(maxWidth: max(80, geometry.size.width - 24))
+                    .position(
+                        x: geometry.size.width / 2,
+                        y: max(18, geometry.size.height - 18)
+                    )
+                    .zIndex(100)
+                    .allowsHitTesting(false)
+                    .accessibilityLabel("Zoom")
+                    .accessibilityValue(mirror.zoomText)
             }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 9)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            mirror.requestLatestFrame()
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                mirror.requestLatestFrame()
+            }
         }
     }
 }
@@ -70,6 +105,12 @@ final class WatchFractalMirrorStore: NSObject, ObservableObject, WCSessionDelega
     @Published private(set) var image: UIImage?
     @Published private(set) var zoomText = "Waiting for iPhone…"
     @Published private(set) var statusText = "Mirror ready"
+    @Published private(set) var renderProgress = 0.0
+    @Published private(set) var isRendering = false
+
+    var renderPercentText: String {
+        "\(Int((renderProgress * 100).rounded()))%"
+    }
 
     private let session = WCSession.default
     private let imageKey = "WatchFractalMirror.lastJPEG"
@@ -112,26 +153,47 @@ final class WatchFractalMirrorStore: NSObject, ObservableObject, WCSessionDelega
     }
 
     private func accept(context: [String: Any]) {
-        guard let data = context["fractalJPEG"] as? Data,
-              let image = UIImage(data: data) else { return }
+        if let data = context["fractalJPEG"] as? Data,
+           let image = UIImage(data: data) {
+            self.image = image
+            UserDefaults.standard.set(data, forKey: imageKey)
+        }
 
-        self.image = image
-        zoomText = context["zoomText"] as? String ?? "Current view"
-        statusText = context["statusText"] as? String ?? "High Precision"
+        if let zoomText = context["zoomText"] as? String {
+            self.zoomText = zoomText
+            UserDefaults.standard.set(zoomText, forKey: zoomKey)
+        }
 
-        UserDefaults.standard.set(data, forKey: imageKey)
-        UserDefaults.standard.set(zoomText, forKey: zoomKey)
-        UserDefaults.standard.set(statusText, forKey: statusKey)
+        if let statusText = context["statusText"] as? String {
+            self.statusText = statusText
+            UserDefaults.standard.set(statusText, forKey: statusKey)
+        }
+
+        if let progress = context["renderProgress"] as? Double {
+            renderProgress = min(max(progress, 0), 1)
+        }
+        if let isRendering = context["isRendering"] as? Bool {
+            self.isRendering = isRendering
+        }
     }
 
     nonisolated func session(_ session: WCSession,
                              activationDidCompleteWith activationState: WCSessionActivationState,
                              error: Error?) {
         let context = session.receivedApplicationContext
-        guard !context.isEmpty else { return }
-
         Task { @MainActor in
-            self.accept(context: context)
+            if context.isEmpty {
+                self.requestLatestFrame()
+            } else {
+                self.accept(context: context)
+            }
+        }
+    }
+
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        guard session.isReachable else { return }
+        Task { @MainActor in
+            self.requestLatestFrame()
         }
     }
 
@@ -149,6 +211,20 @@ final class WatchFractalMirrorStore: NSObject, ObservableObject, WCSessionDelega
             self.accept(context: message)
         }
         replyHandler([:])
+    }
+
+    nonisolated func session(_ session: WCSession,
+                             didReceiveMessage message: [String: Any]) {
+        Task { @MainActor in
+            self.accept(context: message)
+        }
+    }
+
+    nonisolated func session(_ session: WCSession,
+                             didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        Task { @MainActor in
+            self.accept(context: userInfo)
+        }
     }
 }
 
