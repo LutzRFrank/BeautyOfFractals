@@ -847,9 +847,9 @@ enum DeepRenderMethod: String, CaseIterable, Identifiable {
 
 /// Selects the fastest safe deep-render path. Automatic starts with Direct
 /// Double while adjacent screen pixels still map to distinct Double coordinates,
-/// moves to Deep Reference near the Direct safety threshold, then uses Maximum
-/// Precision while Double-Double can still resolve adjacent pixels, and finally
-/// switches to Extreme Precision beyond the Double-Double resolution floor.
+/// moves to Deep Reference near the Direct safety threshold, then switches to
+/// the faster Extreme Precision hybrid before adjacent Double coordinates
+/// collapse. Maximum Precision remains available as a manual verification path.
 nonisolated private func automaticDeepRenderMethod(
     preciseViewport: PreciseViewport,
     viewportHeight: Int
@@ -864,18 +864,11 @@ nonisolated private func automaticDeepRenderMethod(
     // Keep a margin above one ULP so Automatic switches before coordinate
     // rounding can become visible in a deep viewport.
     let maximumPrecisionResolution = coordinateMagnitude.ulp * 4.0
-    // A normalized Double-Double carries roughly twice the significand bits of
-    // Double. Multiplying two ULPs gives a conservative absolute resolution
-    // estimate; the margin switches before adjacent pixels collapse together.
-    let extremePrecisionResolution =
-        coordinateMagnitude.ulp * coordinateMagnitude.ulp * 16.0
     let directSafetyMargin = 16.0
     let directResolution = coordinateMagnitude.ulp * directSafetyMargin
 
-    if pixelScale <= extremePrecisionResolution {
+    if pixelScale <= maximumPrecisionResolution {
         return .tripleDouble
-    } else if pixelScale <= maximumPrecisionResolution {
-        return .doubleDouble
     } else if pixelScale <= directResolution {
         return .perturbation
     } else {
@@ -907,6 +900,7 @@ struct ContentView: View {
     )
 
     @State private var maxIterations: Int = 300
+    @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
     @State private var exportStatusText: String?
@@ -923,6 +917,7 @@ struct ContentView: View {
     @State private var isIterationJourneyPaused: Bool = false
     @State private var iterationJourneyTask: Task<Void, Never>?
     @State private var journeyOriginalBaseIterations: Int?
+    @State private var journeyPublishedIterations: Int?
     @State private var favoriteName: String = ""
     @State private var isSyncingFavorites: Bool = false
     @State private var favoriteSort: FavoriteSort = .newest
@@ -989,12 +984,20 @@ struct ContentView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: renderQuality == .deep ? 160_000 : 80_000
+            cap: renderQuality == .deep ? 250_000 : 80_000
         )
     }
 
+    private func synchronizeAutomaticIterations(to target: Int) {
+        automaticDisplayedIterations = deepRenderMethod == .automatic
+            && renderQuality == .deep
+            && target > effectiveIterations
+            ? target
+            : nil
+    }
+
     private var maximumBaseIterations: Int {
-        renderQuality == .deep ? 40_000 : 24_000
+        renderQuality == .deep ? 62_500 : 24_000
     }
 
     private var exportEffectiveIterations: Int {
@@ -1003,7 +1006,7 @@ struct ContentView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: renderQuality == .deep ? 160_000 : 80_000
+            cap: renderQuality == .deep ? 250_000 : 80_000
         )
     }
 
@@ -1047,6 +1050,11 @@ struct ContentView: View {
                 colorNormalizationIterations: showIterationJourneyPanel && journeyColorMode == .stable
                     ? journeyStartIterations
                     : nil,
+                iterationJourneyPreviewEnabled: isIterationJourneyRunning,
+                onIterationJourneyFramePublished: { publishedIterations in
+                    journeyPublishedIterations = publishedIterations
+                },
+                onAutomaticIterationsSelected: synchronizeAutomaticIterations,
                 renderQuality: renderQuality,
                 deepRenderMethod: deepRenderMethod,
                 navigationStarted: recordNavigationStep,
@@ -1188,10 +1196,19 @@ The zoom overlay is visible only in the app and is not included in exports.
             return text
         }
 
-        return text.replacingOccurrences(
-            of: "Direct Double Refinement",
-            with: "Automatic · Direct"
-        )
+        return text
+            .replacingOccurrences(
+                of: "Direct Double Refinement",
+                with: "Automatic · Direct"
+            )
+            .replacingOccurrences(
+                of: "Maximum Precision",
+                with: "Automatic · Maximum Precision"
+            )
+            .replacingOccurrences(
+                of: "Extreme Precision",
+                with: "Automatic · Extreme Precision"
+            )
     }
 
     private var perturbationStatsPanel: some View {
@@ -1437,6 +1454,16 @@ The zoom overlay is visible only in the app and is not included in exports.
                         Button("Show Diagnostics") {
                             showPerturbationStats = true
                         }
+
+                        Divider()
+
+                        Button("Copy Exact Viewport") {
+                            copyExactViewport()
+                        }
+
+                        Button("Paste Exact Viewport") {
+                            pasteExactViewport()
+                        }
                     } label: {
                         Image(systemName: "waveform.path.ecg")
                     }
@@ -1593,7 +1620,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 }
                 Spacer()
 
-                Text("Iterations: \(effectiveIterations.formatted())")
+                Text("Iterations: \((automaticDisplayedIterations ?? effectiveIterations).formatted())")
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
                     .monospacedDigit()
@@ -1775,7 +1802,7 @@ The zoom overlay is visible only in the app and is not included in exports.
     private func prepareIterationJourney() {
         let current = effectiveIterations
         journeyStartIterations = current
-        journeyEndIterations = min(160_000, max(current + 1_000, current * 4))
+        journeyEndIterations = min(250_000, max(current + 1_000, current * 4))
         journeyProgress = 0
     }
 
@@ -1790,7 +1817,7 @@ The zoom overlay is visible only in the app and is not included in exports.
     }
 
     private func baseIterations(closestTo target: Int) -> Int {
-        let clampedTarget = max(300, min(target, renderQuality == .deep ? 160_000 : 80_000))
+        let clampedTarget = max(300, min(target, renderQuality == .deep ? 250_000 : 80_000))
         var bestBase = 300
         var bestDistance = Int.max
 
@@ -1800,7 +1827,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                 renderQuality: renderQuality,
                 scale: scale,
                 defaultScale: fractalMode.defaultScale,
-                cap: renderQuality == .deep ? 160_000 : 80_000
+                cap: renderQuality == .deep ? 250_000 : 80_000
             )
             let distance = abs(effective - clampedTarget)
             if distance < bestDistance {
@@ -1818,13 +1845,15 @@ The zoom overlay is visible only in the app and is not included in exports.
         isIterationJourneyRunning = true
         isIterationJourneyPaused = false
         journeyProgress = 0
+        journeyPublishedIterations = nil
 
         let start = journeyStartIterations
         let end = journeyEndIterations
         let duration = journeyDuration
-        // Progressive CPU frames need time to publish useful work. Driving them
-        // at display refresh rates only cancels each render before it can appear.
-        let framesPerSecond = iterationJourneyUsesProgressiveCPU ? 4.0 : 30.0
+        let usesProgressiveCPU = iterationJourneyUsesProgressiveCPU
+        // CPU frames are advanced only after their image has actually appeared.
+        // The selected duration is therefore a minimum at deep zoom levels.
+        let framesPerSecond = usesProgressiveCPU ? 1.0 : 30.0
         let frameCount = max(1, Int(duration * framesPerSecond))
         let frameDelay = 1.0 / framesPerSecond
 
@@ -1839,11 +1868,32 @@ The zoom overlay is visible only in the app and is not included in exports.
 
                 let progress = Double(frame) / Double(frameCount)
                 let target = Int((Double(start) + Double(end - start) * progress).rounded())
+                let frameStartedAt = Date()
+                if usesProgressiveCPU {
+                    journeyPublishedIterations = nil
+                }
                 maxIterations = baseIterations(closestTo: target)
+
+                if usesProgressiveCPU {
+                    let expectedIterations = effectiveIterations
+                    while journeyPublishedIterations != expectedIterations {
+                        try? await Task.sleep(for: .milliseconds(50))
+                        guard !Task.isCancelled else { return }
+
+                        while isIterationJourneyPaused {
+                            try? await Task.sleep(for: .milliseconds(50))
+                            guard !Task.isCancelled else { return }
+                        }
+                    }
+                }
+
                 journeyProgress = progress
 
                 if frame < frameCount {
-                    try? await Task.sleep(for: .seconds(frameDelay))
+                    let remainingDelay = max(0, frameDelay - Date().timeIntervalSince(frameStartedAt))
+                    if remainingDelay > 0 {
+                        try? await Task.sleep(for: .seconds(remainingDelay))
+                    }
                 }
             }
 
@@ -1851,6 +1901,7 @@ The zoom overlay is visible only in the app and is not included in exports.
             isIterationJourneyPaused = false
             iterationJourneyTask = nil
             journeyOriginalBaseIterations = nil
+            journeyPublishedIterations = nil
         }
     }
 
@@ -1866,6 +1917,7 @@ The zoom overlay is visible only in the app and is not included in exports.
         isIterationJourneyRunning = false
         isIterationJourneyPaused = false
         journeyProgress = 0
+        journeyPublishedIterations = nil
     }
 
 
@@ -2276,6 +2328,65 @@ The zoom overlay is visible only in the app and is not included in exports.
         scale = projection.scale
     }
 
+    /// Copies every Double component as its raw IEEE-754 bit pattern. Decimal
+    /// text is insufficient for reliably reproducing chaotic ultra-deep views.
+    private func copyExactViewport() {
+        let components = [
+            preciseViewport.centerX.hi,
+            preciseViewport.centerX.mid,
+            preciseViewport.centerX.lo,
+            preciseViewport.centerY.hi,
+            preciseViewport.centerY.mid,
+            preciseViewport.centerY.lo,
+            preciseViewport.scale.hi,
+            preciseViewport.scale.mid,
+            preciseViewport.scale.lo
+        ]
+        let fields = components.map {
+            String(format: "%016llx", $0.bitPattern)
+        } + [String(maxIterations)]
+        let encoded = "BOFVP1:" + fields.joined(separator: ":")
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(encoded, forType: .string)
+        exportStatusText = "Exact viewport copied"
+    }
+
+    private func pasteExactViewport() {
+        guard let encoded = NSPasteboard.general.string(forType: .string) else {
+            exportStatusText = "Clipboard contains no viewport"
+            return
+        }
+        let fields = encoded
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: ":", omittingEmptySubsequences: false)
+        guard fields.count == 11,
+              fields[0] == "BOFVP1",
+              let iterations = Int(fields[10]) else {
+            exportStatusText = "Invalid exact viewport"
+            return
+        }
+        let bitPatterns = fields[1...9].compactMap { UInt64($0, radix: 16) }
+        guard bitPatterns.count == 9 else {
+            exportStatusText = "Invalid exact viewport"
+            return
+        }
+        let values = bitPatterns.map(Double.init(bitPattern:))
+        let viewport = PreciseViewport(
+            centerX: TripleDouble(hi: values[0], mid: values[1], lo: values[2]),
+            centerY: TripleDouble(hi: values[3], mid: values[4], lo: values[5]),
+            scale: TripleDouble(hi: values[6], mid: values[7], lo: values[8])
+        )
+
+        recordNavigationStep()
+        latestHighPrecisionThumbnailPNG = nil
+        lastPerturbationStatsText = nil
+        applyPreciseViewport(viewport)
+        maxIterations = max(1, min(iterations, maximumBaseIterations))
+        navigationRevision &+= 1
+        exportStatusText = "Exact viewport restored"
+    }
+
     private func currentViewportSnapshot() -> ViewportSnapshot {
         ViewportSnapshot(
             centerX: centerX,
@@ -2539,6 +2650,9 @@ struct MandelbrotView: View {
     @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
     let colorNormalizationIterations: Int?
+    let iterationJourneyPreviewEnabled: Bool
+    let onIterationJourneyFramePublished: (Int) -> Void
+    let onAutomaticIterationsSelected: (Int) -> Void
     let renderQuality: RenderQuality
     let deepRenderMethod: DeepRenderMethod
     let navigationStarted: () -> Void
@@ -2669,7 +2783,7 @@ struct MandelbrotView: View {
             renderQuality: renderQuality,
             scale: scale,
             defaultScale: fractalMode.defaultScale,
-            cap: renderQuality == .deep ? 160_000 : 80_000
+            cap: renderQuality == .deep ? 250_000 : 80_000
         )
     }
 
@@ -2751,6 +2865,7 @@ struct MandelbrotView: View {
                             maxIterations: state.iterations,
                             displayIterations: effectiveIterations,
                             colorNormalizationIterations: colorNormalizationIterations,
+                            iterationJourneyPreviewEnabled: iterationJourneyPreviewEnabled,
                             viewSize: geometry.size,
                             viewportAspectRatio: viewportAspectRatio,
                             progressiveCPUPreview: useDeepCPUPreview,
@@ -2769,10 +2884,14 @@ struct MandelbrotView: View {
                                 // Navigation must be calculated against the frame the user
                                 // can actually see, not against a newer frame still rendering.
                                 visibleHighPrecisionState = visibleState
+                                if iterationJourneyPreviewEnabled {
+                                    onIterationJourneyFramePublished(visibleState.iterations)
+                                }
                             },
                             onThumbnailPublished: { thumbnailPNG in
                                 latestHighPrecisionThumbnailPNG = thumbnailPNG
                             },
+                            onAutomaticIterationsSelected: onAutomaticIterationsSelected,
                             onPerturbationStatsPublished: onPerturbationStatsPublished
                         )
                     }
@@ -3082,6 +3201,7 @@ struct HighPrecisionFractalPreview: View {
     let maxIterations: Int
     let displayIterations: Int
     let colorNormalizationIterations: Int?
+    let iterationJourneyPreviewEnabled: Bool
     let viewSize: CGSize
     let viewportAspectRatio: Double
     /// Requests a fast CPU frame before the full CPU refinement. Both stages use
@@ -3102,6 +3222,7 @@ struct HighPrecisionFractalPreview: View {
     let diagnosticsPanel: () -> AnyView
     let onImagePublished: (HighPrecisionViewportState) -> Void
     let onThumbnailPublished: (Data?) -> Void
+    let onAutomaticIterationsSelected: (Int) -> Void
     let onPerturbationStatsPublished: (String?) -> Void
 
     @State private var image: NSImage?
@@ -3134,6 +3255,7 @@ struct HighPrecisionFractalPreview: View {
             maxIterations.description,
             displayIterations.description,
             colorNormalizationIterations?.description ?? "flowing",
+            iterationJourneyPreviewEnabled.description,
             Int(viewSize.width).description,
             Int(viewSize.height).description,
             progressiveCPUPreview.description,
@@ -3162,12 +3284,17 @@ struct HighPrecisionFractalPreview: View {
     }
 
     private var renderPercentText: String {
-        "\(Int((clampedRenderProgress * 100.0).rounded()))%"
+        if isRendering {
+            return "\(min(Int(clampedRenderProgress * 100.0), 99))%"
+        }
+
+        return "\(Int((clampedRenderProgress * 100.0).rounded()))%"
     }
 
     private var renderIterationText: String {
         if !isRendering, let completedRenderIterations {
-            return "\(completedRenderIterations.formatted()) / \(displayIterations.formatted())"
+            let completedTarget = max(completedRenderIterations, displayIterations)
+            return "\(completedRenderIterations.formatted()) / \(completedTarget.formatted())"
         }
 
         let target = activeRenderIterations ?? displayIterations
@@ -3393,14 +3520,70 @@ struct HighPrecisionFractalPreview: View {
         lastRenderDurationText = nil
         isRendering = true
 
+        // An iteration journey changes the iteration budget continuously. A
+        // normal deep render would start its entire preview pyramid for every
+        // step and then be cancelled by the next one. Publish one coherent,
+        // inexpensive CPU frame instead; leaving Journey mode automatically
+        // starts the normal full refinement for the final iteration value.
+        if iterationJourneyPreviewEnabled, progressiveCPUPreview {
+            let journeySize = cappedRenderSize(
+                for: viewSize,
+                maxWidth: 320,
+                maxHeight: 200
+            )
+
+            if let journeyImage = await renderImage(
+                width: journeySize.width,
+                height: journeySize.height,
+                mode: mode,
+                palette: palette,
+                centerX: cx,
+                centerY: cy,
+                scale: currentScale,
+                preciseViewport: precise,
+                maxIterations: fullIterations,
+                colorNormalizationIterations: colorNormalizationIterations,
+                requestID: requestID,
+                progressStart: 0.05,
+                perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
+                doubleDoubleEnabled: effectiveDeepRenderMethod == .doubleDouble,
+                tripleDoubleEnabled: effectiveDeepRenderMethod == .tripleDouble,
+                progressEnd: 0.98
+            ) {
+                image = NSImage(
+                    cgImage: journeyImage,
+                    size: NSSize(width: journeySize.width, height: journeySize.height)
+                )
+                onImagePublished(
+                    HighPrecisionViewportState(
+                        centerX: cx,
+                        centerY: cy,
+                        scale: currentScale,
+                        preciseViewport: precise,
+                        iterations: fullIterations
+                    )
+                )
+                completedRenderIterations = fullIterations
+                renderProgress = 1.0
+            }
+
+            guard !Task.isCancelled, requestID == renderID else { return }
+            if renderStartDate != nil {
+                lastRenderDurationText = elapsedText(at: Date())
+            }
+            isRendering = false
+            return
+        }
+
         // At deep zoom, publish a small pyramid of CPU previews before the full
         // refinement. This avoids a single huge block preview followed by a long
         // wait, while keeping every stage mapped to the exact same viewport.
         // The legacy preview pyramid uses Double-based intermediate frames.
-        // Below the Double-Double resolution floor those frames collapse into
-        // broad bands, so Extreme Precision goes straight to its correct final
-        // Triple-Double hybrid render.
+        // Maximum and Extreme Precision would therefore publish broad bands
+        // before their correct final render, so both precise methods go
+        // straight to their final pixel calculation.
         if progressiveCPUPreview,
+           effectiveDeepRenderMethod != .doubleDouble,
            effectiveDeepRenderMethod != .tripleDouble {
             let zoomLevel = fractalMode.defaultScale / max(scale, 1e-18)
             let previewStages: [(width: Int, height: Int, iterationScale: Double)]
@@ -3596,14 +3779,20 @@ struct HighPrecisionFractalPreview: View {
             perturbationEnabled: effectiveDeepRenderMethod == .perturbation,
             doubleDoubleEnabled: effectiveDeepRenderMethod == .doubleDouble,
             tripleDoubleEnabled: effectiveDeepRenderMethod == .tripleDouble,
+            automaticIterationsEnabled: deepRenderMethod == .automatic,
             isFinalRender: true,
             progressEnd: 0.995,
             statsCallback: { stats in
                 Task { @MainActor in
                     onPerturbationStatsPublished(stats)
                 }
+            },
+            iterationTargetCallback: { target in
+                activeRenderIterations = target
+                onAutomaticIterationsSelected(target)
             }
         ) {
+            let renderedIterations = activeRenderIterations ?? finalRenderIterations
             image = NSImage(
                 cgImage: finalImage,
                 size: NSSize(width: fullSize.width, height: fullSize.height)
@@ -3614,11 +3803,11 @@ struct HighPrecisionFractalPreview: View {
                     centerY: cy,
                     scale: currentScale,
                     preciseViewport: precise,
-                    iterations: finalRenderIterations
+                    iterations: renderedIterations
                 )
             )
             onThumbnailPublished(makeFavoriteThumbnailPNG(from: finalImage))
-            completedRenderIterations = finalRenderIterations
+            completedRenderIterations = renderedIterations
 
             renderProgress = 1.0
         }
@@ -3652,9 +3841,11 @@ struct HighPrecisionFractalPreview: View {
         perturbationEnabled: Bool,
         doubleDoubleEnabled: Bool = false,
         tripleDoubleEnabled: Bool = false,
+        automaticIterationsEnabled: Bool = false,
         isFinalRender: Bool = false,
         progressEnd: Double? = nil,
-        statsCallback: (@MainActor @Sendable (String?) -> Void)? = nil
+        statsCallback: (@MainActor @Sendable (String?) -> Void)? = nil,
+        iterationTargetCallback: (@MainActor @Sendable (Int) -> Void)? = nil
     ) async -> CGImage? {
         guard width > 8, height > 8 else { return nil }
 
@@ -3675,10 +3866,17 @@ struct HighPrecisionFractalPreview: View {
                 perturbationEnabled: perturbationEnabled,
                 doubleDoubleEnabled: doubleDoubleEnabled && isFinalRender,
                 tripleDoubleEnabled: tripleDoubleEnabled && isFinalRender,
+                automaticIterationsEnabled: automaticIterationsEnabled && isFinalRender,
                 statsCallback: { stats in
                     Task { @MainActor in
                         guard requestID == renderID else { return }
                         statsCallback?(stats)
+                    }
+                },
+                iterationTargetCallback: { target in
+                    Task { @MainActor in
+                        guard requestID == renderID else { return }
+                        iterationTargetCallback?(target)
                     }
                 },
                 progressCallback: { progress in
@@ -4631,6 +4829,15 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
         return nil
     }
 
+    statsCallback?("""
+    Maximum Precision
+
+    Arithmetic:    Double-Double
+    Iterations:    \(maxIterations)
+    Size:          \(width) × \(height)
+    Pixel scale:   \(String(format: "%.6e", abs(preciseViewport.scale.doubleValue) / Double(max(height, 1))))
+    """)
+
     let pixels = Array(
         UnsafeBufferPointer(
             start: storage.pointer,
@@ -4656,7 +4863,9 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
     maxIterations: Int,
     colorNormalizationIterations: Int?,
     viewportAspectRatio: Double,
+    automaticIterationsEnabled: Bool = false,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
+    iterationTargetCallback: (@Sendable (Int) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
     let bytesPerPixel = 4
@@ -4666,42 +4875,96 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
     let storage = DirectRenderPixelStorage(byteCount: byteCount)
 
     let tripleViewport = TripleDoubleViewport(preciseViewport)
-    let references = TripleDoublePerturbation.makeReferenceGrid(
-        viewport: tripleViewport,
-        aspectRatio: viewportAspectRatio,
-        maxIterations: maxIterations
-    )
     let projectedScale = tripleViewport.scale.doubleValue
-
-    if let statsCallback {
-        let directCenterIteration = calculateMandelbrotIterationTripleDouble(
-            cX: tripleViewport.centerX,
-            cY: tripleViewport.centerY,
+    // Past roughly 42 decimal zoom digits, Triple-Double no longer leaves
+    // enough guard precision for a long reference orbit. A six-component
+    // reference fixes that failure while keeping every pixel on fast Double
+    // perturbation arithmetic.
+    let usesGuardedReference = abs(projectedScale) < 1e-42
+    let referenceIterationBudget = usesGuardedReference && automaticIterationsEnabled
+        ? 250_000
+        : maxIterations
+    let references = usesGuardedReference
+        ? TripleDoublePerturbation.makeGuardedCentralReference(
+            viewport: tripleViewport,
+            maxIterations: referenceIterationBudget
+        )
+        : TripleDoublePerturbation.makeReferenceGrid(
+            viewport: tripleViewport,
+            aspectRatio: viewportAspectRatio,
             maxIterations: maxIterations
         )
-        let hybridCenterIteration = TripleDoublePerturbation.iterationWithLocalRebase(
+    let centralReference = references.first(where: {
+        $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
+    })
+    let centerEscapeIteration = centralReference?.orbit.escapedAt
+        ?? referenceIterationBudget
+    let automaticTarget: Int
+    if usesGuardedReference, automaticIterationsEnabled {
+        if centerEscapeIteration < referenceIterationBudget {
+            let withReserve = Int(
+                ceil(Double(centerEscapeIteration) * 1.15 / 1_000.0)
+            ) * 1_000
+            automaticTarget = min(
+                referenceIterationBudget,
+                max(maxIterations, withReserve)
+            )
+        } else {
+            automaticTarget = referenceIterationBudget
+        }
+    } else {
+        automaticTarget = maxIterations
+    }
+    iterationTargetCallback?(automaticTarget)
+    let seriesApproximations = usesGuardedReference
+        ? []
+        : centralReference.map {
+            TripleDoublePerturbation.makeSeriesApproximations(
+                scale: projectedScale,
+                aspectRatio: viewportAspectRatio,
+                reference: $0.orbit,
+                maxIterations: automaticTarget
+            )
+        } ?? []
+
+    if let statsCallback {
+        let directCenterIteration = usesGuardedReference
+            ? centralReference?.orbit.escapedAt ?? maxIterations
+            : calculateMandelbrotIterationTripleDouble(
+                cX: tripleViewport.centerX,
+                cY: tripleViewport.centerY,
+                maxIterations: automaticTarget
+            )
+        let hybridCenterIteration = TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
             horizontalOffset: 0.0,
             verticalOffset: 0.0,
             scale: projectedScale,
             references: references,
-            maxIterations: maxIterations
-        )
-        let directCenterResult = directCenterIteration == maxIterations
-            ? "inside through \(maxIterations)"
+            approximations: seriesApproximations,
+            maxIterations: automaticTarget
+        ).iteration
+        let directCenterResult = directCenterIteration == referenceIterationBudget
+            ? "inside through \(referenceIterationBudget)"
             : "escaped at \(directCenterIteration)"
-        let hybridCenterResult = hybridCenterIteration == maxIterations
-            ? "inside through \(maxIterations)"
+        let hybridCenterResult = hybridCenterIteration == automaticTarget
+            ? "inside through \(automaticTarget)"
             : "escaped at \(hybridCenterIteration)"
         let agreement = directCenterIteration == hybridCenterIteration
             ? "exact"
             : "delta \(hybridCenterIteration - directCenterIteration)"
 
         statsCallback("""
-        Extreme Precision
-        Center direct TD: \(directCenterResult)
+        Extreme Precision\(usesGuardedReference ? " · Guarded Reference (6×Double)" : "")
+        Center direct \(usesGuardedReference ? "6×Double" : "TD"): \(directCenterResult)
         Center hybrid: \(hybridCenterResult)
         Center agreement: \(agreement)
+        Iterations requested: \(maxIterations)
+        Iterations automatic: \(automaticTarget)
+        Center reserve: \(centerEscapeIteration < referenceIterationBudget ? "15%" : "limit reached — may be insufficient")
         Reference orbits: \(references.count)
+        Series terms: \(seriesApproximations.last?.coefficientX.count ?? 0)
+        Series checkpoints: \(seriesApproximations.count)
+        Series skip: \(seriesApproximations.last?.iteration ?? 0) iterations
         """)
     }
 
@@ -4732,14 +4995,15 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                 let horizontalOffset =
                     ((Double(px) + 0.5) / pixelWidth - 0.5)
                     * viewportAspectRatio
-                let localMaxIterations = maxIterations
-                let iteration = TripleDoublePerturbation.iterationWithLocalRebase(
+                let localMaxIterations = automaticTarget
+                let iteration = TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
                     horizontalOffset: horizontalOffset,
                     verticalOffset: verticalOffset,
                     scale: projectedScale,
                     references: references,
+                    approximations: seriesApproximations,
                     maxIterations: localMaxIterations
-                )
+                ).iteration
 
                 let color: (r: Double, g: Double, b: Double)
                 let normalizedX = (Double(px) + 0.5) / pixelWidth
@@ -4768,7 +5032,7 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                     color = cpuPaletteColor(
                         t: iterationJourneyColorPosition(
                             iteration: iteration,
-                            activeMaxIterations: maxIterations,
+                            activeMaxIterations: automaticTarget,
                             fixedNormalizationIterations: colorNormalizationIterations
                         ),
                         mode: .mandelbrot,
@@ -4817,7 +5081,9 @@ nonisolated func renderFractal(
     perturbationEnabled: Bool = true,
     doubleDoubleEnabled: Bool = false,
     tripleDoubleEnabled: Bool = false,
+    automaticIterationsEnabled: Bool = false,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
+    iterationTargetCallback: (@Sendable (Int) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
 ) -> CGImage? {
 
@@ -4851,7 +5117,9 @@ nonisolated func renderFractal(
             maxIterations: maxIterations,
             colorNormalizationIterations: colorNormalizationIterations,
             viewportAspectRatio: aspectRatio,
+            automaticIterationsEnabled: automaticIterationsEnabled,
             statsCallback: statsCallback,
+            iterationTargetCallback: iterationTargetCallback,
             progressCallback: progressCallback
         )
     }
@@ -4874,6 +5142,7 @@ nonisolated func renderFractal(
             maxIterations: maxIterations,
             colorNormalizationIterations: colorNormalizationIterations,
             viewportAspectRatio: aspectRatio,
+            statsCallback: statsCallback,
             progressCallback: progressCallback
         )
     }

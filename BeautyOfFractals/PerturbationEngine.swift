@@ -130,23 +130,25 @@ nonisolated enum PerturbationEngine {
         centerY: Double,
         maxIterations: Int
     ) -> PerturbationOrbit {
-        var xs: [Double] = []
-        var ys: [Double] = []
-        xs.reserveCapacity(maxIterations)
-        ys.reserveCapacity(maxIterations)
+        // Store z_0 as well as every subsequently calculated orbit value. This
+        // keeps the perturbation recurrence at index n aligned with the escape
+        // test at index n + 1.
+        var xs: [Double] = [0.0]
+        var ys: [Double] = [0.0]
+        xs.reserveCapacity(maxIterations + 1)
+        ys.reserveCapacity(maxIterations + 1)
 
         var x = 0.0
         var y = 0.0
 
         for iteration in 0..<maxIterations {
-            xs.append(x)
-            ys.append(y)
-
             let nextX = x * x - y * y + centerX
             let nextY = 2.0 * x * y + centerY
 
             x = nextX
             y = nextY
+            xs.append(x)
+            ys.append(y)
 
             if x * x + y * y > 4.0 {
                 return PerturbationOrbit(x: xs, y: ys, escapedAt: iteration + 1)
@@ -207,12 +209,12 @@ nonisolated enum PerturbationEngine {
     ) -> PerturbationStepResult {
         let orbit = state.reference.orbit
         guard state.iteration < maxIterations,
-              state.iteration < orbit.x.count,
-              state.iteration < orbit.y.count else {
+              state.iteration + 1 < orbit.x.count,
+              state.iteration + 1 < orbit.y.count else {
             return PerturbationStepResult(
                 escaped: false,
-                shouldRebase: false,
-                iteration: maxIterations
+                shouldRebase: true,
+                iteration: state.iteration
             )
         }
 
@@ -233,8 +235,10 @@ nonisolated enum PerturbationEngine {
         state.zy = nextZY
         state.iteration += 1
 
-        let fullX = rx + state.zx
-        let fullY = ry + state.zy
+        let nextReferenceX = orbit.x[state.iteration]
+        let nextReferenceY = orbit.y[state.iteration]
+        let fullX = nextReferenceX + state.zx
+        let fullY = nextReferenceY + state.zy
         let magnitude2 = fullX * fullX + fullY * fullY
 
         if magnitude2 > 4.0 {
@@ -246,15 +250,18 @@ nonisolated enum PerturbationEngine {
         }
 
         let deltaMagnitude2 = state.zx * state.zx + state.zy * state.zy
-        let shouldRebase = deltaMagnitude2 > 0.00001
-
-        if state.iteration >= orbit.escapedAt {
-            return PerturbationStepResult(
-                escaped: true,
-                shouldRebase: false,
-                iteration: orbit.escapedAt
-            )
-        }
+        let referenceMagnitude2 = nextReferenceX * nextReferenceX
+            + nextReferenceY * nextReferenceY
+        // A fixed bound works for most of the orbit, but becomes too lenient
+        // whenever the reference passes close to zero. Tighten it relative to
+        // the local reference magnitude so loss of significance causes a
+        // controlled rebase instead of silently changing the classification.
+        let absoluteLimit = 0.00001
+        let relativeLimit = max(referenceMagnitude2 * 0.0001, 1e-24)
+        let stabilityLimit = min(absoluteLimit, relativeLimit)
+        let shouldRebase = !deltaMagnitude2.isFinite
+            || deltaMagnitude2 > stabilityLimit
+            || state.iteration >= orbit.escapedAt
 
         return PerturbationStepResult(
             escaped: false,

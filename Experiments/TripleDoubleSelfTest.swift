@@ -147,6 +147,29 @@ let cornerReference = TripleDoublePerturbation.nearestReference(
 require(cornerReference?.horizontalOffset == 0.8, "nearest horizontal reference")
 require(cornerReference?.verticalOffset == 0.5, "nearest vertical reference")
 
+let centralReference = perturbationGrid.first {
+    $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
+}
+let seriesApproximation = centralReference.flatMap {
+    TripleDoublePerturbation.makeSeriesApproximation(
+        scale: 1e-12,
+        aspectRatio: 1.6,
+        reference: $0.orbit,
+        maxIterations: maximumIterations
+    )
+}
+require(seriesApproximation != nil, "series approximation is available")
+require((seriesApproximation?.iteration ?? 0) >= 16, "series approximation skips work")
+let seriesApproximations = centralReference.map {
+    TripleDoublePerturbation.makeSeriesApproximations(
+        scale: 1e-12,
+        aspectRatio: 1.6,
+        reference: $0.orbit,
+        maxIterations: maximumIterations
+    )
+} ?? []
+require(seriesApproximations.count > 1, "series checkpoint ladder is available")
+
 for offset in [(-0.7, -0.35), (0.2, 0.15), (0.65, 0.4)] {
     let scale = 1e-12
     let direct = calculateMandelbrotIterationTripleDouble(
@@ -162,6 +185,29 @@ for offset in [(-0.7, -0.35), (0.2, 0.15), (0.65, 0.4)] {
         maxIterations: maximumIterations
     )
     require(abs(direct - rebased) <= 2, "local rebase at \(offset)")
+
+    let accelerated = TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
+        horizontalOffset: offset.0,
+        verticalOffset: offset.1,
+        scale: scale,
+        references: perturbationGrid,
+        approximation: seriesApproximation,
+        maxIterations: maximumIterations
+    )
+    require(
+        abs(direct - accelerated.iteration) <= 2,
+        "series approximation at \(offset)"
+    )
+
+    let adaptive = TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
+        horizontalOffset: offset.0,
+        verticalOffset: offset.1,
+        scale: scale,
+        references: perturbationGrid,
+        approximations: seriesApproximations,
+        maxIterations: maximumIterations
+    )
+    require(abs(direct - adaptive.iteration) <= 2, "adaptive series at \(offset)")
 }
 
 print("TripleDouble self-test passed")

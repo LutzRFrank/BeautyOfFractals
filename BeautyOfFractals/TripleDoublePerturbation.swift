@@ -12,7 +12,164 @@ nonisolated struct TripleDoublePerturbationReference: Sendable {
     let orbit: TripleDoubleReferenceOrbit
 }
 
+nonisolated struct TripleDoubleSeriesApproximation: Sendable {
+    let iteration: Int
+    let coefficientX: [Double]
+    let coefficientY: [Double]
+}
+
+nonisolated struct TripleDoubleIterationResult: Sendable {
+    let iteration: Int
+    let skippedIterations: Int
+}
+
 nonisolated enum TripleDoublePerturbation {
+    /// Builds a low-order polynomial for the perturbation delta around the
+    /// central reference. Eight independent viewport probes determine the last
+    /// iteration at which the polynomial still agrees with the exact recurrence.
+    static func makeSeriesApproximation(
+        scale: Double,
+        aspectRatio: Double,
+        reference: TripleDoubleReferenceOrbit,
+        maxIterations: Int,
+        termCount: Int = 6
+    ) -> TripleDoubleSeriesApproximation? {
+        makeSeriesApproximations(
+            scale: scale,
+            aspectRatio: aspectRatio,
+            reference: reference,
+            maxIterations: maxIterations,
+            termCount: termCount
+        ).last
+    }
+
+    /// Builds a sparse ladder of safe checkpoints. Each pixel may use the
+    /// latest checkpoint that remains well inside the escape radius.
+    static func makeSeriesApproximations(
+        scale: Double,
+        aspectRatio: Double,
+        reference: TripleDoubleReferenceOrbit,
+        maxIterations: Int,
+        termCount: Int = 6
+    ) -> [TripleDoubleSeriesApproximation] {
+        guard termCount >= 2,
+              scale.isFinite,
+              scale != 0 else { return [] }
+
+        let probes = [
+            (-0.5 * aspectRatio, -0.5), (0.0, -0.5),
+            (0.5 * aspectRatio, -0.5), (-0.5 * aspectRatio, 0.0),
+            (0.5 * aspectRatio, 0.0), (-0.5 * aspectRatio, 0.5),
+            (0.0, 0.5), (0.5 * aspectRatio, 0.5)
+        ]
+        var exactDeltas = probes.map { _ in (x: 0.0, y: 0.0) }
+        var coefficientX = [Double](repeating: 0.0, count: termCount)
+        var coefficientY = [Double](repeating: 0.0, count: termCount)
+        var checkpoints: [TripleDoubleSeriesApproximation] = []
+        var latestValid: TripleDoubleSeriesApproximation?
+        let limit = min(maxIterations, reference.x.count - 1)
+
+        for iteration in 0..<limit {
+            let referenceX = reference.x[iteration]
+            let referenceY = reference.y[iteration]
+            var nextX = [Double](repeating: 0.0, count: termCount)
+            var nextY = [Double](repeating: 0.0, count: termCount)
+
+            for order in 0..<termCount {
+                nextX[order] = 2.0 * (
+                    referenceX * coefficientX[order]
+                        - referenceY * coefficientY[order]
+                )
+                nextY[order] = 2.0 * (
+                    referenceX * coefficientY[order]
+                        + referenceY * coefficientX[order]
+                )
+
+                if order > 0 {
+                    for left in 0..<order {
+                        let right = order - 1 - left
+                        nextX[order] += coefficientX[left] * coefficientX[right]
+                            - coefficientY[left] * coefficientY[right]
+                        nextY[order] += coefficientX[left] * coefficientY[right]
+                            + coefficientY[left] * coefficientX[right]
+                    }
+                }
+            }
+            nextX[0] += 1.0
+            coefficientX = nextX
+            coefficientY = nextY
+
+            var valid = true
+            for probeIndex in probes.indices {
+                let dcX = scale * probes[probeIndex].0
+                let dcY = scale * probes[probeIndex].1
+                let old = exactDeltas[probeIndex]
+                let exactX = 2.0 * (referenceX * old.x - referenceY * old.y)
+                    + old.x * old.x - old.y * old.y + dcX
+                let exactY = 2.0 * (referenceX * old.y + referenceY * old.x)
+                    + 2.0 * old.x * old.y + dcY
+                exactDeltas[probeIndex] = (exactX, exactY)
+
+                let estimated = evaluateSeries(
+                    coefficientX: coefficientX,
+                    coefficientY: coefficientY,
+                    deltaX: dcX,
+                    deltaY: dcY
+                )
+                let error = hypot(estimated.x - exactX, estimated.y - exactY)
+                let tolerance = max(2e-15, hypot(exactX, exactY) * 1e-11)
+                if !error.isFinite || error > tolerance {
+                    valid = false
+                    break
+                }
+            }
+
+            guard valid else { break }
+            let completedIteration = iteration + 1
+            if completedIteration >= 16 {
+                latestValid = TripleDoubleSeriesApproximation(
+                    iteration: completedIteration,
+                    coefficientX: coefficientX,
+                    coefficientY: coefficientY
+                )
+            }
+            let previous = checkpoints.last?.iteration
+            let spacing = max(16, (previous ?? 0) / 3)
+            if completedIteration >= 16,
+               previous == nil || completedIteration >= previous! + spacing {
+                checkpoints.append(latestValid!)
+            }
+        }
+
+        if let latestValid,
+           checkpoints.last?.iteration != latestValid.iteration {
+            checkpoints.append(latestValid)
+        }
+        return checkpoints
+    }
+
+    private static func evaluateSeries(
+        coefficientX: [Double],
+        coefficientY: [Double],
+        deltaX: Double,
+        deltaY: Double
+    ) -> (x: Double, y: Double) {
+        var resultX = 0.0
+        var resultY = 0.0
+
+        for index in coefficientX.indices.reversed() {
+            let multipliedX = resultX * deltaX - resultY * deltaY
+            let multipliedY = resultX * deltaY + resultY * deltaX
+            resultX = multipliedX + coefficientX[index]
+            resultY = multipliedY + coefficientY[index]
+        }
+
+        return (
+            resultX * deltaX - resultY * deltaY,
+            resultX * deltaY + resultY * deltaX
+        )
+    }
+
     static func makeReferenceGrid(
         viewport: TripleDoubleViewport,
         aspectRatio: Double,
@@ -36,6 +193,56 @@ nonisolated enum TripleDoublePerturbation {
                 )
             }
         }
+    }
+
+    /// Builds a single reference orbit with guard precision, then projects the
+    /// orbit to Double for the inexpensive per-pixel perturbation recurrence.
+    /// The extra components are deliberately confined to reference creation.
+    static func makeGuardedCentralReference(
+        viewport: TripleDoubleViewport,
+        maxIterations: Int,
+        componentLimit: Int = 6
+    ) -> [TripleDoublePerturbationReference] {
+        let cx = VariablePrecisionFloat(
+            viewport.centerX,
+            componentLimit: componentLimit
+        )
+        let cy = VariablePrecisionFloat(
+            viewport.centerY,
+            componentLimit: componentLimit
+        )
+        var zx = VariablePrecisionFloat(0, componentLimit: componentLimit)
+        var zy = VariablePrecisionFloat(0, componentLimit: componentLimit)
+        var orbitX = [Double](repeating: 0, count: maxIterations + 1)
+        var orbitY = [Double](repeating: 0, count: maxIterations + 1)
+        var escapedAt = maxIterations
+
+        for iteration in 0..<maxIterations {
+            let nextX = zx.squared() - zy.squared() + cx
+            let nextY = 2.0 * zx * zy + cy
+            zx = nextX
+            zy = nextY
+            orbitX[iteration + 1] = zx.doubleValue
+            orbitY[iteration + 1] = zy.doubleValue
+
+            if zx.squared() + zy.squared()
+                > VariablePrecisionFloat(4, componentLimit: componentLimit) {
+                escapedAt = iteration + 1
+                break
+            }
+        }
+
+        return [
+            TripleDoublePerturbationReference(
+                horizontalOffset: 0,
+                verticalOffset: 0,
+                orbit: TripleDoubleReferenceOrbit(
+                    x: orbitX,
+                    y: orbitY,
+                    escapedAt: escapedAt
+                )
+            )
+        ]
     }
 
     static func nearestReference(
@@ -64,22 +271,90 @@ nonisolated enum TripleDoublePerturbation {
         references: [TripleDoublePerturbationReference],
         maxIterations: Int
     ) -> Int {
+        acceleratedIterationWithLocalRebase(
+            horizontalOffset: horizontalOffset,
+            verticalOffset: verticalOffset,
+            scale: scale,
+            references: references,
+            approximation: nil,
+            maxIterations: maxIterations
+        ).iteration
+    }
+
+    static func acceleratedIterationWithLocalRebase(
+        horizontalOffset: Double,
+        verticalOffset: Double,
+        scale: Double,
+        references: [TripleDoublePerturbationReference],
+        approximation: TripleDoubleSeriesApproximation?,
+        maxIterations: Int
+    ) -> TripleDoubleIterationResult {
+        acceleratedIterationWithLocalRebase(
+            horizontalOffset: horizontalOffset,
+            verticalOffset: verticalOffset,
+            scale: scale,
+            references: references,
+            approximations: approximation.map { [$0] } ?? [],
+            maxIterations: maxIterations
+        )
+    }
+
+    static func acceleratedIterationWithLocalRebase(
+        horizontalOffset: Double,
+        verticalOffset: Double,
+        scale: Double,
+        references: [TripleDoublePerturbationReference],
+        approximations: [TripleDoubleSeriesApproximation],
+        maxIterations: Int
+    ) -> TripleDoubleIterationResult {
         guard var reference = references.first(where: {
             $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
         }) ?? references.first else {
-            return maxIterations
+            return TripleDoubleIterationResult(
+                iteration: maxIterations,
+                skippedIterations: 0
+            )
         }
 
         var dx = 0.0
         var dy = 0.0
         var rebaseCount = 0
+        var startIteration = 0
+        let centralDeltaX = scale * horizontalOffset
+        let centralDeltaY = scale * verticalOffset
 
-        for iteration in 0..<maxIterations {
+        for approximation in approximations.reversed()
+        where approximation.iteration < reference.orbit.x.count
+            && approximation.iteration < reference.orbit.y.count {
+            let estimated = evaluateSeries(
+                coefficientX: approximation.coefficientX,
+                coefficientY: approximation.coefficientY,
+                deltaX: centralDeltaX,
+                deltaY: centralDeltaY
+            )
+            let fullX = reference.orbit.x[approximation.iteration] + estimated.x
+            let fullY = reference.orbit.y[approximation.iteration] + estimated.y
+            let magnitude2 = fullX * fullX + fullY * fullY
+
+            // A generous margin below the escape radius keeps boundary pixels
+            // on the exact recurrence, where their escape iteration matters.
+            if estimated.x.isFinite, estimated.y.isFinite, magnitude2 < 3.0 {
+                dx = estimated.x
+                dy = estimated.y
+                startIteration = approximation.iteration
+                break
+            }
+        }
+
+        for iteration in startIteration..<maxIterations {
             guard iteration + 1 < reference.orbit.x.count,
                   iteration + 1 < reference.orbit.y.count else {
-                return reference.orbit.escapedAt < maxIterations
-                    ? reference.orbit.escapedAt
-                    : maxIterations
+                return TripleDoubleIterationResult(
+                    iteration: reference.orbit.escapedAt < maxIterations
+                        ? reference.orbit.escapedAt
+                        : maxIterations,
+                    skippedIterations: startIteration
+                )
             }
 
             let deltaX = scale
@@ -101,12 +376,18 @@ nonisolated enum TripleDoublePerturbation {
             let fullX = reference.orbit.x[iteration + 1] + dx
             let fullY = reference.orbit.y[iteration + 1] + dy
             if fullX * fullX + fullY * fullY > 4.0 {
-                return iteration + 1
+                return TripleDoubleIterationResult(
+                    iteration: iteration + 1,
+                    skippedIterations: startIteration
+                )
             }
 
             let currentDeltaSquared = dx * dx + dy * dy
             guard currentDeltaSquared.isFinite else {
-                return iteration + 1
+                return TripleDoubleIterationResult(
+                    iteration: iteration + 1,
+                    skippedIterations: startIteration
+                )
             }
 
             if currentDeltaSquared > 0.00001, rebaseCount < 8 {
@@ -140,7 +421,10 @@ nonisolated enum TripleDoublePerturbation {
             }
         }
 
-        return maxIterations
+        return TripleDoubleIterationResult(
+            iteration: maxIterations,
+            skippedIterations: startIteration
+        )
     }
 
 
