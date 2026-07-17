@@ -464,11 +464,15 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     var scaleLo: Double? = nil
 
     var iterations: Int
+    /// The effective target used for the thumbnail's completed render. The
+    /// requested slider value remains in `iterations` so Automatic can make a
+    /// fresh decision when the favorite is opened again.
+    var renderedIterations: Int? = nil
     var renderQualityRawValue: String? = nil
     var created: Date = Date()
     var updated: Date = Date()
     var deleted: Bool = false
-    var schemaVersion: Int = 4
+    var schemaVersion: Int = 5
     var thumbnailPNG: Data? = nil
     var usageCount: Int = 0
 
@@ -522,6 +526,7 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     }
 
     var displayedIterations: Int {
+        if let renderedIterations { return renderedIterations }
         guard let storedRenderQuality else { return iterations }
         return effectiveIterationCount(
             baseIterations: iterations,
@@ -2072,10 +2077,10 @@ The zoom overlay is visible only in the app and is not included in exports.
             return spots.sorted { $0.scale < $1.scale }
         case .iterations:
             return spots.sorted {
-                if $0.iterations == $1.iterations {
+                if $0.displayedIterations == $1.displayedIterations {
                     return $0.created > $1.created
                 }
-                return $0.iterations > $1.iterations
+                return $0.displayedIterations > $1.displayedIterations
             }
         }
     }
@@ -2290,6 +2295,8 @@ The zoom overlay is visible only in the app and is not included in exports.
                 scaleMid: preciseViewport.scale.mid,
                 scaleLo: preciseViewport.scale.lo,
                 iterations: maxIterations,
+                renderedIterations: automaticDisplayedIterations
+                    ?? effectiveIterations,
                 renderQualityRawValue: renderQuality.rawValue,
                 thumbnailPNG: fractalMode == .mandelbrotRelief ? nil : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite())
             )
@@ -4884,17 +4891,19 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
     let referenceIterationBudget = usesGuardedReference && automaticIterationsEnabled
         ? 250_000
         : maxIterations
-    let references = usesGuardedReference
+    let centralGuardedReference = usesGuardedReference
         ? TripleDoublePerturbation.makeGuardedCentralReference(
             viewport: tripleViewport,
             maxIterations: referenceIterationBudget
         )
-        : TripleDoublePerturbation.makeReferenceGrid(
+        : nil
+    let preliminaryReferences = centralGuardedReference.map { [$0] }
+        ?? TripleDoublePerturbation.makeReferenceGrid(
             viewport: tripleViewport,
             aspectRatio: viewportAspectRatio,
             maxIterations: maxIterations
         )
-    let centralReference = references.first(where: {
+    let centralReference = preliminaryReferences.first(where: {
         $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
     })
     let centerEscapeIteration = centralReference?.orbit.escapedAt
@@ -4915,6 +4924,14 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
     } else {
         automaticTarget = maxIterations
     }
+    let references = usesGuardedReference
+        ? preliminaryReferences
+            + TripleDoublePerturbation.makeGuardedSatelliteReferences(
+                viewport: tripleViewport,
+                aspectRatio: viewportAspectRatio,
+                maxIterations: automaticTarget
+            )
+        : preliminaryReferences
     iterationTargetCallback?(automaticTarget)
     let seriesApproximations = usesGuardedReference
         ? []
@@ -4952,6 +4969,20 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
         let agreement = directCenterIteration == hybridCenterIteration
             ? "exact"
             : "delta \(hybridCenterIteration - directCenterIteration)"
+        let globalAnchor = references.max {
+            $0.orbit.escapedAt < $1.orbit.escapedAt
+        }
+        let longestReference = globalAnchor?.orbit.escapedAt ?? automaticTarget
+        let referenceCoverage = longestReference >= automaticTarget
+            ? "through \(automaticTarget)"
+            : "to \(longestReference)"
+        let anchorOffset = globalAnchor.map {
+            String(
+                format: "(%+.3f, %+.3f)",
+                $0.horizontalOffset,
+                $0.verticalOffset
+            )
+        } ?? "unavailable"
 
         statsCallback("""
         Extreme Precision\(usesGuardedReference ? " · Guarded Reference (6×Double)" : "")
@@ -4962,6 +4993,8 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
         Iterations automatic: \(automaticTarget)
         Center reserve: \(centerEscapeIteration < referenceIterationBudget ? "15%" : "limit reached — may be insufficient")
         Reference orbits: \(references.count)
+        Global anchor: \(anchorOffset)
+        Reference coverage: \(referenceCoverage)
         Series terms: \(seriesApproximations.last?.coefficientX.count ?? 0)
         Series checkpoints: \(seriesApproximations.count)
         Series skip: \(seriesApproximations.last?.iteration ?? 0) iterations

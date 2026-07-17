@@ -23,6 +23,27 @@ nonisolated struct TripleDoubleIterationResult: Sendable {
     let skippedIterations: Int
 }
 
+nonisolated private final class TripleDoubleReferenceResults: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [TripleDoublePerturbationReference?]
+
+    init(count: Int) {
+        storage = [TripleDoublePerturbationReference?](repeating: nil, count: count)
+    }
+
+    func set(_ reference: TripleDoublePerturbationReference, at index: Int) {
+        lock.lock()
+        storage[index] = reference
+        lock.unlock()
+    }
+
+    var values: [TripleDoublePerturbationReference] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage.compactMap { $0 }
+    }
+}
+
 nonisolated enum TripleDoublePerturbation {
     /// Builds a low-order polynomial for the perturbation delta around the
     /// central reference. Eight independent viewport probes determine the last
@@ -195,26 +216,34 @@ nonisolated enum TripleDoublePerturbation {
         }
     }
 
-    /// Builds a single reference orbit with guard precision, then projects the
+    /// Builds one reference orbit with guard precision, then projects the
     /// orbit to Double for the inexpensive per-pixel perturbation recurrence.
     /// The extra components are deliberately confined to reference creation.
-    static func makeGuardedCentralReference(
+    static func makeGuardedReference(
         viewport: TripleDoubleViewport,
+        horizontalOffset: Double,
+        verticalOffset: Double,
         maxIterations: Int,
         componentLimit: Int = 6
-    ) -> [TripleDoublePerturbationReference] {
+    ) -> TripleDoublePerturbationReference {
+        let precisionScale = VariablePrecisionFloat(
+            viewport.scale,
+            componentLimit: componentLimit
+        )
         let cx = VariablePrecisionFloat(
             viewport.centerX,
             componentLimit: componentLimit
-        )
+        ) + precisionScale * horizontalOffset
         let cy = VariablePrecisionFloat(
             viewport.centerY,
             componentLimit: componentLimit
-        )
+        ) + precisionScale * verticalOffset
         var zx = VariablePrecisionFloat(0, componentLimit: componentLimit)
         var zy = VariablePrecisionFloat(0, componentLimit: componentLimit)
-        var orbitX = [Double](repeating: 0, count: maxIterations + 1)
-        var orbitY = [Double](repeating: 0, count: maxIterations + 1)
+        var orbitX = [0.0]
+        var orbitY = [0.0]
+        orbitX.reserveCapacity(maxIterations + 1)
+        orbitY.reserveCapacity(maxIterations + 1)
         var escapedAt = maxIterations
 
         for iteration in 0..<maxIterations {
@@ -222,8 +251,8 @@ nonisolated enum TripleDoublePerturbation {
             let nextY = 2.0 * zx * zy + cy
             zx = nextX
             zy = nextY
-            orbitX[iteration + 1] = zx.doubleValue
-            orbitY[iteration + 1] = zy.doubleValue
+            orbitX.append(zx.doubleValue)
+            orbitY.append(zy.doubleValue)
 
             if zx.squared() + zy.squared()
                 > VariablePrecisionFloat(4, componentLimit: componentLimit) {
@@ -232,17 +261,82 @@ nonisolated enum TripleDoublePerturbation {
             }
         }
 
-        return [
-            TripleDoublePerturbationReference(
-                horizontalOffset: 0,
-                verticalOffset: 0,
-                orbit: TripleDoubleReferenceOrbit(
-                    x: orbitX,
-                    y: orbitY,
-                    escapedAt: escapedAt
-                )
+        return TripleDoublePerturbationReference(
+            horizontalOffset: horizontalOffset,
+            verticalOffset: verticalOffset,
+            orbit: TripleDoubleReferenceOrbit(
+                x: orbitX,
+                y: orbitY,
+                escapedAt: escapedAt
             )
-        ]
+        )
+    }
+
+    static func makeGuardedCentralReference(
+        viewport: TripleDoubleViewport,
+        maxIterations: Int,
+        componentLimit: Int = 6
+    ) -> TripleDoublePerturbationReference {
+        makeGuardedReference(
+            viewport: viewport,
+            horizontalOffset: 0,
+            verticalOffset: 0,
+            maxIterations: maxIterations,
+            componentLimit: componentLimit
+        )
+    }
+
+    private static func makeGuardedReferences(
+        viewport: TripleDoubleViewport,
+        offsets: [(Double, Double)],
+        maxIterations: Int,
+        componentLimit: Int
+    ) -> [TripleDoublePerturbationReference] {
+        let results = TripleDoubleReferenceResults(count: offsets.count)
+
+        DispatchQueue.concurrentPerform(iterations: offsets.count) { index in
+            let offset = offsets[index]
+            results.set(
+                makeGuardedReference(
+                    viewport: viewport,
+                    horizontalOffset: offset.0,
+                    verticalOffset: offset.1,
+                    maxIterations: maxIterations,
+                    componentLimit: componentLimit
+                ),
+                at: index
+            )
+        }
+        return results.values
+    }
+
+    /// Eight concurrent candidates cover a stable 3×3 viewport grid around
+    /// the separately generated centre reference.
+    static func makeGuardedSatelliteReferences(
+        viewport: TripleDoubleViewport,
+        aspectRatio: Double,
+        maxIterations: Int,
+        componentLimit: Int = 6
+    ) -> [TripleDoublePerturbationReference] {
+        let fractions = [-0.36, 0.0, 0.36]
+        let offsets = fractions.flatMap { verticalFraction in
+            fractions.compactMap { horizontalFraction
+                -> (Double, Double)? in
+                guard horizontalFraction != 0 || verticalFraction != 0 else {
+                    return nil
+                }
+                return (
+                    horizontalFraction * aspectRatio,
+                    verticalFraction
+                )
+            }
+        }
+        return makeGuardedReferences(
+            viewport: viewport,
+            offsets: offsets,
+            maxIterations: maxIterations,
+            componentLimit: componentLimit
+        )
     }
 
     static func nearestReference(
@@ -307,9 +401,18 @@ nonisolated enum TripleDoublePerturbation {
         approximations: [TripleDoubleSeriesApproximation],
         maxIterations: Int
     ) -> TripleDoubleIterationResult {
-        guard var reference = references.first(where: {
-            $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
-        }) ?? references.first else {
+        // Every pixel starts from the same reference. Screen-space selection
+        // creates visible Voronoi tiles when two projected reference orbits
+        // accumulate slightly different rounding errors. At guarded depths the
+        // longest-lived orbit is the best-conditioned global anchor; the other
+        // orbits are used only for state-preserving rebases. Series coefficients
+        // are built around the centre, so their shallower path remains central.
+        let initialReference = approximations.isEmpty
+            ? references.max { $0.orbit.escapedAt < $1.orbit.escapedAt }
+            : references.first(where: {
+                $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
+            }) ?? references.first
+        guard var reference = initialReference else {
             return TripleDoubleIterationResult(
                 iteration: maxIterations,
                 skippedIterations: 0
@@ -347,6 +450,36 @@ nonisolated enum TripleDoublePerturbation {
         }
 
         for iteration in startIteration..<maxIterations {
+            if iteration + 1 >= reference.orbit.x.count
+                || iteration + 1 >= reference.orbit.y.count {
+                let currentX = reference.orbit.x[iteration] + dx
+                let currentY = reference.orbit.y[iteration] + dy
+                let candidate = references
+                    .filter {
+                        iteration + 1 < $0.orbit.x.count
+                            && iteration + 1 < $0.orbit.y.count
+                    }
+                    .min {
+                        let leftX = currentX - $0.orbit.x[iteration]
+                        let leftY = currentY - $0.orbit.y[iteration]
+                        let rightX = currentX - $1.orbit.x[iteration]
+                        let rightY = currentY - $1.orbit.y[iteration]
+                        return leftX * leftX + leftY * leftY
+                            < rightX * rightX + rightY * rightY
+                    }
+
+                guard let candidate else {
+                    return TripleDoubleIterationResult(
+                        iteration: maxIterations,
+                        skippedIterations: startIteration
+                    )
+                }
+                reference = candidate
+                dx = currentX - candidate.orbit.x[iteration]
+                dy = currentY - candidate.orbit.y[iteration]
+                rebaseCount += 1
+            }
+
             guard iteration + 1 < reference.orbit.x.count,
                   iteration + 1 < reference.orbit.y.count else {
                 return TripleDoubleIterationResult(
