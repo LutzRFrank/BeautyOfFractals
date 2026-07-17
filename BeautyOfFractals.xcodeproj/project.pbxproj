@@ -37,6 +37,10 @@
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* BeautyOfFractals.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeautyOfFractals.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		552B22312FECEEA200F5DCD2 /* BeautyOfFractals iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "BeautyOfFractals iOS.entitlements"; sourceTree = "<group>"; };
+		55CC8814300A897E00A8575A /* Description.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = Description.md; path = AppStore/Description.md; sourceTree = "<group>"; };
+		55CC8815300A897E00A8575A /* PromotionalText.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = PromotionalText.md; path = AppStore/PromotionalText.md; sourceTree = "<group>"; };
+		55CC8816300A897E00A8575A /* ReleaseNotes.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = ReleaseNotes.md; path = AppStore/ReleaseNotes.md; sourceTree = "<group>"; };
+		55CC8817300A897E00A8575A /* ReviewNotes.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = ReviewNotes.md; path = AppStore/ReviewNotes.md; sourceTree = "<group>"; };
 		55E4664B2FE1155C00DC3CA5 /* BeautyOfFractals iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautyOfFractals iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		55E72B5A2FE7F61E004B76DB /* BeautyFractals Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BeautyFractals Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -116,6 +120,10 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				55CC8814300A897E00A8575A /* Description.md */,
+				55CC8815300A897E00A8575A /* PromotionalText.md */,
+				55CC8816300A897E00A8575A /* ReleaseNotes.md */,
+				55CC8817300A897E00A8575A /* ReviewNotes.md */,
 				552B22312FECEEA200F5DCD2 /* BeautyOfFractals iOS.entitlements */,
 				000000000000000000000010 /* BeautyOfFractals */,
 				55E4664C2FE1155C00DC3CA5 /* BeautyOfFractals-iOS */,

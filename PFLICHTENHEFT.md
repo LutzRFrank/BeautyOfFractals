@@ -1,10 +1,10 @@
 # Pflichtenheft – Beauty of Fractals
 
-Stand: 14. Juli 2026
+Stand: 17. Juli 2026
 
 Dokumentstatus: Lebendes Produktdokument
 
-Aktuelle Produktlinie: 2.10.1
+Aktuelle Produktlinie: 2.11
 
 ## 1. Zweck des Dokuments
 
@@ -79,25 +79,36 @@ bleiben, soweit die jeweilige Funktion unterstützt wird.
 | FR-103 | Ein Renderstatus zeigt Fortschritt, Iterationen und verstrichene Zeit. | Soll | Umgesetzt | Das Panel aktualisiert sich während eines Renders und zeigt einen abgeschlossenen Zustand. |
 | FR-104 | Der Renderstatus kann über Oberfläche und `Shift–Cmd–P` geöffnet oder geschlossen werden. | Soll | Umgesetzt | Button und Tastaturkürzel schalten dasselbe Panel. |
 | FR-105 | Technische Renderdiagnosen können bei Bedarf eingeblendet werden. | Soll | Umgesetzt | Diagnoseansicht zeigt die für den aktuellen Render verfügbaren Werte. |
-| FR-106 | Für Zoomtiefen oberhalb der zuverlässig nutzbaren Double-Double-Präzision steht ein Triple-Double-gestütztes Refinement zur Verfügung. | Soll | Umgesetzt | Definierte Referenzpunkte werden ohne Koordinatensprung und mit gegenüber Double-Double höherer stabiler Präzision gerendert. |
-| FR-107 | Die App wählt Extreme Precision nur dann, wenn günstigere Präzisionsmethoden nicht mehr ausreichen. | Muss | Umgesetzt | Automatic bleibt bei flacheren Zooms auf der schnellsten stabilen Methode und wechselt bei Bedarf über Direct, Deep Reference und Maximum Precision zu Extreme Precision. |
+| FR-106 | Für Zoomtiefen oberhalb der zuverlässig nutzbaren Double-Double-Präzision steht eine Guarded-Reference-Methode mit 6xDouble-Rechnung zur Verfügung. | Soll | Umgesetzt | Definierte Referenzpunkte werden ohne Koordinatensprung und mit gegenüber Double-Double höherer stabiler Präzision gerendert. |
+| FR-107 | Die App wählt Extreme Precision nur dann, wenn günstigere Präzisionsmethoden nicht mehr ausreichen. | Muss | Umgesetzt | Automatic bleibt bei flacheren Zooms auf der schnellsten stabilen Methode und wechselt bei Bedarf über Direct, Deep Reference, Maximum Precision und Extreme Precision. |
 | FR-108 | Extreme Precision berechnet direkt einen begrenzten, responsiven Endrender, ohne zuvor eine potenziell falsche Double-Vorschau anzuzeigen. | Soll | Umgesetzt | Das Endergebnis wird ohne Naht-, Kachel- oder Methodenwechselartefakte aufgebaut; Fortschritt und Abbruch bleiben verfügbar. |
-| FR-109 | Renderstatus und Diagnosen weisen die tatsächlich verwendete Präzisions- und Refinement-Methode aus. | Soll | Umgesetzt | Bei Extreme Precision sind Modus, Triple-Double-Mittelpunktsvergleich, Referenzorbit-Anzahl und relevante Präzisionsdaten erkennbar. |
+| FR-109 | Renderstatus und Diagnosen weisen die tatsächlich verwendete Präzisions- und Refinement-Methode aus. | Soll | Umgesetzt | Bei Extreme Precision sind Modus, Guarded-Reference-Strategie, Ankerwahl, Referenzorbit-Anzahl und relevante Präzisionsdaten erkennbar. |
+| FR-110 | Automatic setzt die effektive Iterationszahl bei Deep-Zoom-Ansichten anhand des Mittelpunkts plus Sicherheitsreserve. | Muss | Umgesetzt | Bei langsam entkommenden Mittelpunkten liegt die automatisch verwendete Iterationszahl über der angeforderten Basis und wird in den Diagnosen ausgewiesen. |
+| FR-111 | Nutzer können für Deep-Zoom-Ansichten bis zu 250.000 Iterationen manuell wählen. | Soll | Umgesetzt | Slider, Status und Renderpipeline akzeptieren den erweiterten Bereich auf macOS und iOS. |
+| FR-112 | Die App kann mehrere Referenzanker adaptiv wählen und bei unzureichender Abdeckung nachbessern. | Soll | Umgesetzt | Diagnosen zeigen mehrere Referenzorbits, Ankersuche und Abdeckungsinformationen, wenn die Ansicht dies erfordert. |
+| FR-113 | Deep-Zoom-Favoriten speichern die effektiv verwendete Iterationszahl und nicht nur den ursprünglichen Sliderwert. | Muss | Umgesetzt | Neu gespeicherte Favoriten zeigen nach erneutem Öffnen und nach iCloud-Synchronisierung die wirksame Iterationszahl. |
+| FR-114 | Die App kennzeichnet sehr tiefe Mandelbrot-Ergebnisse oberhalb der breit geprüften Zone als experimentell. | Muss | Umgesetzt | Ansichten um und oberhalb der e50/e53-Testzone tragen eine Experimental-Kennzeichnung, wenn die Qualität vom Fundort abhängt. |
 
 #### Technische Festlegung zu Extreme Precision
 
-Extreme Precision kombiniert eine exakte Triple-Double-Repräsentation des
-Viewports mit einem lokalen 3×3-Feld aus neun hochpräzisen Referenzorbits. Die
-Pixelberechnung verwendet ein projiziertes Double-Perturbations-/Rebase-Verfahren,
-während ein direkter Triple-Double-Mittelpunktslauf die Klassifikation absichert.
-Automatic wählt abhängig von Zoomtiefe und Stabilität zwischen Direct, Deep
-Reference, Maximum Precision und Extreme Precision.
+Extreme Precision kombiniert eine hochpräzise Viewport-Repräsentation mit
+Guarded-Reference-Rendering auf Basis von 6xDouble-Rechnung. Die App sucht
+adaptive Referenzanker, ergänzt bei Bedarf weitere Referenzen zur
+Abdeckungsreparatur und vergleicht die Mittelpunktsklassifikation gegen einen
+direkten Lauf. Automatic wählt abhängig von Zoomtiefe und Stabilität zwischen
+Direct, Deep Reference, Maximum Precision und Extreme Precision.
 
-Der verlässlich beworbene Bereich reicht bei geeigneten Mandelbrot-Fundstellen bis
-ungefähr `10^38×`. Zooms um `10^39×` bilden eine ausdrücklich experimentelle
-Spitzenzone, die in realen Tests erreicht wurde. Oberhalb davon können je nach
-Fundstelle sichtbare Perturbationsartefakte auftreten; die Anzeige darf solche
-Ergebnisse nicht als allgemein garantierte Präzision darstellen.
+Die Iterationsautomatik verwendet die Escape-Zeit des Mittelpunkts als
+Orientierung und addiert eine Reserve. Dadurch werden Slow-Escape-Strukturen
+bei tiefen Zooms häufiger sichtbar, ohne dass der Nutzer vor jedem Render eine
+passende Iterationszahl raten muss.
+
+Der verlässlich beworbene Bereich reicht bei geeigneten Mandelbrot-Fundstellen
+bis in ausgewählte `10^50x`-Ansichten. Tests darüber hinaus, einschließlich
+einzelner `10^53x`-Fundstellen, bilden eine ausdrücklich experimentelle
+Spitzenzone. Oberhalb davon können je nach Fundstelle sichtbare
+Perturbationsartefakte auftreten; die Anzeige darf solche Ergebnisse nicht als
+allgemein garantierte Präzision darstellen.
 
 ### 5.3 Paletten und Erscheinungsbild
 
@@ -125,7 +136,7 @@ Ergebnisse nicht als allgemein garantierte Präzision darstellen.
 | FR-308 | Das Austauschformat ist versioniert und vorwärts erweiterbar. | Muss | Geplant | Dateien enthalten eine Formatversion; unbekannte neuere Pflichtfelder führen zu einer verständlichen Fehlermeldung statt zu Datenverlust. |
 | FR-309 | Fehlerhafte oder manipulierte Importdateien dürfen weder bestehende Favoriten beschädigen noch unkontrolliert Dateien außerhalb des vorgesehenen Imports lesen oder schreiben. | Muss | Geplant | Validierung erfolgt vor dem Merge; bei einem Fehler bleibt der bestehende Datenbestand unverändert. |
 | FR-310 | Favoriten der Power-of-n-Familie bewahren Exponent und passende Vorschau. | Muss | Umgesetzt | Favorit und Thumbnail zeigen nach Speichern, Synchronisieren und erneutem Öffnen denselben Exponenten und Bildausschnitt. |
-| FR-311 | Deep-Zoom-Favoriten bewahren Triple-Double-Koordinaten, Renderqualität und effektive Iterationszahl. | Muss | Umgesetzt | Ein Favorit kann auf macOS und iOS ohne vermeidbaren Präzisionsverlust geöffnet werden; ältere Favoriten bleiben kompatibel. |
+| FR-311 | Deep-Zoom-Favoriten bewahren hochpräzise Koordinaten, Renderqualität und effektive Iterationszahl. | Muss | Umgesetzt | Ein Favorit kann auf macOS und iOS ohne vermeidbaren Präzisionsverlust geöffnet werden; ältere Favoriten bleiben kompatibel. |
 
 #### Vorgaben für das portable Favoritenformat
 
@@ -140,7 +151,15 @@ Ergebnisse nicht als allgemein garantierte Präzision darstellen.
 - Der Export darf keine iCloud-internen URLs, Sicherheits-Token oder
   gerätespezifischen Sandbox-Pfade enthalten.
 
-### 5.5 Export
+### 5.5 Apple Watch Companion
+
+| ID | Anforderung | Priorität | Status | Abnahmekriterium |
+|---|---|---:|---|---|
+| FR-350 | Die Apple Watch zeigt den Fortschritt eines laufenden iPhone-Renders als kompakten Statusring. | Soll | Umgesetzt | Während längerer Renders erscheint ein Kreis mit prozentualem Fortschritt. |
+| FR-351 | Nach Abschluss eines Renders zeigt die Apple Watch eine Vorschau des aktuellen Fraktalbildes. | Soll | Umgesetzt | Das fertige Bild wird auf der Watch aktualisiert, sobald der iPhone-Render abgeschlossen ist. |
+| FR-352 | Die Apple Watch zeigt den aktuellen Zoomwert in einer kompakten Zeile über der Vorschau. | Soll | Umgesetzt | Der angezeigte Zoom entspricht dem vom iPhone übertragenen Viewport. |
+
+### 5.6 Export
 
 | ID | Anforderung | Priorität | Status | Abnahmekriterium |
 |---|---|---:|---|---|
@@ -150,7 +169,7 @@ Ergebnisse nicht als allgemein garantierte Präzision darstellen.
 | FR-403 | Erfolg oder Fehler eines Exports wird nachvollziehbar angezeigt. | Muss | Umgesetzt | Nach Abschluss ist der Ergebniszustand sichtbar und schließt sich gemäß UI-Konzept wieder. |
 | FR-404 | Deep-Zoom-Exporte werden für die gewählte Zielauflösung mit dem präzisen Viewport neu berechnet. | Muss | Umgesetzt | macOS und iOS erzeugen bei Extreme Precision ein vollständiges, kachelfreies PNG in der gewählten Größe statt eine hochskalierte Bildschirmvorschau. |
 
-### 5.6 Animierte Zoomreise
+### 5.7 Animierte Zoomreise
 
 Die animierte Zoomreise überführt gespeicherte Einzelansichten in eine fließende
 „Reise in die Unendlichkeit“.
@@ -178,7 +197,7 @@ Die animierte Zoomreise überführt gespeicherte Einzelansichten in eine fließe
   Favoriten; eine automatische geometrische Nachbarschaftserkennung ist nicht
   Voraussetzung der ersten Version.
 
-### 5.7 Animierte Iterationsreise
+### 5.8 Animierte Iterationsreise
 
 Die Iterationsreise hält den räumlichen Viewport fest und macht sichtbar, wie
 sich extrem langsam entkommende Bereiche mit wachsender Berechnungstiefe vom
@@ -194,7 +213,7 @@ scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
 | FR-605 | Jeder Frame verwendet die für Viewport und Iterationstiefe erforderliche Präzisionsmethode. | Muss | Geplant | Auch im Extreme-Precision-Bereich entstehen keine Kachel-, Naht- oder Methodenwechselartefakte. |
 | FR-606 | Eine Iterationsreise kann als Vorschau gestartet, pausiert und abgebrochen werden. | Soll | In Arbeit | Alle drei Aktionen reagieren kontrolliert; Ausgangsansicht und Favoriten bleiben unverändert. |
 | FR-607 | Die Iterationsreise kann als Videodatei exportiert werden. | Soll | Geplant | Das Video besitzt die gewählte Auflösung, Bildrate und Dauer, enthält keine Bedienelemente und reproduziert die konfigurierte Iterationsentwicklung. |
-| FR-608 | Einzelne Iterationsstufen können als vergleichbare Schlüsselbilder ausgegeben werden. | Kann | Geplant | Eine gewählte Folge, beispielsweise 61.440, 96.000 und 128.000 Iterationen, wird mit identischem Viewport und dokumentierten Parametern erzeugt. |
+| FR-608 | Einzelne Iterationsstufen können als vergleichbare Schlüsselbilder ausgegeben werden. | Kann | Geplant | Eine gewählte Folge, beispielsweise 96.000, 168.000 und 250.000 Iterationen, wird mit identischem Viewport und dokumentierten Parametern erzeugt. |
 
 #### Fachliche Regeln für Iterationsreisen
 
@@ -213,8 +232,9 @@ scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
   adaptiv gedrosselt, damit progressive Frames sichtbar fertigstellen können.
   Erst im zeitlich nicht mehr echtzeitfähigen Extreme-Precision-Bereich wird
   auf den geplanten, vollständig ausgerenderten Offline-Videoexport verwiesen.
-- Die e39-Slow-Escape-Fundstelle mit Vergleichsbildern bei 61.440, 96.000 und
-  128.000 Iterationen dient als Referenzfall für Abnahme und Demonstration.
+- Eine e48/e50-Slow-Escape-Fundstelle mit Vergleichsbildern bei 96.000,
+  168.000 und 250.000 Iterationen dient als Referenzfall für Abnahme und
+  Demonstration.
 
 ## 6. Nichtfunktionale Anforderungen
 
@@ -233,9 +253,11 @@ scheinbaren Innenraum zur fein aufgelösten Escape-Struktur entwickeln.
 - Favoriten und zugehörige Vorschaubilder werden nur für die Produktfunktion
   gespeichert.
 - iCloud-Daten liegen im für Beauty of Fractals konfigurierten Container.
+- Apple Watch-Daten werden über WatchConnectivity zwischen dem iPhone und der
+  gekoppelten Watch übertragen.
 - Bildexporte werden ausschließlich auf ausdrückliche Nutzeraktion erzeugt.
-- Die App soll keine Analyse- oder Trackingdaten ohne eine gesondert beschlossene
-  und dokumentierte Anforderung übertragen.
+- Die App verwendet keine Entwickler-Server, keine Analyse- und keine
+  Trackingdienste.
 
 ## 8. Abgrenzung
 
@@ -248,6 +270,18 @@ Folgende Punkte sind derzeit nicht Bestandteil einer verbindlichen Anforderung:
 - verlustfreie Echtzeit-Videoberechnung bei beliebiger Deep-Zoom-Tiefe
 
 ## 9. Release-Leitlinie
+
+### Produktlinie 2.11
+
+- Guarded Extreme Precision mit 6xDouble-Referenzrechnung
+- adaptive Referenzanker mit Abdeckungsreparatur für schwierige Deep-Zooms
+- automatische Iterationswahl aus Mittelpunkts-Escape-Zeit plus Reserve
+- manueller Deep-Bereich bis 250.000 Iterationen auf macOS, iPhone und iPad
+- effektiv verwendete Iterationen in Favoriten, Anzeige und Diagnosen
+- iCloud-Favoriten mit aktuellen Deep-Zoom-Daten über Mac, iPhone und iPad
+- Apple Watch mit Renderstatusring, fertigem Vorschaubild und Zoomanzeige
+- ausgewählte Mandelbrot-Ansichten um `10^50x`; tiefere Fundstellen bleiben
+  experimentell
 
 ### Produktlinie 2.10.1
 

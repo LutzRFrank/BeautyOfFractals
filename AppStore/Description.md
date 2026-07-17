@@ -2,42 +2,79 @@
 
 ## macOS
 
-Beauty of Fractals turns mathematical structures into an immersive visual journey on your Mac.
+Beauty of Fractals turns mathematical structures into an immersive visual
+journey on your Mac.
 
-Explore the Mandelbrot set and a diverse collection of related fractals with smooth navigation, fast Metal rendering, high-precision deep zooms, and expressive color palettes. Move from monumental shapes to delicate filaments, save favorite locations, and export your discoveries as high-resolution PNG images.
+Explore the Mandelbrot set and a diverse collection of related fractals with
+smooth navigation, fast Metal rendering, precise CPU deep zooms, expressive
+palettes, iCloud-synced favorite spots, and local high-resolution PNG export.
 
 FEATURES
 
-- Explore Mandelbrot, Power of n (2–12), Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight Rainbows
+- Explore Mandelbrot, Power of n (2-12), Julia, Burning Ship, Tricorn, Celtic,
+  Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight
+  Rainbows
 - Navigate fluidly with zooming and panning
-- Reveal deep Mandelbrot structures around 10^38× with automatic Extreme Precision and explore an experimental frontier around 10^39×
-- Choose from a wide range of distinctive color palettes, including Aurora, Auric, and Pearl with iridescent detail and organic marble interiors
-- Change the exponent of the Power of n family interactively and discover new symmetries
-- Adjust quality and iteration depth while watching the image respond
-- Save and revisit favorite fractal locations
-- Export true high-resolution PNG images recalculated for the selected output size, including supersampled Ultra Export options where available
+- Use Automatic precision selection from fast interactive views through guarded
+  Extreme Precision
+- Reveal selected Mandelbrot structures around 10^50x, with deeper views
+  available as an experimental frontier
+- Render difficult deep zooms with adaptive reference anchors and coverage
+  repair
+- Let the app choose an iteration budget from the center orbit plus a reserve,
+  or select up to 250,000 iterations manually
+- Save and revisit precise favorite spots with thumbnails, palette, quality,
+  mode, and effective iteration counts
+- Sync favorites through iCloud across Mac, iPhone, and iPad
+- Follow longer renders on Apple Watch through the paired iPhone app
+- Choose from a wide range of distinctive color palettes, including Aurora,
+  Auric, Pearl, Rainbows, and Deep Current
+- Export true high-resolution PNG images recalculated locally for the selected
+  output size
 - Hide the controls for a clean, immersive gallery view
-- Monitor advanced renders with optional status and diagnostic panels
+- Inspect render status and advanced diagnostics when you want to see what the
+  precision engine is doing
 
-Beauty of Fractals is designed for exploration. There are no accounts, advertisements, analytics, or tracking. Rendering and export happen locally on your Mac.
+Beauty of Fractals is designed for exploration. There are no accounts,
+advertisements, analytics, or tracking. Rendering and export happen locally on
+your Mac. Optional iCloud sync and Apple Watch communication use Apple system
+services.
 
 ## iPhone and iPad
 
-Beauty of Fractals turns mathematical structures into an immersive visual journey for iPhone and iPad.
+Beauty of Fractals turns mathematical structures into an immersive visual
+journey for iPhone and iPad.
 
-Explore the Mandelbrot set and a diverse collection of related fractals with natural touch navigation, fast Metal rendering, high-precision deep zooms, and expressive color palettes. Move from monumental shapes to delicate filaments, save favorite locations, and export your discoveries as PNG images.
+Explore the Mandelbrot set and a diverse collection of related fractals with
+natural touch navigation, fast Metal rendering, precise CPU deep zooms,
+expressive palettes, iCloud-synced favorite spots, PNG export, and Apple Watch
+render mirroring.
 
 FEATURES
 
-- Explore Mandelbrot, Power of n (2–12), Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight Rainbows
+- Explore Mandelbrot, Power of n (2-12), Julia, Burning Ship, Tricorn, Celtic,
+  Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight
+  Rainbows
 - Navigate naturally with pinch-to-zoom and touch gestures
-- Reveal deep Mandelbrot structures around 10^38× with automatic Extreme Precision and explore an experimental frontier around 10^39×
-- Choose from a wide range of distinctive color palettes, including Aurora, Auric, and Pearl with iridescent detail and organic marble interiors
-- Change the exponent of the Power of n family interactively and discover new symmetries
-- Adjust quality and iteration depth while watching the image respond
-- Save and revisit favorite fractal locations
+- Use Automatic precision selection from fast interactive views through guarded
+  Extreme Precision
+- Reveal selected Mandelbrot structures around 10^50x, with deeper views
+  available as an experimental frontier
+- Render difficult deep zooms with adaptive reference anchors and coverage
+  repair
+- Let the app choose an iteration budget from the center orbit plus a reserve,
+  or select up to 250,000 iterations manually
+- Save and revisit precise favorite spots with thumbnails, palette, quality,
+  mode, and effective iteration counts
+- Sync favorites through iCloud across iPhone, iPad, and Mac
+- See render progress, final previews, and the current zoom on Apple Watch
+- Choose from expressive color palettes, including Aurora, Auric, Pearl,
+  Rainbows, and Deep Current
 - Export PNG images recalculated locally for the selected output size
-- Follow longer calculations with clear render and export status panels
 - Collapse the controls for an unobstructed view of the fractal
+- Follow longer calculations with clear render status and diagnostics
 
-Beauty of Fractals is designed for exploration. There are no accounts, advertisements, analytics, or tracking. Rendering and export happen locally on your device.
+Beauty of Fractals is designed for exploration. There are no accounts,
+advertisements, analytics, or tracking. Rendering and export happen locally on
+your device. Optional iCloud sync and Apple Watch communication use Apple
+system services.
