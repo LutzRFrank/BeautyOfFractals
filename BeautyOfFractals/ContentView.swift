@@ -85,6 +85,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
     case power11 = 19
     case power12 = 20
     case power2 = 21
+    case mandelbrotPlateau = 22
 
     nonisolated var powerExponent: Int? {
         switch self {
@@ -128,6 +129,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Mandelbulb 3D"
         case .mandelbrotRelief:
             return "Mandelbrot Relief"
+        case .mandelbrotPlateau:
+            return "Mandelbrot Plateau"
         case .mandelbox3D:
             return "Mandelbox 3D"
         case .newton:
@@ -157,6 +160,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Mandelbulb"
         case .mandelbrotRelief:
             return "Relief"
+        case .mandelbrotPlateau:
+            return "Plateau"
         case .mandelbox3D:
             return "Mandelbox"
         case .newton:
@@ -186,6 +191,8 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return "Mandelbulb3D"
         case .mandelbrotRelief:
             return "MandelbrotRelief"
+        case .mandelbrotPlateau:
+            return "MandelbrotPlateau"
         case .mandelbox3D:
             return "Mandelbox3D"
         case .newton:
@@ -213,7 +220,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         case .mandelbulb3D:
             return 0.0
-        case .mandelbrotRelief:
+        case .mandelbrotRelief, .mandelbrotPlateau:
             return -0.5
         case .mandelbox3D:
             return 0.0
@@ -242,7 +249,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 0.0
         case .mandelbulb3D:
             return 0.0
-        case .mandelbrotRelief:
+        case .mandelbrotRelief, .mandelbrotPlateau:
             return 0.0
         case .mandelbox3D:
             return 0.0
@@ -271,7 +278,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
             return 3.0
         case .mandelbulb3D:
             return 2.8
-        case .mandelbrotRelief:
+        case .mandelbrotRelief, .mandelbrotPlateau:
             return 3.0
         case .mandelbox3D:
             return 2.8
@@ -288,7 +295,7 @@ enum FractalMode: Int, CaseIterable, Identifiable {
 
     var supportsHighPrecisionPreview: Bool {
         switch self {
-        case .mandelbrot, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows, .celtic, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+        case .mandelbrot, .mandelbrotPlateau, .julia, .burningShip, .tricorn, .kleinian, .newton, .eightRainbows, .celtic, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return true
         case .mandelbrotRelief, .mandelbulb3D, .mandelbox3D:
             return false
@@ -831,6 +838,7 @@ private func makeFavoriteThumbnailPNG(
     centerY: Double,
     scale: Double,
     iterations: Int,
+    plateauTiltDegrees: Double = 82.0,
     viewportAspectRatio: Double = 16.0 / 10.0
 ) -> Data? {
     guard let image = renderFractal(
@@ -842,6 +850,7 @@ private func makeFavoriteThumbnailPNG(
         centerY: centerY,
         scale: scale,
         maxIterations: max(300, min(iterations, 3_000)),
+        plateauTiltDegrees: plateauTiltDegrees,
         viewportAspectRatio: viewportAspectRatio
     ) else {
         return nil
@@ -941,6 +950,7 @@ struct ContentView: View {
     )
 
     @State private var maxIterations: Int = 300
+    @State private var plateauTiltDegrees: Double = 82.0
     @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
@@ -1088,6 +1098,7 @@ struct ContentView: View {
                 scale: $scale,
                 preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
+                plateauTiltDegrees: plateauTiltDegrees,
                 colorNormalizationIterations: showIterationJourneyPanel && journeyColorMode == .stable
                     ? journeyStartIterations
                     : nil,
@@ -1487,7 +1498,13 @@ The zoom overlay is visible only in the app and is not included in exports.
                             } label: {
                                 Text("\(deepRenderMethod == method ? "◉" : "○")  \(method.rawValue)")
                             }
-                            .disabled(fractalMode != .mandelbrot)
+                            .disabled(
+                                fractalMode != .mandelbrot
+                                    && !(
+                                        fractalMode == .mandelbrotPlateau
+                                            && (method == .automatic || method == .directDouble)
+                                    )
+                            )
                         }
 
                         Divider()
@@ -1592,6 +1609,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                         modeMenuButton(.tricorn)
                         modeMenuButton(.kleinian)
                         modeMenuButton(.mandelbrotRelief)
+                        modeMenuButton(.mandelbrotPlateau)
 
                         Divider()
 
@@ -1622,8 +1640,10 @@ The zoom overlay is visible only in the app and is not included in exports.
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                        ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric]
-                        : FractalPalette.allCases
+                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric]
+                            : fractalMode == .mandelbrotPlateau
+                                ? [.auric]
+                                : FractalPalette.allCases
 
                     ForEach(availablePalettes) { palette in
                         Button {
@@ -1658,6 +1678,21 @@ The zoom overlay is visible only in the app and is not included in exports.
                         step: 1
                     )
                     .frame(width: 150)
+                }
+
+                if fractalMode == .mandelbrotPlateau {
+                    Text("Tilt \(Int(plateauTiltDegrees.rounded()))°")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .frame(width: 62, alignment: .trailing)
+
+                    Slider(
+                        value: $plateauTiltDegrees,
+                        in: 80...90,
+                        step: 1
+                    )
+                    .frame(width: 130)
+                    .help("Adjust the Plateau camera tilt")
                 }
                 Spacer()
 
@@ -2294,14 +2329,15 @@ The zoom overlay is visible only in the app and is not included in exports.
 
     private func fallbackThumbnailForCurrentFavorite() -> Data? {
         switch fractalMode {
-        case .mandelbrot, .celtic, .julia, .burningShip, .tricorn, .newton, .eightRainbows, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+        case .mandelbrot, .mandelbrotPlateau, .celtic, .julia, .burningShip, .tricorn, .newton, .eightRainbows, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
             return makeFavoriteThumbnailPNG(
                 mode: fractalMode,
                 palette: fractalPalette,
                 centerX: centerX,
                 centerY: centerY,
                 scale: scale,
-                iterations: maxIterations
+                iterations: maxIterations,
+                plateauTiltDegrees: plateauTiltDegrees
             )
         case .kleinian, .mandelbulb3D, .mandelbrotRelief, .mandelbox3D:
             return nil
@@ -2334,7 +2370,9 @@ The zoom overlay is visible only in the app and is not included in exports.
                 renderedIterations: automaticDisplayedIterations
                     ?? effectiveIterations,
                 renderQualityRawValue: renderQuality.rawValue,
-                thumbnailPNG: fractalMode == .mandelbrotRelief ? nil : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite())
+                thumbnailPNG: fractalMode == .mandelbrotRelief
+                    ? nil
+                    : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite())
             )
         )
 
@@ -2479,6 +2517,9 @@ The zoom overlay is visible only in the app and is not included in exports.
 
         case .mandelbrot, .tricorn, .celtic:
             fractalPalette = .deepBlue
+
+        case .mandelbrotPlateau:
+            fractalPalette = .auric
 
         case .eightRainbows:
             fractalPalette = .rainbows
@@ -2692,6 +2733,7 @@ struct MandelbrotView: View {
     @Binding var scale: Double
     @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
+    let plateauTiltDegrees: Double
     let colorNormalizationIterations: Int?
     let iterationJourneyPreviewEnabled: Bool
     let onIterationJourneyFramePublished: (Int) -> Void
@@ -2892,6 +2934,7 @@ struct MandelbrotView: View {
                         scale: scale,
                         maxIterations: metalDisplayedIterations,
                         colorNormalizationIterations: colorNormalizationIterations,
+                        plateauTiltDegrees: plateauTiltDegrees,
                         viewportAspectRatio: viewportAspectRatio
                     )
 
@@ -2908,6 +2951,7 @@ struct MandelbrotView: View {
                             maxIterations: state.iterations,
                             displayIterations: effectiveIterations,
                             colorNormalizationIterations: colorNormalizationIterations,
+                            plateauTiltDegrees: plateauTiltDegrees,
                             iterationJourneyPreviewEnabled: iterationJourneyPreviewEnabled,
                             viewSize: geometry.size,
                             viewportAspectRatio: viewportAspectRatio,
@@ -3179,6 +3223,53 @@ struct MandelbrotView: View {
         scale = projection.scale
     }
 
+    private var plateauVerticalProjection: Double {
+        guard fractalMode == .mandelbrotPlateau else { return 1.0 }
+        let degrees = min(max(plateauTiltDegrees, 80.0), 90.0)
+        return sin(degrees * .pi / 180.0)
+    }
+
+    private var plateauTopLift: Double {
+        guard fractalMode == .mandelbrotPlateau else { return 0.0 }
+        let degrees = min(max(plateauTiltDegrees, 80.0), 90.0)
+        return 0.30 * cos(degrees * .pi / 180.0)
+    }
+
+    private func displayedVerticalFraction(_ fraction: Double) -> Double {
+        0.5
+            - (fraction - 0.5) / plateauVerticalProjection
+            + plateauTopLift
+    }
+
+    private func viewportZoomedToDisplayedSelection(
+        horizontalFraction: Double,
+        verticalFraction: Double,
+        aspectRatio: Double,
+        zoomFactor: Double
+    ) -> PreciseViewport {
+        guard fractalMode == .mandelbrotPlateau else {
+            return preciseViewport.zoomed(
+                toHorizontalFraction: horizontalFraction,
+                verticalFraction: verticalFraction,
+                aspectRatio: aspectRatio,
+                zoomFactor: zoomFactor
+            )
+        }
+
+        let sourcePoint = preciseViewport.complexPoint(
+            horizontalFraction: horizontalFraction,
+            verticalFraction: displayedVerticalFraction(verticalFraction),
+            aspectRatio: aspectRatio
+        )
+        let newScale = preciseViewport.scale * zoomFactor
+
+        return PreciseViewport(
+            centerX: sourcePoint.x,
+            centerY: sourcePoint.y - newScale * plateauTopLift,
+            scale: newScale
+        )
+    }
+
     private func panView(from start: CGPoint, to current: CGPoint, viewSize: CGSize) {
         guard let startViewport = panStartPreciseViewport else {
             return
@@ -3187,7 +3278,10 @@ struct MandelbrotView: View {
         let width = max(Double(viewSize.width), 1.0)
         let height = max(Double(viewSize.height), 1.0)
         let horizontalFraction = Double(current.x - start.x) / width
-        let verticalFraction = Double(current.y - start.y) / height
+        let verticalFraction = Double(current.y - start.y)
+            / height
+            / plateauVerticalProjection
+            * (fractalMode == .mandelbrotPlateau ? -1.0 : 1.0)
         let aspectRatio = width / height
 
         applyPreciseViewport(
@@ -3206,12 +3300,14 @@ struct MandelbrotView: View {
         let viewHeight = max(Double(viewSize.height), 1.0)
         let aspectRatio = viewWidth / viewHeight
         let zoomFactorX = Double(rect.width) / viewWidth
-        let zoomFactorY = Double(rect.height) / viewHeight
+        let zoomFactorY = Double(rect.height)
+            / viewHeight
+            / plateauVerticalProjection
         let zoomFactor = max(zoomFactorX, zoomFactorY)
 
         applyPreciseViewport(
-            preciseViewport.zoomed(
-                toHorizontalFraction: Double(rect.midX) / viewWidth,
+            viewportZoomedToDisplayedSelection(
+                horizontalFraction: Double(rect.midX) / viewWidth,
                 verticalFraction: Double(rect.midY) / viewHeight,
                 aspectRatio: aspectRatio,
                 zoomFactor: zoomFactor
@@ -3244,6 +3340,7 @@ struct HighPrecisionFractalPreview: View {
     let maxIterations: Int
     let displayIterations: Int
     let colorNormalizationIterations: Int?
+    let plateauTiltDegrees: Double
     let iterationJourneyPreviewEnabled: Bool
     let viewSize: CGSize
     let viewportAspectRatio: Double
@@ -3298,6 +3395,7 @@ struct HighPrecisionFractalPreview: View {
             maxIterations.description,
             displayIterations.description,
             colorNormalizationIterations?.description ?? "flowing",
+            String(format: "%.1f", plateauTiltDegrees),
             iterationJourneyPreviewEnabled.description,
             Int(viewSize.width).description,
             Int(viewSize.height).description,
@@ -3905,6 +4003,7 @@ struct HighPrecisionFractalPreview: View {
                 preciseViewport: preciseViewport,
                 maxIterations: maxIterations,
                 colorNormalizationIterations: colorNormalizationIterations,
+                plateauTiltDegrees: plateauTiltDegrees,
                 viewportAspectRatio: aspectRatio,
                 perturbationEnabled: perturbationEnabled,
                 doubleDoubleEnabled: doubleDoubleEnabled && isFinalRender,
@@ -5146,6 +5245,7 @@ nonisolated func renderFractal(
     preciseViewport: PreciseViewport? = nil,
     maxIterations: Int,
     colorNormalizationIterations: Int? = nil,
+    plateauTiltDegrees: Double = 82.0,
     viewportAspectRatio: Double? = nil,
     perturbationEnabled: Bool = true,
     doubleDoubleEnabled: Bool = false,
@@ -5317,7 +5417,17 @@ nonisolated func renderFractal(
             // CGImage row 0 is the top edge, which corresponds to uv.y == 1 in
             // the fullscreen Metal triangle and therefore to the negative Y half-plane.
             let x0 = centerX + ((Double(px) + 0.5) / Double(width) - 0.5) * scale * aspectRatio
-            let y0 = centerY + ((Double(py) + 0.5) / Double(height) - 0.5) * scale
+            let verticalFraction =
+                (Double(py) + 0.5) / Double(height) - 0.5
+            let y0: Double
+            if mode == .mandelbrotPlateau {
+                let tiltRadians =
+                    min(max(plateauTiltDegrees, 80.0), 90.0) * .pi / 180.0
+                let verticalProjection = sin(tiltRadians)
+                y0 = centerY - verticalFraction * scale / verticalProjection
+            } else {
+                y0 = centerY + verticalFraction * scale
+            }
 
             let color: (r: Double, g: Double, b: Double)
 
@@ -5473,10 +5583,56 @@ nonisolated func renderFractal(
                     )
                 }
 
-                if iteration == localMaxIterations {
+                if mode == .mandelbrotPlateau {
+                    let tiltRadians = min(max(plateauTiltDegrees, 80.0), 90.0)
+                        * .pi / 180.0
+                    let lift = 0.30 * cos(tiltRadians)
+                    let topIteration = calculateFractalIteration(
+                        mode: .mandelbrot,
+                        x0: x0,
+                        y0: y0 + scale * lift,
+                        maxIterations: localMaxIterations
+                    )
+                    let middleHit = (1...2).contains { middleStep in
+                        calculateFractalIteration(
+                            mode: .mandelbrot,
+                            x0: x0,
+                            y0: y0 + scale * lift * Double(middleStep) / 3.0,
+                            maxIterations: localMaxIterations
+                        ) == localMaxIterations
+                    }
+
+                    if topIteration == localMaxIterations {
+                        color = texturedInsideColor(
+                            mode: mode,
+                            palette: .auric,
+                            normalizedX: (Double(px) + 0.5) / Double(width),
+                            normalizedY: (Double(py) + 0.5) / Double(height) - lift
+                        )
+                    } else if iteration == localMaxIterations || middleHit {
+                        let wallLight = 0.72
+                            + 0.22 * (Double(px) + 0.5) / Double(width)
+                        color = (
+                            r: 0.58 * wallLight,
+                            g: 0.31 * wallLight,
+                            b: 0.065 * wallLight
+                        )
+                    } else {
+                        let t = iterationJourneyColorPosition(
+                            iteration: iteration,
+                            activeMaxIterations: localMaxIterations,
+                            fixedNormalizationIterations: colorNormalizationIterations
+                        )
+                        color = cpuPaletteColor(
+                            t: t,
+                            mode: .mandelbrot,
+                            palette: .auric
+                        )
+                    }
+                } else if iteration == localMaxIterations {
                     color = texturedInsideColor(
                         mode: mode,
-                        palette: palette,
+                        palette: mode == .mandelbrotPlateau ? .auric : palette,
                         normalizedX: (Double(px) + 0.5) / Double(width),
                         normalizedY: (Double(py) + 0.5) / Double(height)
                     )
@@ -6133,7 +6289,7 @@ nonisolated private func shouldApplyAdaptiveIterationRefinement(
     maxIterations: Int,
     iteration: Int
 ) -> Bool {
-    guard mode == .mandelbrot || mode == .mandelbrotRelief || mode == .burningShip || mode == .tricorn else {
+    guard mode == .mandelbrot || mode == .mandelbrotRelief || mode == .mandelbrotPlateau || mode == .burningShip || mode == .tricorn else {
         return false
     }
 
@@ -6161,7 +6317,7 @@ nonisolated private func calculateFractalIteration(
     var cy: Double
 
     switch mode {
-    case .mandelbrot, .mandelbrotRelief, .celtic, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
+    case .mandelbrot, .mandelbrotRelief, .mandelbrotPlateau, .celtic, .power2, .power3, .power4, .power5, .power6, .power7, .power8, .power9, .power10, .power11, .power12:
         x = 0.0
         y = 0.0
         cx = x0
@@ -6202,7 +6358,7 @@ nonisolated private func calculateFractalIteration(
 
     while x * x + y * y <= 4.0 && iteration < maxIterations {
         switch mode {
-        case .mandelbrot, .julia, .mandelbulb3D, .mandelbrotRelief, .mandelbox3D, .newton:
+        case .mandelbrot, .julia, .mandelbulb3D, .mandelbrotRelief, .mandelbrotPlateau, .mandelbox3D, .newton:
             let xtemp = x * x - y * y + cx
             y = 2.0 * x * y + cy
             x = xtemp
@@ -6319,6 +6475,96 @@ nonisolated private func cpuPaletteColor(
     }
 
     return base
+}
+
+nonisolated private func mandelbrotPlateauHeight(
+    iteration: Int,
+    maxIterations: Int
+) -> Double {
+    guard iteration < maxIterations else { return 1.0 }
+    let smoothHeight = pow(
+        Double(iteration) / Double(max(maxIterations, 1)),
+        0.30
+    )
+    let levels = 12.0
+    return floor(smoothHeight * levels) / levels
+}
+
+nonisolated private func mandelbrotPlateauColor(
+    x0: Double,
+    y0: Double,
+    pixelStep: Double,
+    iteration: Int,
+    maxIterations: Int
+) -> (r: Double, g: Double, b: Double) {
+    let h = mandelbrotPlateauHeight(
+        iteration: iteration,
+        maxIterations: maxIterations
+    )
+    let hx = mandelbrotPlateauHeight(
+        iteration: calculateFractalIteration(
+            mode: .mandelbrot,
+            x0: x0 + pixelStep,
+            y0: y0,
+            maxIterations: maxIterations
+        ),
+        maxIterations: maxIterations
+    )
+    let hy = mandelbrotPlateauHeight(
+        iteration: calculateFractalIteration(
+            mode: .mandelbrot,
+            x0: x0,
+            y0: y0 + pixelStep,
+            maxIterations: maxIterations
+        ),
+        maxIterations: maxIterations
+    )
+
+    let dx = (h - hx) * 8.0
+    let dy = (h - hy) * 8.0
+    let dz = 0.11
+    let normalLength = max(sqrt(dx * dx + dy * dy + dz * dz), 0.000_001)
+    let nx = dx / normalLength
+    let ny = dy / normalLength
+    let nz = dz / normalLength
+
+    let light = (-0.62, 0.72, 0.54)
+    let lightLength = sqrt(light.0 * light.0 + light.1 * light.1 + light.2 * light.2)
+    let lx = light.0 / lightLength
+    let ly = light.1 / lightLength
+    let lz = light.2 / lightLength
+    let diffuse = max(nx * lx + ny * ly + nz * lz, 0.0)
+
+    let halfX = lx
+    let halfY = ly
+    let halfZ = lz + 1.0
+    let halfLength = sqrt(halfX * halfX + halfY * halfY + halfZ * halfZ)
+    let specular = pow(
+        max(
+            nx * halfX / halfLength
+                + ny * halfY / halfLength
+                + nz * halfZ / halfLength,
+            0.0
+        ),
+        34.0
+    )
+    let edge = clamp01((abs(h - hx) + abs(h - hy)) * 12.0)
+    let shelf = floor(h * 12.0 + 0.5) / 12.0
+    let goldPosition = pow(shelf, 0.72)
+
+    var r = 0.105 + (0.920 - 0.105) * goldPosition
+    var g = 0.048 + (0.580 - 0.048) * goldPosition
+    var b = 0.008 + (0.105 - 0.008) * goldPosition
+    let lighting = 0.54 + 0.68 * diffuse
+    r *= lighting
+    g *= lighting
+    b *= lighting
+    let edgeLight = edge * (0.20 + 0.42 * diffuse)
+    r += edgeLight + specular * 0.72
+    g += edgeLight * 0.76 + specular * 0.6768
+    b += edgeLight * 0.24 + specular * 0.4896
+
+    return (clamp01(r), clamp01(g), clamp01(b))
 }
 
 nonisolated private func iterationJourneyColorPosition(
@@ -6746,7 +6992,7 @@ nonisolated private func insideColor(
         return (0.560, 0.345, 0.085)
     }
 
-    if mode == .mandelbrot || mode == .mandelbrotRelief {
+    if mode == .mandelbrot || mode == .mandelbrotRelief || mode == .mandelbrotPlateau {
         if palette == .auric {
             return (0.560, 0.345, 0.085)
         }
@@ -6809,6 +7055,7 @@ nonisolated private func texturedInsideColor(
     let supportsPearlInterior =
         mode == .mandelbrot
         || mode == .mandelbrotRelief
+        || mode == .mandelbrotPlateau
         || mode.powerExponent != nil
 
     if supportsPearlInterior {
@@ -6831,7 +7078,7 @@ nonisolated private func texturedInsideColor(
     }
 
     if palette == .auric,
-       mode == .mandelbrot || mode == .mandelbrotRelief {
+       mode == .mandelbrot || mode == .mandelbrotRelief || mode == .mandelbrotPlateau {
         return auricInteriorColor(
             normalizedX: normalizedX,
             normalizedY: normalizedY

@@ -23,6 +23,7 @@ struct Uniforms {
     float aspectRatio;
     uint fractalMode;
     uint fractalPalette;
+    float plateauTiltDegrees;
 };
 
 vertex VertexOut fullscreen_vertex(uint vertexID [[vertex_id]]) {
@@ -52,7 +53,7 @@ static uint fractalIteration(
     float cx;
     float cy;
     
-    if (mode == 0 || mode == 6 || mode == 9 || mode == 10 || (mode >= 11 && mode <= 21)) {
+    if (mode == 0 || mode == 6 || mode == 9 || mode == 10 || mode == 22 || (mode >= 11 && mode <= 21)) {
         x = 0.0;
         y = 0.0;
         cx = x0;
@@ -87,7 +88,7 @@ static uint fractalIteration(
     uint iteration = 0;
     
     while ((x * x + y * y <= 4.0) && iteration < maxIterations) {
-        if (mode == 0 || mode == 1 || mode == 6) {
+        if (mode == 0 || mode == 1 || mode == 6 || mode == 22) {
             float xtemp = x * x - y * y + cx;
             y = 2.0 * x * y + cy;
             x = xtemp;
@@ -701,6 +702,155 @@ static float4 renderMandelbrotRelief(
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }
 
+static float4 renderMandelbrotPlateau(
+    float2 uv,
+    constant Uniforms& uniforms
+) {
+    float tiltRadians = clamp(uniforms.plateauTiltDegrees, 80.0, 90.0) * (M_PI_F / 180.0);
+    float inclination = cos(tiltRadians);
+    float verticalProjection = sin(tiltRadians);
+    float2 groundUV = float2(
+        uv.x,
+        0.5 + (uv.y - 0.5) / verticalProjection
+    );
+    float lift = 0.30 * inclination;
+    float2 topUV = groundUV - float2(0.0, lift);
+
+    float sampleX = uniforms.centerX
+                  + (topUV.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
+    float sampleY = uniforms.centerY
+                  + (0.5 - topUV.y) * uniforms.scale;
+    uint topIteration = mandelbrotIterationOnly(
+        sampleX,
+        sampleY,
+        uniforms.maxIterations
+    );
+    bool topHit = topIteration == uniforms.maxIterations;
+
+    float groundX = uniforms.centerX
+                  + (groundUV.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
+    float groundY = uniforms.centerY
+                  + (0.5 - groundUV.y) * uniforms.scale;
+    uint groundIteration = mandelbrotIterationOnly(
+        groundX,
+        groundY,
+        uniforms.maxIterations
+    );
+    bool groundHit = groundIteration == uniforms.maxIterations;
+    bool middleHit = false;
+    for (uint middleStep = 1; middleStep <= 2; middleStep += 1) {
+        float middlePosition = float(middleStep) / 3.0;
+        float2 middleUV = mix(groundUV, topUV, middlePosition);
+        float middleX = uniforms.centerX
+                      + (middleUV.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
+        float middleY = uniforms.centerY
+                      + (0.5 - middleUV.y) * uniforms.scale;
+        middleHit = middleHit
+            || mandelbrotIterationOnly(
+                middleX,
+                middleY,
+                uniforms.maxIterations
+            ) == uniforms.maxIterations;
+    }
+
+    if (topHit) {
+        float3 topColor = auricInteriorColor(topUV);
+        float sheen = smoothstep(-0.75, 0.65, topUV.x - topUV.y);
+        topColor *= 0.96 + sheen * inclination * 0.13;
+        return float4(clamp(topColor, 0.0, 1.0), 1.0);
+    }
+
+    // The part of the original silhouette not covered by the lifted copy is
+    // the visible side. This endpoint construction needs only two fractal
+    // evaluations per pixel and stays practical at deep zoom levels.
+    if (groundHit || middleHit) {
+        float wallLight = 0.72 + 0.22 * smoothstep(0.0, 1.0, uv.x);
+        float3 wallColor = float3(0.58, 0.31, 0.065) * wallLight;
+        return float4(wallColor, 1.0);
+    }
+
+    float t = float(groundIteration) / float(max(uniforms.maxIterations, 1u));
+    float k = sqrt(t);
+    float ridge = 0.5 + 0.5 * sin(38.0 * k);
+    float glow = exp(-7.0 * abs(k - 0.45));
+    return float4(paletteColor(t, ridge, glow, 13), 1.0);
+}
+
+fragment float4 plateau_source_fragment(
+    VertexOut in [[stage_in]],
+    constant Uniforms& uniforms [[buffer(0)]]
+) {
+    float2 uv = in.uv;
+    float x0 = uniforms.centerX
+             + (uv.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
+    float y0 = uniforms.centerY
+             + (0.5 - uv.y) * uniforms.scale;
+    uint iteration = mandelbrotIterationOnly(x0, y0, uniforms.maxIterations);
+    bool inside = iteration == uniforms.maxIterations;
+
+    if (inside) {
+        return float4(auricInteriorColor(uv), 1.0);
+    }
+
+    float t = float(iteration) / float(max(uniforms.maxIterations, 1u));
+    float k = sqrt(t);
+    float ridge = 0.5 + 0.5 * sin(38.0 * k);
+    float glow = exp(-7.0 * abs(k - 0.45));
+    return float4(paletteColor(t, ridge, glow, 13), 0.0);
+}
+
+fragment float4 plateau_composite_fragment(
+    VertexOut in [[stage_in]],
+    constant Uniforms& uniforms [[buffer(0)]],
+    texture2d<float> sourceTexture [[texture(0)]]
+) {
+    constexpr sampler imageSampler(
+        coord::normalized,
+        address::clamp_to_edge,
+        filter::linear
+    );
+
+    float tiltRadians = clamp(
+        uniforms.plateauTiltDegrees,
+        80.0,
+        90.0
+    ) * (M_PI_F / 180.0);
+    float inclination = cos(tiltRadians);
+    float verticalProjection = sin(tiltRadians);
+    float2 groundUV = float2(
+        in.uv.x,
+        0.5 + (in.uv.y - 0.5) / verticalProjection
+    );
+    float2 topUV = groundUV - float2(0.0, 0.30 * inclination);
+    float4 topSample = sourceTexture.sample(imageSampler, topUV);
+
+    if (topSample.a > 0.5) {
+        float sheen = smoothstep(-0.75, 0.65, topUV.x - topUV.y);
+        return float4(
+            clamp(topSample.rgb * (0.96 + sheen * inclination * 0.13), 0.0, 1.0),
+            1.0
+        );
+    }
+
+    float wallMask = 0.0;
+    for (uint wallStep = 0; wallStep <= 32; wallStep += 1) {
+        float wallPosition = float(wallStep) / 32.0;
+        float2 wallUV = mix(groundUV, topUV, wallPosition);
+        wallMask = max(
+            wallMask,
+            sourceTexture.sample(imageSampler, wallUV).a
+        );
+    }
+
+    if (wallMask > 0.08) {
+        float wallLight = 0.72 + 0.22 * smoothstep(0.0, 1.0, in.uv.x);
+        return float4(float3(0.58, 0.31, 0.065) * wallLight, 1.0);
+    }
+
+    float3 groundColor = sourceTexture.sample(imageSampler, groundUV).rgb;
+    return float4(groundColor, 1.0);
+}
+
 static float2 complexMul(float2 a, float2 b) {
     return float2(
         a.x * b.x - a.y * b.y,
@@ -1075,6 +1225,10 @@ fragment float4 fractal_fragment(
     
     if (uniforms.fractalMode == 6) {
         return renderMandelbrotRelief(in.uv, uniforms);
+    }
+
+    if (uniforms.fractalMode == 22) {
+        return renderMandelbrotPlateau(in.uv, uniforms);
     }
     
     if (uniforms.fractalMode == 8) {

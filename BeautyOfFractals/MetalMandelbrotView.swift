@@ -18,6 +18,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
     let scale: Double
     let maxIterations: Int
     let colorNormalizationIterations: Int?
+    let plateauTiltDegrees: Double
     /// Shared with SwiftUI navigation and CPU refinement. This must not be derived
     /// independently from the rounded MTK drawable size.
     let viewportAspectRatio: Double
@@ -59,6 +60,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
         context.coordinator.colorNormalizationIterations = colorNormalizationIterations.map {
             UInt32(max($0, 1))
         } ?? 0
+        context.coordinator.plateauTiltDegrees = Float(plateauTiltDegrees)
         context.coordinator.viewportAspectRatio = Float(viewportAspectRatio)
         
         nsView.setNeedsDisplay(nsView.bounds)
@@ -68,6 +70,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
         var device: MTLDevice?
         var commandQueue: MTLCommandQueue?
         var pipelineState: MTLRenderPipelineState?
+        var plateauSourcePipelineState: MTLRenderPipelineState?
+        var plateauCompositePipelineState: MTLRenderPipelineState?
+        var plateauSourceTexture: MTLTexture?
         
         var fractalMode: UInt32 = 0
         var fractalPalette: UInt32 = 0
@@ -79,6 +84,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
         /// fixed, cyclic scale for Iteration Journey's Stable mode.
         var colorNormalizationIterations: UInt32 = 0
         var viewportAspectRatio: Float = 1.0
+        var plateauTiltDegrees: Float = 82.0
         
         struct Uniforms {
             var centerX: Float
@@ -89,6 +95,7 @@ struct MetalMandelbrotView: NSViewRepresentable {
             var aspectRatio: Float
             var fractalMode: UInt32
             var fractalPalette: UInt32
+            var plateauTiltDegrees: Float
         }
         
         func setup(device: MTLDevice, pixelFormat: MTLPixelFormat) {
@@ -101,7 +108,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
             }
             
             guard let vertexFunction = library.makeFunction(name: "fullscreen_vertex"),
-                  let fragmentFunction = library.makeFunction(name: "fractal_fragment") else {
+                  let fragmentFunction = library.makeFunction(name: "fractal_fragment"),
+                  let plateauSourceFunction = library.makeFunction(name: "plateau_source_fragment"),
+                  let plateauCompositeFunction = library.makeFunction(name: "plateau_composite_fragment") else {
                 print("Metal: Shader-Funktionen nicht gefunden")
                 return
             }
@@ -113,6 +122,16 @@ struct MetalMandelbrotView: NSViewRepresentable {
             
             do {
                 self.pipelineState = try device.makeRenderPipelineState(descriptor: descriptor)
+
+                descriptor.fragmentFunction = plateauSourceFunction
+                self.plateauSourcePipelineState = try device.makeRenderPipelineState(
+                    descriptor: descriptor
+                )
+
+                descriptor.fragmentFunction = plateauCompositeFunction
+                self.plateauCompositePipelineState = try device.makeRenderPipelineState(
+                    descriptor: descriptor
+                )
             } catch {
                 print("Metal Pipeline Fehler:", error)
             }
@@ -143,28 +162,98 @@ struct MetalMandelbrotView: NSViewRepresentable {
                 colorNormalizationIterations: colorNormalizationIterations,
                 aspectRatio: aspectRatio,
                 fractalMode: fractalMode,
-                fractalPalette: fractalPalette
+                fractalPalette: fractalPalette,
+                plateauTiltDegrees: plateauTiltDegrees
             )
             
-            guard let commandBuffer = commandQueue.makeCommandBuffer(),
-                  let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else {
+            guard let commandBuffer = commandQueue.makeCommandBuffer() else {
                 return
             }
-            
-            encoder.setRenderPipelineState(pipelineState)
-            encoder.setFragmentBytes(
-                &uniforms,
-                length: MemoryLayout<Uniforms>.stride,
-                index: 0
-            )
-            
-            encoder.drawPrimitives(
-                type: .triangle,
-                vertexStart: 0,
-                vertexCount: 3
-            )
-            
-            encoder.endEncoding()
+
+            if fractalMode == UInt32(FractalMode.mandelbrotPlateau.rawValue),
+               let sourcePipeline = plateauSourcePipelineState,
+               let compositePipeline = plateauCompositePipelineState {
+                let width = max(Int(view.drawableSize.width), 1)
+                let height = max(Int(view.drawableSize.height), 1)
+                if plateauSourceTexture?.width != width
+                    || plateauSourceTexture?.height != height {
+                    let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+                        pixelFormat: view.colorPixelFormat,
+                        width: width,
+                        height: height,
+                        mipmapped: false
+                    )
+                    textureDescriptor.usage = [.renderTarget, .shaderRead]
+                    textureDescriptor.storageMode = .private
+                    plateauSourceTexture = device?.makeTexture(
+                        descriptor: textureDescriptor
+                    )
+                }
+
+                if let sourceTexture = plateauSourceTexture {
+                    let sourcePass = MTLRenderPassDescriptor()
+                    sourcePass.colorAttachments[0].texture = sourceTexture
+                    sourcePass.colorAttachments[0].loadAction = .clear
+                    sourcePass.colorAttachments[0].storeAction = .store
+                    sourcePass.colorAttachments[0].clearColor = MTLClearColorMake(
+                        0,
+                        0,
+                        0,
+                        0
+                    )
+
+                    if let sourceEncoder = commandBuffer.makeRenderCommandEncoder(
+                        descriptor: sourcePass
+                    ) {
+                        sourceEncoder.setRenderPipelineState(sourcePipeline)
+                        sourceEncoder.setFragmentBytes(
+                            &uniforms,
+                            length: MemoryLayout<Uniforms>.stride,
+                            index: 0
+                        )
+                        sourceEncoder.drawPrimitives(
+                            type: .triangle,
+                            vertexStart: 0,
+                            vertexCount: 3
+                        )
+                        sourceEncoder.endEncoding()
+                    }
+
+                    if let compositeEncoder = commandBuffer.makeRenderCommandEncoder(
+                        descriptor: descriptor
+                    ) {
+                        compositeEncoder.setRenderPipelineState(compositePipeline)
+                        compositeEncoder.setFragmentBytes(
+                            &uniforms,
+                            length: MemoryLayout<Uniforms>.stride,
+                            index: 0
+                        )
+                        compositeEncoder.setFragmentTexture(sourceTexture, index: 0)
+                        compositeEncoder.drawPrimitives(
+                            type: .triangle,
+                            vertexStart: 0,
+                            vertexCount: 3
+                        )
+                        compositeEncoder.endEncoding()
+                    }
+                }
+            } else if let encoder = commandBuffer.makeRenderCommandEncoder(
+                descriptor: descriptor
+            ) {
+                encoder.setRenderPipelineState(pipelineState)
+                encoder.setFragmentBytes(
+                    &uniforms,
+                    length: MemoryLayout<Uniforms>.stride,
+                    index: 0
+                )
+                encoder.drawPrimitives(
+                    type: .triangle,
+                    vertexStart: 0,
+                    vertexCount: 3
+                )
+                encoder.endEncoding()
+            }
+
             commandBuffer.present(drawable)
             commandBuffer.commit()
         }
