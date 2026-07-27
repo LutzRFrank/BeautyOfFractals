@@ -244,10 +244,20 @@ h2 {
   filter: drop-shadow(0 34px 48px rgba(0, 0, 0, 0.35));
 }
 
+.scene-foreground {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  pointer-events: none;
+}
+
 .monitor-slideshow {
   position: absolute;
   top: 9.67%;
   left: 20.75%;
+  z-index: 1;
   width: 58.55%;
   height: 58.55%;
   overflow: hidden;
