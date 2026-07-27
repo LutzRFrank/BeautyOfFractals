@@ -926,6 +926,266 @@ nonisolated private func automaticDeepRenderMethod(
     }
 }
 
+private struct FractalWelcomeView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var currentArtwork = 0
+
+    private let artworkNames = [
+        "WelcomeFractalAuric",
+        "WelcomeFractalDeepZoom",
+        "WelcomeFractalCopperBlue",
+        "WelcomeFractalOcean"
+    ]
+    private let artworkTimer = Timer.publish(every: 5.2, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.025, green: 0.045, blue: 0.11),
+                    Color(red: 0.04, green: 0.08, blue: 0.19),
+                    Color(red: 0.055, green: 0.035, blue: 0.14)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            Circle()
+                .fill(Color.blue.opacity(0.18))
+                .frame(width: 520, height: 520)
+                .blur(radius: 90)
+                .offset(x: 330, y: -260)
+
+            ScrollView {
+                VStack(spacing: 26) {
+                    welcomeHeader
+                    hero
+                    featureRow
+                    controlsCard
+                }
+                .padding(30)
+            }
+        }
+        .frame(minWidth: 820, idealWidth: 980, minHeight: 680, idealHeight: 780)
+        .preferredColorScheme(.dark)
+        .onReceive(artworkTimer) { _ in
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.3)) {
+                currentArtwork = (currentArtwork + 1) % artworkNames.count
+            }
+        }
+    }
+
+    private var welcomeHeader: some View {
+        HStack(spacing: 14) {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: .blue.opacity(0.35), radius: 16, y: 7)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Beauty of Fractals")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text("Welcome to the infinite.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Link(destination: URL(string: "https://lutzrfrank.github.io/BeautyOfFractals/")!) {
+                Label("Website", systemImage: "safari")
+            }
+            .buttonStyle(.bordered)
+
+            Button("Done") {
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.cancelAction)
+        }
+    }
+
+    private var hero: some View {
+        VStack(spacing: 18) {
+            WelcomeMonitorScene(
+                artworkNames: artworkNames,
+                currentArtwork: currentArtwork
+            )
+            .frame(height: 390)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Lil’ Finder Guy watching colorful fractals on a large display")
+
+            VStack(spacing: 9) {
+                Text("Unendlich viel zu entdecken.")
+                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .tracking(-1.2)
+
+                Text("Reise durch Mandelbrotwelten, finde überraschende Formen und verliere dich in Farben — flüssig gerendert und selbst bei erstaunlichen Tiefen noch präzise.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 720)
+                    .lineSpacing(3)
+            }
+        }
+        .padding(24)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        }
+    }
+
+    private var featureRow: some View {
+        HStack(alignment: .top, spacing: 14) {
+            welcomeFeature(
+                icon: "infinity",
+                title: "Tief hinein",
+                text: "Automatic Precision keeps delicate structures visible as you travel deeper."
+            )
+            welcomeFeature(
+                icon: "paintpalette.fill",
+                title: "Deine Farben",
+                text: "Explore expressive palettes, powers and more than a dozen fractal modes."
+            )
+            welcomeFeature(
+                icon: "star.fill",
+                title: "Lieblingsorte",
+                text: "Save discoveries, revisit them later and optionally sync them with iCloud."
+            )
+        }
+    }
+
+    private var controlsCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Label("Quick Start", systemImage: "sparkles")
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                Spacer()
+                Text("Everything renders locally")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 18),
+                    GridItem(.flexible(), spacing: 18)
+                ],
+                alignment: .leading,
+                spacing: 14
+            ) {
+                quickTip(keys: "Drag", text: "Select an area and zoom in")
+                quickTip(keys: "⌥ + Drag", text: "Move across the fractal")
+                quickTip(keys: "+  /  −", text: "Zoom in or out")
+                quickTip(keys: "⌘ R", text: "Reset the current mode")
+                quickTip(keys: "★", text: "Save or load Favorite Spots")
+                quickTip(keys: "⇧ ⌘ P", text: "Show or hide render status")
+            }
+
+            Divider()
+
+            Text("Choose Fast, High or Deep quality from the control bar. Deep Mandelbrot locations automatically switch to high-precision CPU rendering when ordinary coordinates are no longer enough.")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .lineSpacing(3)
+        }
+        .padding(24)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        }
+    }
+
+    private func welcomeFeature(icon: String, title: String, text: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 48)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                )
+
+            Text(title)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .padding(18)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func quickTip(keys: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Text(keys)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .frame(minWidth: 64)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct WelcomeMonitorScene: View {
+    let artworkNames: [String]
+    let currentArtwork: Int
+
+    private let aspectRatio = 1672.0 / 941.0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = min(proxy.size.width, proxy.size.height * aspectRatio)
+            let height = width / aspectRatio
+            let originX = (proxy.size.width - width) / 2
+            let originY = (proxy.size.height - height) / 2
+
+            ZStack(alignment: .topLeading) {
+                Color.clear
+
+                ZStack {
+                    Color.black
+                    ForEach(Array(artworkNames.enumerated()), id: \.offset) { index, name in
+                        Image(name)
+                            .resizable()
+                            .scaledToFill()
+                            .opacity(index == currentArtwork ? 1 : 0)
+                    }
+                }
+                .frame(width: width * 0.5855, height: height * 0.5855)
+                .clipShape(RoundedRectangle(cornerRadius: width * 0.01, style: .continuous))
+                .offset(
+                    x: originX + width * 0.2075,
+                    y: originY + height * 0.0967
+                )
+
+                Image("WelcomeFinderGuy")
+                    .resizable()
+                    .frame(width: width, height: height)
+                    .offset(x: originX, y: originY)
+            }
+        }
+    }
+}
+
 /// Main macOS fractal explorer interface.
 ///
 /// Coordinates UI state, navigation, render scheduling, favorites,
@@ -1194,42 +1454,8 @@ struct ContentView: View {
         } message: {
             Text("Enter a new name for this favorite spot.")
         }
-        .alert("Controls", isPresented: $showHelp) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("""
-Modes:
-Explore Mandelbrot, Power of 4, Celtic Mandelbrot, Julia, Eight Rainbows, Burning Ship, Tricorn, Kleinian Relief, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D and Newton Fractal.
-
-Palettes:
-Choose a palette from the Palette menu. Available palettes depend on the selected mode.
-Julia supports Solar Pop and Rainbows. Eight Rainbows opens with the Rainbows palette.
-Auric adds metallic gold with medallion-like Mandelbrot interiors, ornamental Julia spirals and polished Relief highlights.
-
-Quality and iterations:
-Choose Fast, High or Deep. Quality and zoom depth adjust the effective iteration budget shown below the controls.
-Deep 2D locations use High Precision Preview automatically. At extreme zoom levels, CPU Deep Zoom progressively refines the image.
-
-Navigation:
-Drag to select an area and zoom in.
-⌥ Option + Drag moves the view.
-+ / − zoom in and out.
-⌘R resets the current mode.
-⌘⇧P shows or hides render status.
-
-Favorites:
-Use the star button to open Favorite Spots.
-Saving a view preserves its mode, palette, location, zoom, iteration setting and thumbnail.
-
-Export:
-⌘S exports a 2560 × 1600 PNG.
-Normal exports render at the selected size.
-Ultra exports render internally at 2× resolution and downsample for cleaner detail.
-Live preview is capped at 50,000 iterations; normal export at 80,000; Ultra export at 120,000.
-
-The zoom overlay is visible only in the app and is not included in exports.
-3D exports are CPU raymarched and may take longer.
-""")
+        .sheet(isPresented: $showHelp) {
+            FractalWelcomeView()
         }
     }
 
@@ -1586,7 +1812,7 @@ The zoom overlay is visible only in the app and is not included in exports.
                     } label: {
                         Image(systemName: "questionmark.circle")
                     }
-                    .help("Show controls")
+                    .help("Welcome and controls")
                 }
                 .font(.system(size: 17, weight: .semibold))
                 .buttonStyle(.plain)
