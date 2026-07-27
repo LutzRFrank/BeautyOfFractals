@@ -4,6 +4,8 @@
 
 ### macOS
 
+- Added a new visual welcome and quick-start experience with rotating fractal
+  artwork and direct access to essential controls.
 - Added guarded Extreme Precision with 6xDouble reference rendering for much
   deeper Mandelbrot exploration.
 - Added adaptive reference anchor selection and coverage repair for difficult

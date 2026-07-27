@@ -15,6 +15,8 @@ Thank you for reviewing Beauty of Fractals.
   configured iCloud container only for the favorites feature.
 - Version 2.11 adds guarded Extreme Precision based on 6xDouble reference
   calculations, adaptive reference anchor selection, and coverage repair.
+- The Help button now opens a visual welcome and quick-start view with rotating
+  fractal artwork, essential controls, and a link to the product website.
 - Automatic Deep mode can raise the effective iteration budget from the center
   orbit plus a reserve; manual Deep mode supports up to 250,000 iterations.
 - Selected Mandelbrot views around 10^50x are reachable at suitable locations.
