@@ -209,6 +209,28 @@ h2 {
   box-shadow: none;
 }
 
+.store-button {
+  gap: 10px;
+  min-height: 58px;
+  padding-inline: 18px;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.store-button small {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.66rem;
+  font-weight: 560;
+  letter-spacing: 0.02em;
+  opacity: 0.76;
+}
+
+.store-symbol {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
 .local-note {
   display: flex;
   align-items: center;
