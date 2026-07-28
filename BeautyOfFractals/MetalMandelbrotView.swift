@@ -19,6 +19,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
     let maxIterations: Int
     let colorNormalizationIterations: Int?
     let plateauTiltDegrees: Double
+    let doodadsStructure: Double
+    let doodadsComplexity: Double
+    let doodadsCurl: Double
     /// Shared with SwiftUI navigation and CPU refinement. This must not be derived
     /// independently from the rounded MTK drawable size.
     let viewportAspectRatio: Double
@@ -61,6 +64,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
             UInt32(max($0, 1))
         } ?? 0
         context.coordinator.plateauTiltDegrees = Float(plateauTiltDegrees)
+        context.coordinator.doodadsStructure = Float(doodadsStructure)
+        context.coordinator.doodadsComplexity = Float(doodadsComplexity)
+        context.coordinator.doodadsCurl = Float(doodadsCurl)
         context.coordinator.viewportAspectRatio = Float(viewportAspectRatio)
         
         nsView.setNeedsDisplay(nsView.bounds)
@@ -85,6 +91,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
         var colorNormalizationIterations: UInt32 = 0
         var viewportAspectRatio: Float = 1.0
         var plateauTiltDegrees: Float = 82.0
+        var doodadsStructure: Float = 0.33
+        var doodadsComplexity: Float = 0.50
+        var doodadsCurl: Float = 0.50
         
         struct Uniforms {
             var centerX: Float
@@ -96,6 +105,9 @@ struct MetalMandelbrotView: NSViewRepresentable {
             var fractalMode: UInt32
             var fractalPalette: UInt32
             var plateauTiltDegrees: Float
+            var doodadsStructure: Float
+            var doodadsComplexity: Float
+            var doodadsCurl: Float
         }
         
         func setup(device: MTLDevice, pixelFormat: MTLPixelFormat) {
@@ -163,7 +175,10 @@ struct MetalMandelbrotView: NSViewRepresentable {
                 aspectRatio: aspectRatio,
                 fractalMode: fractalMode,
                 fractalPalette: fractalPalette,
-                plateauTiltDegrees: plateauTiltDegrees
+                plateauTiltDegrees: plateauTiltDegrees,
+                doodadsStructure: doodadsStructure,
+                doodadsComplexity: doodadsComplexity,
+                doodadsCurl: doodadsCurl
             )
             
             guard let commandBuffer = commandQueue.makeCommandBuffer() else {

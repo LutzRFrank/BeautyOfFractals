@@ -321,6 +321,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case aurora = 14
     case pearl = 15
     case motherOfPearl = 16
+    case metallicDreams = 17
 
     var id: Int {
         rawValue
@@ -362,6 +363,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Marble"
         case .motherOfPearl:
             return "Pearl"
+        case .metallicDreams:
+            return "Metallic Dreams"
         }
     }
 
@@ -401,6 +404,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Marble"
         case .motherOfPearl:
             return "Pearl"
+        case .metallicDreams:
+            return "MetallicDreams"
         }
     }
 }
@@ -1211,6 +1216,9 @@ struct ContentView: View {
 
     @State private var maxIterations: Int = 300
     @State private var plateauTiltDegrees: Double = 82.0
+    @State private var doodadsStructure: Double = 0.05
+    @State private var doodadsComplexity: Double = 0.05
+    @State private var doodadsCurl: Double = 0.23
     @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
@@ -1359,6 +1367,9 @@ struct ContentView: View {
                 preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
                 plateauTiltDegrees: plateauTiltDegrees,
+                doodadsStructure: doodadsStructure,
+                doodadsComplexity: doodadsComplexity,
+                doodadsCurl: doodadsCurl,
                 colorNormalizationIterations: showIterationJourneyPanel && journeyColorMode == .stable
                     ? journeyStartIterations
                     : nil,
@@ -1971,6 +1982,25 @@ struct ContentView: View {
             }
             .padding(.horizontal, 24)
             .frame(height: 48)
+
+            if fractalPalette == .metallicDreams {
+                HStack(spacing: 12) {
+                    doodadsSlider(
+                        title: "Structure",
+                        value: $doodadsStructure
+                    )
+                    doodadsSlider(
+                        title: "Complexity",
+                        value: $doodadsComplexity
+                    )
+                    doodadsSlider(
+                        title: "Curl",
+                        value: $doodadsCurl
+                    )
+                }
+                .padding(.horizontal, 24)
+                .frame(height: 44)
+            }
         }
         .buttonStyle(.borderless)
         .controlSize(.regular)
@@ -1984,6 +2014,29 @@ struct ContentView: View {
         }
         .shadow(color: .black.opacity(0.42), radius: 26, x: 0, y: 12)
         .padding(.horizontal, 24)
+    }
+
+    private func doodadsSlider(
+        title: String,
+        value: Binding<Double>
+    ) -> some View {
+        HStack(spacing: 7) {
+            Text(title)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+            Slider(
+                value: Binding(
+                    get: { value.wrappedValue },
+                    set: {
+                        clearExportStatus()
+                        latestHighPrecisionThumbnailPNG = nil
+                        value.wrappedValue = $0
+                        navigationRevision &+= 1
+                    }
+                ),
+                in: 0...1
+            )
+            .frame(minWidth: 90)
+        }
     }
 
     private var controlsRestoreHandle: some View {
@@ -2872,6 +2925,9 @@ struct ContentView: View {
         let snapshotPreciseViewport = preciseViewport
         let snapshotSupersampling = max(1, min(supersampling, 2))
         let snapshotIterations = snapshotSupersampling > 1 ? ultraExportEffectiveIterations : exportEffectiveIterations
+        let snapshotDoodadsStructure = doodadsStructure
+        let snapshotDoodadsComplexity = doodadsComplexity
+        let snapshotDoodadsCurl = doodadsCurl
         let snapshotExportSuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
         let snapshotDeepRenderMethod = snapshotSupersampling == 1
             ? automaticDeepRenderMethod(
@@ -2927,6 +2983,9 @@ struct ContentView: View {
                         scale: snapshotScale,
                         preciseViewport: snapshotPreciseViewport,
                         maxIterations: snapshotIterations,
+                        doodadsStructure: snapshotDoodadsStructure,
+                        doodadsComplexity: snapshotDoodadsComplexity,
+                        doodadsCurl: snapshotDoodadsCurl,
                         perturbationEnabled: snapshotDeepRenderMethod == .perturbation,
                         doubleDoubleEnabled: snapshotDeepRenderMethod == .doubleDouble,
                         tripleDoubleEnabled: snapshotDeepRenderMethod == .tripleDouble
@@ -2999,6 +3058,9 @@ struct MandelbrotView: View {
     @Binding var preciseViewport: PreciseViewport
     @Binding var maxIterations: Int
     let plateauTiltDegrees: Double
+    let doodadsStructure: Double
+    let doodadsComplexity: Double
+    let doodadsCurl: Double
     let colorNormalizationIterations: Int?
     let iterationJourneyPreviewEnabled: Bool
     let onIterationJourneyFramePublished: (Int) -> Void
@@ -3200,6 +3262,9 @@ struct MandelbrotView: View {
                         maxIterations: metalDisplayedIterations,
                         colorNormalizationIterations: colorNormalizationIterations,
                         plateauTiltDegrees: plateauTiltDegrees,
+                        doodadsStructure: doodadsStructure,
+                        doodadsComplexity: doodadsComplexity,
+                        doodadsCurl: doodadsCurl,
                         viewportAspectRatio: viewportAspectRatio
                     )
 
@@ -3217,6 +3282,9 @@ struct MandelbrotView: View {
                             displayIterations: effectiveIterations,
                             colorNormalizationIterations: colorNormalizationIterations,
                             plateauTiltDegrees: plateauTiltDegrees,
+                            doodadsStructure: doodadsStructure,
+                            doodadsComplexity: doodadsComplexity,
+                            doodadsCurl: doodadsCurl,
                             iterationJourneyPreviewEnabled: iterationJourneyPreviewEnabled,
                             viewSize: geometry.size,
                             viewportAspectRatio: viewportAspectRatio,
@@ -3606,6 +3674,9 @@ struct HighPrecisionFractalPreview: View {
     let displayIterations: Int
     let colorNormalizationIterations: Int?
     let plateauTiltDegrees: Double
+    let doodadsStructure: Double
+    let doodadsComplexity: Double
+    let doodadsCurl: Double
     let iterationJourneyPreviewEnabled: Bool
     let viewSize: CGSize
     let viewportAspectRatio: Double
@@ -3661,6 +3732,9 @@ struct HighPrecisionFractalPreview: View {
             displayIterations.description,
             colorNormalizationIterations?.description ?? "flowing",
             String(format: "%.1f", plateauTiltDegrees),
+            String(format: "%.3f", doodadsStructure),
+            String(format: "%.3f", doodadsComplexity),
+            String(format: "%.3f", doodadsCurl),
             iterationJourneyPreviewEnabled.description,
             Int(viewSize.width).description,
             Int(viewSize.height).description,
@@ -4269,6 +4343,9 @@ struct HighPrecisionFractalPreview: View {
                 maxIterations: maxIterations,
                 colorNormalizationIterations: colorNormalizationIterations,
                 plateauTiltDegrees: plateauTiltDegrees,
+                doodadsStructure: doodadsStructure,
+                doodadsComplexity: doodadsComplexity,
+                doodadsCurl: doodadsCurl,
                 viewportAspectRatio: aspectRatio,
                 perturbationEnabled: perturbationEnabled,
                 doubleDoubleEnabled: doubleDoubleEnabled && isFinalRender,
@@ -4387,6 +4464,9 @@ nonisolated func renderFractalSupersampled(
     scale: Double,
     preciseViewport: PreciseViewport? = nil,
     maxIterations: Int,
+    doodadsStructure: Double = 0.05,
+    doodadsComplexity: Double = 0.05,
+    doodadsCurl: Double = 0.23,
     perturbationEnabled: Bool = true,
     doubleDoubleEnabled: Bool = false,
     tripleDoubleEnabled: Bool = false
@@ -4407,6 +4487,9 @@ nonisolated func renderFractalSupersampled(
             scale: scale,
             preciseViewport: preciseViewport,
             maxIterations: maxIterations,
+            doodadsStructure: doodadsStructure,
+            doodadsComplexity: doodadsComplexity,
+            doodadsCurl: doodadsCurl,
             perturbationEnabled: perturbationEnabled,
             doubleDoubleEnabled: doubleDoubleEnabled,
             tripleDoubleEnabled: tripleDoubleEnabled
@@ -5511,6 +5594,9 @@ nonisolated func renderFractal(
     maxIterations: Int,
     colorNormalizationIterations: Int? = nil,
     plateauTiltDegrees: Double = 82.0,
+    doodadsStructure: Double = 0.05,
+    doodadsComplexity: Double = 0.05,
+    doodadsCurl: Double = 0.23,
     viewportAspectRatio: Double? = nil,
     perturbationEnabled: Bool = true,
     doubleDoubleEnabled: Bool = false,
@@ -5696,7 +5782,17 @@ nonisolated func renderFractal(
 
             let color: (r: Double, g: Double, b: Double)
 
-            if mode == .newton {
+            if palette == .metallicDreams,
+               mode == .mandelbrot || mode.powerExponent != nil {
+                color = metallicDoodadsColor(
+                    x0: x0,
+                    y0: y0,
+                    maxIterations: maxIterations,
+                    structure: doodadsStructure,
+                    complexity: doodadsComplexity,
+                    curl: doodadsCurl
+                )
+            } else if mode == .newton {
                 color = calculateNewtonColor(
                     x0: x0,
                     y0: y0,
@@ -6517,6 +6613,14 @@ nonisolated private func calculateNewtonColor(
             (0.94, 0.10, 0.62),
             (1.00, 0.68, 0.08)
         ]
+    case .metallicDreams:
+        colors = [
+            (0.015, 0.008, 0.003),
+            (0.26, 0.09, 0.02),
+            (0.74, 0.31, 0.07),
+            (0.96, 0.86, 0.68),
+            (0.10, 0.045, 0.012)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -6849,6 +6953,96 @@ nonisolated private func iterationJourneyColorPosition(
     }
 
     return rawPosition - floor(rawPosition)
+}
+
+nonisolated private func metallicDoodadsColor(
+    x0: Double,
+    y0: Double,
+    maxIterations: Int,
+    structure: Double,
+    complexity: Double,
+    curl: Double
+) -> (r: Double, g: Double, b: Double) {
+    var zx = 0.0
+    var zy = 0.0
+    var minimumDistance = Double.greatestFiniteMagnitude
+    var closestIteration = 0
+    var iteration = 0
+
+    while iteration < maxIterations {
+        let nextX = zx * zx - zy * zy + x0
+        let nextY = 2.0 * zx * zy + y0
+        zx = nextX
+        zy = nextY
+
+        let radius = max(hypot(zx, zy), 1e-8)
+        let angle = atan2(zy, zx)
+        let petalCount = 4.0 + floor(clamp01(structure) * 7.0)
+        let petals = 0.29 + (0.045 + 0.060 * structure) * cos(petalCount * angle)
+        let petalTrap = abs(radius - petals)
+        let latticeTrap = abs(abs(zx) * abs(zy) - 0.055)
+            * (1.65 - 1.30 * complexity)
+        let curlTrap = abs(
+            sin(
+                (2.0 + 2.0 * structure) * angle
+                    + (0.70 + 3.40 * curl) * log2(radius + 0.035)
+            )
+        ) * radius * (0.25 - 0.18 * complexity)
+        let trapDistance = min(petalTrap, latticeTrap, curlTrap)
+
+        if trapDistance < minimumDistance {
+            minimumDistance = trapDistance
+            closestIteration = iteration
+        }
+
+        iteration += 1
+        if zx * zx + zy * zy > 256.0 {
+            break
+        }
+    }
+
+    let scale = exp(
+        -(23.0 - 8.0 * complexity) * sqrt(max(minimumDistance, 0.0))
+    )
+    let bands = 0.5 + 0.5 * cos(
+        (18.0 + 28.0 * complexity)
+            * pow(max(minimumDistance, 1e-8), 0.22)
+            - (0.18 + 0.32 * curl) * Double(closestIteration)
+    )
+    let filament = pow(scale, 2.1)
+    let highlight = pow(clamp01(scale * (0.35 + 0.65 * bands)), 5.0)
+    let depth = pow(clamp01(1.0 - scale), 1.55)
+
+    func blend(
+        _ a: (Double, Double, Double),
+        _ b: (Double, Double, Double),
+        _ amount: Double
+    ) -> (Double, Double, Double) {
+        (
+            a.0 + (b.0 - a.0) * amount,
+            a.1 + (b.1 - a.1) * amount,
+            a.2 + (b.2 - a.2) * amount
+        )
+    }
+
+    let black = (0.003, 0.002, 0.001)
+    let bronze = (0.24, 0.085, 0.018)
+    let copper = (0.72, 0.30, 0.075)
+    let silver = (0.96, 0.88, 0.72)
+    var color = blend(black, bronze, 0.70 * depth)
+    color = blend(color, copper, filament * (0.48 + 0.52 * bands))
+    color = blend(color, silver, highlight)
+
+    if iteration == maxIterations {
+        let interiorShade = 0.42 + 0.58 * filament
+        color = (
+            color.0 * interiorShade,
+            color.1 * interiorShade,
+            color.2 * interiorShade
+        )
+    }
+
+    return (clamp01(color.0), clamp01(color.1), clamp01(color.2))
 }
 
 nonisolated private func paletteBaseColor(
@@ -7237,6 +7431,16 @@ nonisolated private func paletteBaseColor(
             clamp01(color.1 + 0.19 * ridgeHot + 0.03 * ridgeGold),
             clamp01(color.2 + 0.10 * ridgeHot + 0.015 * ridgeGold)
         )
+
+    case .metallicDreams:
+        let body = pow(relief, 0.62)
+        let metal = pow(ridge, 3.4)
+        let warm = pow(glow, 1.2)
+        return (
+            clamp01(0.01 + 0.52 * body + 0.45 * warm + 0.42 * metal),
+            clamp01(0.006 + 0.20 * body + 0.18 * warm + 0.38 * metal),
+            clamp01(0.003 + 0.045 * body + 0.05 * warm + 0.30 * metal)
+        )
     }
 }
 
@@ -7305,6 +7509,8 @@ nonisolated private func insideColor(
             return (0.560, 0.345, 0.085)
         case .aurora:
             return (0.004, 0.010, 0.060)
+        case .metallicDreams:
+            return (0.025, 0.010, 0.003)
         }
     }
 

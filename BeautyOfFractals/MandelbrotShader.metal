@@ -24,6 +24,9 @@ struct Uniforms {
     uint fractalMode;
     uint fractalPalette;
     float plateauTiltDegrees;
+    float doodadsStructure;
+    float doodadsComplexity;
+    float doodadsCurl;
 };
 
 vertex VertexOut fullscreen_vertex(uint vertexID [[vertex_id]]) {
@@ -464,6 +467,84 @@ static float3 paletteColor(
     }
     
     return clamp(color, 0.0, 1.0);
+}
+
+// A compact GPU interpretation of Dennis Magar's Doodads idea. The original
+// Ultra Fractal coloring constructs a transformed trap for every orbit sample
+// and colors from the closest encounter. This keeps that defining behavior,
+// while using a smaller, stable family of folded polar traps suitable for the
+// live Metal renderer.
+static float4 metallicDoodadsColor(
+    float x0,
+    float y0,
+    uint maxIterations,
+    float structure,
+    float complexity,
+    float curl
+) {
+    float2 z = float2(0.0);
+    float minimumDistance = 1e10;
+    float closestIteration = 0.0;
+    uint iteration = 0u;
+
+    for (; iteration < maxIterations; iteration++) {
+        float x = z.x * z.x - z.y * z.y + x0;
+        float y = 2.0 * z.x * z.y + y0;
+        z = float2(x, y);
+
+        float radius = max(length(z), 1e-8);
+        float angle = atan2(z.y, z.x);
+        float2 folded = abs(z);
+
+        float petalCount = 4.0 + floor(clamp(structure, 0.0, 1.0) * 7.0);
+        float petals = 0.29
+            + (0.045 + 0.060 * structure) * cos(petalCount * angle);
+        float petalTrap = abs(radius - petals);
+        float latticeTrap = abs(folded.x * folded.y - 0.055)
+            * (1.65 - 1.30 * complexity);
+        float curlTrap = abs(
+            sin(
+                (2.0 + 2.0 * structure) * angle
+                + (0.70 + 3.40 * curl) * log2(radius + 0.035)
+            )
+        ) * radius * (0.25 - 0.18 * complexity);
+        float trapDistance = min(petalTrap, min(latticeTrap, curlTrap));
+
+        if (trapDistance < minimumDistance) {
+            minimumDistance = trapDistance;
+            closestIteration = float(iteration);
+        }
+
+        if (dot(z, z) > 256.0) {
+            break;
+        }
+    }
+
+    float scale = exp(
+        -(23.0 - 8.0 * complexity) * sqrt(max(minimumDistance, 0.0))
+    );
+    float bands = 0.5 + 0.5 * cos(
+        (18.0 + 28.0 * complexity)
+            * pow(max(minimumDistance, 1e-8), 0.22)
+        - (0.18 + 0.32 * curl) * closestIteration
+    );
+    float filament = pow(scale, 2.1);
+    float highlight = pow(clamp(scale * (0.35 + 0.65 * bands), 0.0, 1.0), 5.0);
+    float depth = pow(clamp(1.0 - scale, 0.0, 1.0), 1.55);
+
+    float3 black = float3(0.003, 0.002, 0.001);
+    float3 bronze = float3(0.24, 0.085, 0.018);
+    float3 copper = float3(0.72, 0.30, 0.075);
+    float3 silver = float3(0.96, 0.88, 0.72);
+    float3 color = mix(black, bronze, 0.70 * depth);
+    color = mix(color, copper, filament * (0.48 + 0.52 * bands));
+    color = mix(color, silver, highlight);
+
+    if (iteration == maxIterations) {
+        color *= 0.42 + 0.58 * filament;
+    }
+
+    return float4(clamp(color, 0.0, 1.0), 1.0);
 }
 
 static float3 auricInteriorColor(float2 uv) {
@@ -1239,6 +1320,19 @@ fragment float4 fractal_fragment(
     
     float x0 = uniforms.centerX + (uv.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
     float y0 = uniforms.centerY + (0.5 - uv.y) * uniforms.scale;
+
+    if (uniforms.fractalPalette == 17 &&
+        (uniforms.fractalMode == 0 ||
+         (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+        return metallicDoodadsColor(
+            x0,
+            y0,
+            uniforms.maxIterations,
+            uniforms.doodadsStructure,
+            uniforms.doodadsComplexity,
+            uniforms.doodadsCurl
+        );
+    }
     
     uint iteration = fractalIteration(
         uniforms.fractalMode,
