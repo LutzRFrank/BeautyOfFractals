@@ -325,6 +325,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case embossedMetal = 18
     case guilloche = 19
     case spheroidGlass = 20
+    case quantumTraps = 21
 
     var id: Int {
         rawValue
@@ -374,6 +375,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Guilloché"
         case .spheroidGlass:
             return "Spheroid Glass"
+        case .quantumTraps:
+            return "Quantum Traps"
         }
     }
 
@@ -421,6 +424,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Guilloche"
         case .spheroidGlass:
             return "SpheroidGlass"
+        case .quantumTraps:
+            return "QuantumTraps"
         }
     }
 }
@@ -1237,6 +1242,7 @@ struct ContentView: View {
     @State private var embossedRelief: Double = 0.50
     @State private var guillocheEngraving: Double = 0.42
     @State private var spheroidGlass: Double = 0.55
+    @State private var quantumInterference: Double = 0.46
     @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
@@ -1391,7 +1397,9 @@ struct ContentView: View {
                         ? guillocheEngraving
                         : fractalPalette == .spheroidGlass
                             ? spheroidGlass
-                            : doodadsStructure,
+                            : fractalPalette == .quantumTraps
+                                ? quantumInterference
+                                : doodadsStructure,
                 doodadsComplexity: doodadsComplexity,
                 doodadsCurl: doodadsCurl,
                 colorNormalizationIterations: showIterationJourneyPanel && journeyColorMode == .stable
@@ -1912,7 +1920,7 @@ struct ContentView: View {
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass]
+                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps]
                             : fractalMode == .mandelbrotPlateau
                                 ? [.auric]
                                 : FractalPalette.allCases
@@ -2049,6 +2057,16 @@ struct ContentView: View {
                     doodadsSlider(
                         title: "Glass",
                         value: $spheroidGlass
+                    )
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 24)
+                .frame(height: 44)
+            } else if fractalPalette == .quantumTraps {
+                HStack {
+                    doodadsSlider(
+                        title: "Interference",
+                        value: $quantumInterference
                     )
                     Spacer(minLength: 0)
                 }
@@ -2985,7 +3003,9 @@ struct ContentView: View {
                 ? guillocheEngraving
                 : snapshotPalette == .spheroidGlass
                     ? spheroidGlass
-                    : doodadsStructure
+                    : snapshotPalette == .quantumTraps
+                        ? quantumInterference
+                        : doodadsStructure
         let snapshotDoodadsComplexity = doodadsComplexity
         let snapshotDoodadsCurl = doodadsCurl
         let snapshotExportSuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
@@ -4599,7 +4619,16 @@ nonisolated func renderFractalSupersampled(
                         || mode == .julia
                         || mode.powerExponent != nil
 
-                    if palette == .spheroidGlass,
+                    if palette == .quantumTraps,
+                       supportsAbstractOrbitRendering {
+                        color = quantumTrapsColor(
+                            x0: x0,
+                            y0: y0,
+                            mode: mode,
+                            maxIterations: maxIterations,
+                            interference: doodadsStructure
+                        )
+                    } else if palette == .spheroidGlass,
                        supportsAbstractOrbitRendering {
                         color = spheroidGlassColor(
                             x0: x0,
@@ -5885,7 +5914,16 @@ nonisolated func renderFractal(
 
             let color: (r: Double, g: Double, b: Double)
 
-            if palette == .spheroidGlass,
+            if palette == .quantumTraps,
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                color = quantumTrapsColor(
+                    x0: x0,
+                    y0: y0,
+                    mode: mode,
+                    maxIterations: maxIterations,
+                    interference: doodadsStructure
+                )
+            } else if palette == .spheroidGlass,
                mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
                 color = spheroidGlassColor(
                     x0: x0,
@@ -6777,6 +6815,14 @@ nonisolated private func calculateNewtonColor(
             (0.82, 0.94, 0.88),
             (0.30, 0.16, 0.055)
         ]
+    case .quantumTraps:
+        colors = [
+            (0.004, 0.008, 0.018),
+            (0.04, 0.16, 0.28),
+            (0.20, 0.62, 0.78),
+            (1.00, 0.70, 0.28),
+            (0.92, 0.96, 1.00)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -7408,6 +7454,100 @@ nonisolated private func spheroidGlassColor(
     return (clamp01(r), clamp01(g), clamp01(b))
 }
 
+nonisolated private func quantumTrapsColor(
+    x0: Double,
+    y0: Double,
+    mode: FractalMode,
+    maxIterations: Int,
+    interference: Double
+) -> (r: Double, g: Double, b: Double) {
+    var zx = mode == .julia ? x0 : 0.0
+    var zy = mode == .julia ? y0 : 0.0
+    let cx = mode == .julia ? -0.8 : x0
+    let cy = mode == .julia ? 0.156 : y0
+    let exponent = mode.powerExponent ?? 2
+    let separation = 0.08 + 0.24 * clamp01(interference)
+    let traps = [
+        (x: -separation, y: 0.0, radius: 0.28),
+        (x: separation, y: 0.0, radius: 0.22),
+        (x: 0.0, y: separation * 0.86, radius: 0.18)
+    ]
+    var closest = Double.greatestFiniteMagnitude
+    var secondClosest = Double.greatestFiniteMagnitude
+    var closestX = 0.0
+    var closestY = 0.0
+    var closestRadius = 0.28
+    var closestIteration = 0
+    var iteration = 0
+
+    while iteration < maxIterations {
+        var powerX = zx
+        var powerY = zy
+        if exponent > 1 {
+            for _ in 1..<exponent {
+                let nextX = powerX * zx - powerY * zy
+                powerY = powerX * zy + powerY * zx
+                powerX = nextX
+            }
+        }
+        zx = powerX + cx
+        zy = powerY + cy
+
+        for trap in traps {
+            let localX = zx - trap.x
+            let localY = zy - trap.y
+            let distance = abs(hypot(localX, localY) - trap.radius)
+            if distance < closest {
+                secondClosest = closest
+                closest = distance
+                closestX = localX
+                closestY = localY
+                closestRadius = trap.radius
+                closestIteration = iteration
+            } else if distance < secondClosest {
+                secondClosest = distance
+            }
+        }
+
+        iteration += 1
+        if zx * zx + zy * zy > 256.0 {
+            break
+        }
+    }
+
+    let radialLength = max(hypot(closestX, closestY), 1e-8)
+    let nx = closestX / radialLength
+    let ny = closestY / radialLength
+    let shellRatio = clamp01(closest / closestRadius)
+    let nz = sqrt(max(1.0 - shellRatio * shellRatio, 0.0))
+    let diffuse = clamp01(nx * -0.46 + ny * 0.30 + nz * 0.84)
+    let lens = exp(-(20.0 + 22.0 * interference) * closest)
+    let overlap = exp(
+        -(34.0 - 16.0 * interference) * abs(secondClosest - closest)
+    ) * lens
+    let rim = pow(clamp01(1.0 - nz), 1.45)
+    let phase = 0.5 + 0.5 * cos(
+        0.52 * Double(closestIteration) + 18.0 * closest
+    )
+    let hotEdge = pow(overlap * phase, 2.4)
+    let coldEdge = pow(lens * (1.0 - phase), 2.0)
+
+    var r = 0.008 + 0.10 * lens * diffuse + 0.34 * rim
+        + 1.00 * hotEdge + 0.18 * coldEdge
+    var g = 0.014 + 0.28 * lens * diffuse + 0.48 * rim
+        + 0.58 * hotEdge + 0.62 * coldEdge
+    var b = 0.032 + 0.48 * lens * diffuse + 0.70 * rim
+        + 0.20 * hotEdge + 0.92 * coldEdge
+
+    if iteration == maxIterations {
+        r *= 0.42
+        g *= 0.50
+        b *= 0.64
+    }
+
+    return (clamp01(r), clamp01(g), clamp01(b))
+}
+
 nonisolated private func paletteBaseColor(
     relief: Double,
     ridge: Double,
@@ -7829,6 +7969,14 @@ nonisolated private func paletteBaseColor(
             clamp01(0.02 + 0.42 * relief + 0.62 * lens + 0.40 * rim),
             clamp01(0.03 + 0.50 * relief + 0.58 * lens + 0.34 * rim)
         )
+    case .quantumTraps:
+        let interference = pow(ridge, 3.4)
+        let glass = pow(glow, 0.72)
+        return (
+            clamp01(0.01 + 0.18 * relief + 0.82 * interference + 0.24 * glass),
+            clamp01(0.02 + 0.38 * relief + 0.52 * interference + 0.54 * glass),
+            clamp01(0.05 + 0.62 * relief + 0.22 * interference + 0.72 * glass)
+        )
     }
 }
 
@@ -7905,6 +8053,8 @@ nonisolated private func insideColor(
             return (0.004, 0.007, 0.010)
         case .spheroidGlass:
             return (0.004, 0.012, 0.016)
+        case .quantumTraps:
+            return (0.003, 0.006, 0.014)
         }
     }
 

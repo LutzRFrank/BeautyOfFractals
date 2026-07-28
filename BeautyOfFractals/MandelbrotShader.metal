@@ -744,6 +744,92 @@ static float4 spheroidGlassColor(
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }
 
+static float4 quantumTrapsColor(
+    float x0,
+    float y0,
+    uint mode,
+    uint maxIterations,
+    float interference
+) {
+    float2 z = mode == 1 ? float2(x0, y0) : float2(0.0);
+    float2 c = mode == 1 ? float2(-0.8, 0.156) : float2(x0, y0);
+    uint exponent = mode == 21 ? 2 : (mode == 11 ? 4 : (mode == 12 ? 3 : (mode >= 13 && mode <= 20 ? mode - 8 : 2)));
+    float separation = 0.08 + 0.24 * clamp(interference, 0.0, 1.0);
+    float closest = 1e10;
+    float secondClosest = 1e10;
+    float2 closestPoint = float2(0.0);
+    float closestRadius = 0.28;
+    float closestIteration = 0.0;
+    uint iteration = 0u;
+
+    for (; iteration < maxIterations; ++iteration) {
+        float2 power = z;
+        for (uint p = 1; p < exponent; ++p) {
+            power = float2(
+                power.x * z.x - power.y * z.y,
+                power.x * z.y + power.y * z.x
+            );
+        }
+        z = power + c;
+
+        for (uint trapIndex = 0; trapIndex < 3; ++trapIndex) {
+            float2 center = trapIndex == 0
+                ? float2(-separation, 0.0)
+                : trapIndex == 1
+                    ? float2(separation, 0.0)
+                    : float2(0.0, separation * 0.86);
+            float radius = trapIndex == 0 ? 0.28 : (trapIndex == 1 ? 0.22 : 0.18);
+            float2 localPoint = z - center;
+            float distance = abs(length(localPoint) - radius);
+
+            if (distance < closest) {
+                secondClosest = closest;
+                closest = distance;
+                closestPoint = localPoint;
+                closestRadius = radius;
+                closestIteration = float(iteration);
+            } else if (distance < secondClosest) {
+                secondClosest = distance;
+            }
+        }
+
+        if (dot(z, z) > 256.0) {
+            break;
+        }
+    }
+
+    float radialLength = max(length(closestPoint), 1e-8);
+    float2 normalXY = closestPoint / radialLength;
+    float shellRatio = clamp(closest / closestRadius, 0.0, 1.0);
+    float normalZ = sqrt(max(1.0 - shellRatio * shellRatio, 0.0));
+    float diffuse = clamp(
+        dot(float3(normalXY, normalZ), normalize(float3(-0.46, 0.30, 0.84))),
+        0.0,
+        1.0
+    );
+    float lens = exp(-(20.0 + 22.0 * interference) * closest);
+    float overlap = exp(
+        -(34.0 - 16.0 * interference) * abs(secondClosest - closest)
+    ) * lens;
+    float rim = pow(clamp(1.0 - normalZ, 0.0, 1.0), 1.45);
+    float phase = 0.5 + 0.5 * cos(
+        0.52 * closestIteration + 18.0 * closest
+    );
+    float hotEdge = pow(overlap * phase, 2.4);
+    float coldEdge = pow(lens * (1.0 - phase), 2.0);
+    float3 color = float3(
+        0.008 + 0.10 * lens * diffuse + 0.34 * rim + 1.00 * hotEdge + 0.18 * coldEdge,
+        0.014 + 0.28 * lens * diffuse + 0.48 * rim + 0.58 * hotEdge + 0.62 * coldEdge,
+        0.032 + 0.48 * lens * diffuse + 0.70 * rim + 0.20 * hotEdge + 0.92 * coldEdge
+    );
+
+    if (iteration == maxIterations) {
+        color *= float3(0.42, 0.50, 0.64);
+    }
+
+    return float4(clamp(color, 0.0, 1.0), 1.0);
+}
+
 static float3 auricInteriorColor(float2 uv) {
     float x = uv.x * 2.0 - 1.0;
     float y = uv.y * 2.0 - 1.0;
@@ -1517,6 +1603,19 @@ fragment float4 fractal_fragment(
     
     float x0 = uniforms.centerX + (uv.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
     float y0 = uniforms.centerY + (0.5 - uv.y) * uniforms.scale;
+
+    if (uniforms.fractalPalette == 21 &&
+        (uniforms.fractalMode == 0 ||
+         uniforms.fractalMode == 1 ||
+         (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+        return quantumTrapsColor(
+            x0,
+            y0,
+            uniforms.fractalMode,
+            uniforms.maxIterations,
+            uniforms.doodadsStructure
+        );
+    }
 
     if (uniforms.fractalPalette == 20 &&
         (uniforms.fractalMode == 0 ||
