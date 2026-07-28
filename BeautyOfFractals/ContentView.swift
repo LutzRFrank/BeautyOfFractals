@@ -1888,7 +1888,7 @@ struct ContentView: View {
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric]
+                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams]
                             : fractalMode == .mandelbrotPlateau
                                 ? [.auric]
                                 : FractalPalette.allCases
@@ -5783,10 +5783,11 @@ nonisolated func renderFractal(
             let color: (r: Double, g: Double, b: Double)
 
             if palette == .metallicDreams,
-               mode == .mandelbrot || mode.powerExponent != nil {
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
                 color = metallicDoodadsColor(
                     x0: x0,
                     y0: y0,
+                    mode: mode,
                     maxIterations: maxIterations,
                     structure: doodadsStructure,
                     complexity: doodadsComplexity,
@@ -6958,22 +6959,33 @@ nonisolated private func iterationJourneyColorPosition(
 nonisolated private func metallicDoodadsColor(
     x0: Double,
     y0: Double,
+    mode: FractalMode,
     maxIterations: Int,
     structure: Double,
     complexity: Double,
     curl: Double
 ) -> (r: Double, g: Double, b: Double) {
-    var zx = 0.0
-    var zy = 0.0
+    var zx = mode == .julia ? x0 : 0.0
+    var zy = mode == .julia ? y0 : 0.0
+    let cx = mode == .julia ? -0.8 : x0
+    let cy = mode == .julia ? 0.156 : y0
+    let exponent = mode.powerExponent ?? 2
     var minimumDistance = Double.greatestFiniteMagnitude
     var closestIteration = 0
     var iteration = 0
 
     while iteration < maxIterations {
-        let nextX = zx * zx - zy * zy + x0
-        let nextY = 2.0 * zx * zy + y0
-        zx = nextX
-        zy = nextY
+        var powerX = zx
+        var powerY = zy
+        if exponent > 1 {
+            for _ in 1..<exponent {
+                let nextX = powerX * zx - powerY * zy
+                powerY = powerX * zy + powerY * zx
+                powerX = nextX
+            }
+        }
+        zx = powerX + cx
+        zy = powerY + cy
 
         let radius = max(hypot(zx, zy), 1e-8)
         let angle = atan2(zy, zx)
@@ -7025,16 +7037,16 @@ nonisolated private func metallicDoodadsColor(
         )
     }
 
-    let black = (0.003, 0.002, 0.001)
-    let bronze = (0.24, 0.085, 0.018)
+    let black = (0.008, 0.0035, 0.0015)
+    let bronze = (0.30, 0.115, 0.028)
     let copper = (0.72, 0.30, 0.075)
     let silver = (0.96, 0.88, 0.72)
-    var color = blend(black, bronze, 0.70 * depth)
+    var color = blend(black, bronze, 0.78 * depth)
     color = blend(color, copper, filament * (0.48 + 0.52 * bands))
     color = blend(color, silver, highlight)
 
     if iteration == maxIterations {
-        let interiorShade = 0.42 + 0.58 * filament
+        let interiorShade = 0.50 + 0.50 * filament
         color = (
             color.0 * interiorShade,
             color.1 * interiorShade,

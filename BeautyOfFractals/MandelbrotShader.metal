@@ -477,20 +477,28 @@ static float3 paletteColor(
 static float4 metallicDoodadsColor(
     float x0,
     float y0,
+    uint mode,
     uint maxIterations,
     float structure,
     float complexity,
     float curl
 ) {
-    float2 z = float2(0.0);
+    float2 z = mode == 1 ? float2(x0, y0) : float2(0.0);
+    float2 c = mode == 1 ? float2(-0.8, 0.156) : float2(x0, y0);
+    uint exponent = mode == 21 ? 2 : (mode == 11 ? 4 : (mode == 12 ? 3 : (mode >= 13 && mode <= 20 ? mode - 8 : 2)));
     float minimumDistance = 1e10;
     float closestIteration = 0.0;
     uint iteration = 0u;
 
     for (; iteration < maxIterations; iteration++) {
-        float x = z.x * z.x - z.y * z.y + x0;
-        float y = 2.0 * z.x * z.y + y0;
-        z = float2(x, y);
+        float2 power = z;
+        for (uint p = 1; p < exponent; ++p) {
+            power = float2(
+                power.x * z.x - power.y * z.y,
+                power.x * z.y + power.y * z.x
+            );
+        }
+        z = power + c;
 
         float radius = max(length(z), 1e-8);
         float angle = atan2(z.y, z.x);
@@ -532,16 +540,16 @@ static float4 metallicDoodadsColor(
     float highlight = pow(clamp(scale * (0.35 + 0.65 * bands), 0.0, 1.0), 5.0);
     float depth = pow(clamp(1.0 - scale, 0.0, 1.0), 1.55);
 
-    float3 black = float3(0.003, 0.002, 0.001);
-    float3 bronze = float3(0.24, 0.085, 0.018);
+    float3 black = float3(0.008, 0.0035, 0.0015);
+    float3 bronze = float3(0.30, 0.115, 0.028);
     float3 copper = float3(0.72, 0.30, 0.075);
     float3 silver = float3(0.96, 0.88, 0.72);
-    float3 color = mix(black, bronze, 0.70 * depth);
+    float3 color = mix(black, bronze, 0.78 * depth);
     color = mix(color, copper, filament * (0.48 + 0.52 * bands));
     color = mix(color, silver, highlight);
 
     if (iteration == maxIterations) {
-        color *= 0.42 + 0.58 * filament;
+        color *= 0.50 + 0.50 * filament;
     }
 
     return float4(clamp(color, 0.0, 1.0), 1.0);
@@ -1323,10 +1331,12 @@ fragment float4 fractal_fragment(
 
     if (uniforms.fractalPalette == 17 &&
         (uniforms.fractalMode == 0 ||
+         uniforms.fractalMode == 1 ||
          (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
         return metallicDoodadsColor(
             x0,
             y0,
+            uniforms.fractalMode,
             uniforms.maxIterations,
             uniforms.doodadsStructure,
             uniforms.doodadsComplexity,
