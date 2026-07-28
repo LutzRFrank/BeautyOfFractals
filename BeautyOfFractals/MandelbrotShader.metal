@@ -555,6 +555,195 @@ static float4 metallicDoodadsColor(
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }
 
+static float4 embossedMetalColor(
+    float x0,
+    float y0,
+    constant Uniforms& uniforms
+) {
+    float stepY = max(uniforms.scale / 900.0, 1e-9);
+    float stepX = stepY * uniforms.aspectRatio;
+    uint centerIteration = fractalIteration(
+        uniforms.fractalMode, x0, y0, uniforms.maxIterations
+    );
+    uint xIteration = fractalIteration(
+        uniforms.fractalMode, x0 + stepX, y0, uniforms.maxIterations
+    );
+    uint yIteration = fractalIteration(
+        uniforms.fractalMode, x0, y0 + stepY, uniforms.maxIterations
+    );
+
+    float denominator = float(max(uniforms.maxIterations, 1u));
+    float height = sqrt(float(centerIteration) / denominator);
+    float reliefScale = 12.0 + 60.0 * clamp(
+        uniforms.doodadsStructure,
+        0.0,
+        1.0
+    );
+    float dx = (sqrt(float(xIteration) / denominator) - height) * reliefScale;
+    float dy = (sqrt(float(yIteration) / denominator) - height) * reliefScale;
+    float3 normal = normalize(float3(-dx, -dy, 1.0));
+    float diffuse = clamp(
+        dot(normal, normalize(float3(-0.48, 0.40, 0.78))),
+        0.0,
+        1.0
+    );
+    float rim = pow(clamp(1.0 - normal.z, 0.0, 1.0), 1.35);
+    float contour = pow(
+        0.5 + 0.5 * cos(52.0 * sqrt(max(height, 0.0))),
+        7.0
+    );
+    float body = 0.10 + 0.48 * pow(height, 0.60);
+    float light = 0.18 + 0.82 * diffuse;
+    float3 color = float3(
+        (0.10 + 0.62 * body) * light + 0.48 * rim + 0.32 * contour,
+        (0.105 + 0.47 * body) * light + 0.36 * rim + 0.24 * contour,
+        (0.11 + 0.29 * body) * light + 0.22 * rim + 0.15 * contour
+    );
+
+    if (centerIteration == uniforms.maxIterations) {
+        color *= float3(0.30, 0.28, 0.25);
+    }
+
+    return float4(clamp(color, 0.0, 1.0), 1.0);
+}
+
+static float4 guillocheColor(
+    float x0,
+    float y0,
+    uint mode,
+    uint maxIterations,
+    float engraving
+) {
+    float2 z = mode == 1 ? float2(x0, y0) : float2(0.0);
+    float2 c = mode == 1 ? float2(-0.8, 0.156) : float2(x0, y0);
+    uint exponent = mode == 21 ? 2 : (mode == 11 ? 4 : (mode == 12 ? 3 : (mode >= 13 && mode <= 20 ? mode - 8 : 2)));
+    float density = 5.0 + 10.0 * clamp(engraving, 0.0, 1.0);
+    float minimumLine = 1e10;
+    float closestIteration = 0.0;
+    uint iteration = 0u;
+
+    for (; iteration < maxIterations; ++iteration) {
+        float2 power = z;
+        for (uint p = 1; p < exponent; ++p) {
+            power = float2(
+                power.x * z.x - power.y * z.y,
+                power.x * z.y + power.y * z.x
+            );
+        }
+        z = power + c;
+
+        float radius = max(length(z), 1e-8);
+        float angle = atan2(z.y, z.x);
+        float logarithmicRadius = log(radius + 0.04);
+        float threadA = abs(sin(density * angle + 2.8 * logarithmicRadius));
+        float threadB = abs(sin((density + 3.0) * angle - 3.6 * logarithmicRadius));
+        float rosette = abs(
+            radius - 0.34 - 0.075 * cos((density - 1.0) * angle)
+        );
+        float lineDistance = min(
+            rosette * 3.0,
+            min(threadA, threadB) * radius * 0.16
+        );
+
+        if (lineDistance < minimumLine) {
+            minimumLine = lineDistance;
+            closestIteration = float(iteration);
+        }
+
+        if (dot(z, z) > 256.0) {
+            break;
+        }
+    }
+
+    float ink = exp(
+        -(34.0 + 30.0 * engraving) * sqrt(max(minimumLine, 0.0))
+    );
+    float weave = 0.5 + 0.5 * cos(
+        0.44 * closestIteration
+        + 30.0 * pow(max(minimumLine, 1e-8), 0.24)
+    );
+    float fineLine = pow(clamp(ink, 0.0, 1.0), 2.5);
+    float paper = pow(clamp(1.0 - ink, 0.0, 1.0), 1.4);
+    float3 color = float3(
+        0.022 + 0.12 * paper + fineLine * (0.68 + 0.48 * weave),
+        0.032 + 0.14 * paper + fineLine * (0.46 + 0.44 * weave),
+        0.044 + 0.16 * paper + fineLine * (0.20 + 0.30 * weave)
+    );
+
+    if (iteration == maxIterations) {
+        color *= float3(0.50, 0.56, 0.64);
+    }
+
+    return float4(clamp(color, 0.0, 1.0), 1.0);
+}
+
+static float4 spheroidGlassColor(
+    float x0,
+    float y0,
+    uint mode,
+    uint maxIterations,
+    float glass
+) {
+    float2 z = mode == 1 ? float2(x0, y0) : float2(0.0);
+    float2 c = mode == 1 ? float2(-0.8, 0.156) : float2(x0, y0);
+    uint exponent = mode == 21 ? 2 : (mode == 11 ? 4 : (mode == 12 ? 3 : (mode >= 13 && mode <= 20 ? mode - 8 : 2)));
+    float sphereRadius = 0.24 + 0.18 * clamp(glass, 0.0, 1.0);
+    float closestShell = 1e10;
+    float2 closestPoint = float2(0.0);
+    float closestIteration = 0.0;
+    uint iteration = 0u;
+
+    for (; iteration < maxIterations; ++iteration) {
+        float2 power = z;
+        for (uint p = 1; p < exponent; ++p) {
+            power = float2(
+                power.x * z.x - power.y * z.y,
+                power.x * z.y + power.y * z.x
+            );
+        }
+        z = power + c;
+
+        float shell = abs(length(z) - sphereRadius);
+        if (shell < closestShell) {
+            closestShell = shell;
+            closestPoint = z;
+            closestIteration = float(iteration);
+        }
+
+        if (dot(z, z) > 256.0) {
+            break;
+        }
+    }
+
+    float radialLength = max(length(closestPoint), 1e-8);
+    float2 normalXY = closestPoint / radialLength;
+    float shellRatio = clamp(closestShell / max(sphereRadius, 1e-8), 0.0, 1.0);
+    float normalZ = sqrt(max(1.0 - shellRatio * shellRatio, 0.0));
+    float diffuse = clamp(
+        dot(float3(normalXY, normalZ), normalize(float3(-0.42, 0.36, 0.82))),
+        0.0,
+        1.0
+    );
+    float rim = pow(clamp(1.0 - normalZ, 0.0, 1.0), 1.7);
+    float lens = exp(-(18.0 + 24.0 * glass) * closestShell);
+    float caustic = pow(
+        0.5 + 0.5 * cos(0.38 * closestIteration - 13.0 * normalZ),
+        8.0
+    ) * lens;
+    float body = 0.025 + 0.14 * lens;
+    float3 color = float3(
+        body * (0.40 + 0.60 * diffuse) + 0.46 * rim + 0.76 * caustic,
+        (body + 0.10 * lens) * (0.42 + 0.58 * diffuse) + 0.58 * rim + 0.84 * caustic,
+        (body + 0.16 * lens) * (0.45 + 0.55 * diffuse) + 0.62 * rim + 0.76 * caustic
+    );
+
+    if (iteration == maxIterations) {
+        color *= float3(0.42, 0.56, 0.64);
+    }
+
+    return float4(clamp(color, 0.0, 1.0), 1.0);
+}
+
 static float3 auricInteriorColor(float2 uv) {
     float x = uv.x * 2.0 - 1.0;
     float y = uv.y * 2.0 - 1.0;
@@ -1328,6 +1517,39 @@ fragment float4 fractal_fragment(
     
     float x0 = uniforms.centerX + (uv.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
     float y0 = uniforms.centerY + (0.5 - uv.y) * uniforms.scale;
+
+    if (uniforms.fractalPalette == 20 &&
+        (uniforms.fractalMode == 0 ||
+         uniforms.fractalMode == 1 ||
+         (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+        return spheroidGlassColor(
+            x0,
+            y0,
+            uniforms.fractalMode,
+            uniforms.maxIterations,
+            uniforms.doodadsStructure
+        );
+    }
+
+    if (uniforms.fractalPalette == 19 &&
+        (uniforms.fractalMode == 0 ||
+         uniforms.fractalMode == 1 ||
+         (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+        return guillocheColor(
+            x0,
+            y0,
+            uniforms.fractalMode,
+            uniforms.maxIterations,
+            uniforms.doodadsStructure
+        );
+    }
+
+    if (uniforms.fractalPalette == 18 &&
+        (uniforms.fractalMode == 0 ||
+         uniforms.fractalMode == 1 ||
+         (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+        return embossedMetalColor(x0, y0, uniforms);
+    }
 
     if (uniforms.fractalPalette == 17 &&
         (uniforms.fractalMode == 0 ||

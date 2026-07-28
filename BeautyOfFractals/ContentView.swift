@@ -322,6 +322,9 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case pearl = 15
     case motherOfPearl = 16
     case metallicDreams = 17
+    case embossedMetal = 18
+    case guilloche = 19
+    case spheroidGlass = 20
 
     var id: Int {
         rawValue
@@ -365,6 +368,12 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Pearl"
         case .metallicDreams:
             return "Metallic Dreams"
+        case .embossedMetal:
+            return "Embossed Metal"
+        case .guilloche:
+            return "Guilloché"
+        case .spheroidGlass:
+            return "Spheroid Glass"
         }
     }
 
@@ -406,6 +415,12 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Pearl"
         case .metallicDreams:
             return "MetallicDreams"
+        case .embossedMetal:
+            return "EmbossedMetal"
+        case .guilloche:
+            return "Guilloche"
+        case .spheroidGlass:
+            return "SpheroidGlass"
         }
     }
 }
@@ -1219,6 +1234,9 @@ struct ContentView: View {
     @State private var doodadsStructure: Double = 0.05
     @State private var doodadsComplexity: Double = 0.05
     @State private var doodadsCurl: Double = 0.23
+    @State private var embossedRelief: Double = 0.50
+    @State private var guillocheEngraving: Double = 0.42
+    @State private var spheroidGlass: Double = 0.55
     @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
@@ -1367,7 +1385,13 @@ struct ContentView: View {
                 preciseViewport: $preciseViewport,
                 maxIterations: $maxIterations,
                 plateauTiltDegrees: plateauTiltDegrees,
-                doodadsStructure: doodadsStructure,
+                doodadsStructure: fractalPalette == .embossedMetal
+                    ? embossedRelief
+                    : fractalPalette == .guilloche
+                        ? guillocheEngraving
+                        : fractalPalette == .spheroidGlass
+                            ? spheroidGlass
+                            : doodadsStructure,
                 doodadsComplexity: doodadsComplexity,
                 doodadsCurl: doodadsCurl,
                 colorNormalizationIterations: showIterationJourneyPanel && journeyColorMode == .stable
@@ -1888,7 +1912,7 @@ struct ContentView: View {
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams]
+                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass]
                             : fractalMode == .mandelbrotPlateau
                                 ? [.auric]
                                 : FractalPalette.allCases
@@ -1997,6 +2021,36 @@ struct ContentView: View {
                         title: "Curl",
                         value: $doodadsCurl
                     )
+                }
+                .padding(.horizontal, 24)
+                .frame(height: 44)
+            } else if fractalPalette == .embossedMetal {
+                HStack {
+                    doodadsSlider(
+                        title: "Relief",
+                        value: $embossedRelief
+                    )
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 24)
+                .frame(height: 44)
+            } else if fractalPalette == .guilloche {
+                HStack {
+                    doodadsSlider(
+                        title: "Engraving",
+                        value: $guillocheEngraving
+                    )
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 24)
+                .frame(height: 44)
+            } else if fractalPalette == .spheroidGlass {
+                HStack {
+                    doodadsSlider(
+                        title: "Glass",
+                        value: $spheroidGlass
+                    )
+                    Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 24)
                 .frame(height: 44)
@@ -2925,7 +2979,13 @@ struct ContentView: View {
         let snapshotPreciseViewport = preciseViewport
         let snapshotSupersampling = max(1, min(supersampling, 2))
         let snapshotIterations = snapshotSupersampling > 1 ? ultraExportEffectiveIterations : exportEffectiveIterations
-        let snapshotDoodadsStructure = doodadsStructure
+        let snapshotDoodadsStructure = snapshotPalette == .embossedMetal
+            ? embossedRelief
+            : snapshotPalette == .guilloche
+                ? guillocheEngraving
+                : snapshotPalette == .spheroidGlass
+                    ? spheroidGlass
+                    : doodadsStructure
         let snapshotDoodadsComplexity = doodadsComplexity
         let snapshotDoodadsCurl = doodadsCurl
         let snapshotExportSuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
@@ -4534,8 +4594,51 @@ nonisolated func renderFractalSupersampled(
                     let y0 = centerY + (sampleY / Double(sampleHeight) - 0.5) * scale
 
                     let color: (r: Double, g: Double, b: Double)
+                    let supportsAbstractOrbitRendering =
+                        mode == .mandelbrot
+                        || mode == .julia
+                        || mode.powerExponent != nil
 
-                    if mode == .newton {
+                    if palette == .spheroidGlass,
+                       supportsAbstractOrbitRendering {
+                        color = spheroidGlassColor(
+                            x0: x0,
+                            y0: y0,
+                            mode: mode,
+                            maxIterations: maxIterations,
+                            glass: doodadsStructure
+                        )
+                    } else if palette == .guilloche,
+                              supportsAbstractOrbitRendering {
+                        color = guillocheColor(
+                            x0: x0,
+                            y0: y0,
+                            mode: mode,
+                            maxIterations: maxIterations,
+                            engraving: doodadsStructure
+                        )
+                    } else if palette == .embossedMetal,
+                              supportsAbstractOrbitRendering {
+                        color = embossedMetalColor(
+                            mode: mode,
+                            x0: x0,
+                            y0: y0,
+                            sampleStep: scale / Double(max(sampleWidth, sampleHeight)),
+                            reliefStrength: doodadsStructure,
+                            maxIterations: maxIterations
+                        )
+                    } else if palette == .metallicDreams,
+                              supportsAbstractOrbitRendering {
+                        color = metallicDoodadsColor(
+                            x0: x0,
+                            y0: y0,
+                            mode: mode,
+                            maxIterations: maxIterations,
+                            structure: doodadsStructure,
+                            complexity: doodadsComplexity,
+                            curl: doodadsCurl
+                        )
+                    } else if mode == .newton {
                         color = calculateNewtonColor(
                             x0: x0,
                             y0: y0,
@@ -5782,7 +5885,35 @@ nonisolated func renderFractal(
 
             let color: (r: Double, g: Double, b: Double)
 
-            if palette == .metallicDreams,
+            if palette == .spheroidGlass,
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                color = spheroidGlassColor(
+                    x0: x0,
+                    y0: y0,
+                    mode: mode,
+                    maxIterations: maxIterations,
+                    glass: doodadsStructure
+                )
+            } else if palette == .guilloche,
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                color = guillocheColor(
+                    x0: x0,
+                    y0: y0,
+                    mode: mode,
+                    maxIterations: maxIterations,
+                    engraving: doodadsStructure
+                )
+            } else if palette == .embossedMetal,
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                color = embossedMetalColor(
+                    mode: mode,
+                    x0: x0,
+                    y0: y0,
+                    sampleStep: scale / Double(max(width, height)),
+                    reliefStrength: doodadsStructure,
+                    maxIterations: maxIterations
+                )
+            } else if palette == .metallicDreams,
                mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
                 color = metallicDoodadsColor(
                     x0: x0,
@@ -6622,6 +6753,30 @@ nonisolated private func calculateNewtonColor(
             (0.96, 0.86, 0.68),
             (0.10, 0.045, 0.012)
         ]
+    case .embossedMetal:
+        colors = [
+            (0.018, 0.020, 0.022),
+            (0.12, 0.13, 0.14),
+            (0.42, 0.34, 0.23),
+            (0.88, 0.78, 0.57),
+            (0.07, 0.055, 0.035)
+        ]
+    case .guilloche:
+        colors = [
+            (0.006, 0.010, 0.014),
+            (0.055, 0.095, 0.12),
+            (0.52, 0.34, 0.12),
+            (0.96, 0.84, 0.52),
+            (0.12, 0.055, 0.018)
+        ]
+    case .spheroidGlass:
+        colors = [
+            (0.006, 0.014, 0.020),
+            (0.04, 0.20, 0.25),
+            (0.22, 0.58, 0.62),
+            (0.82, 0.94, 0.88),
+            (0.30, 0.16, 0.055)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -7057,6 +7212,202 @@ nonisolated private func metallicDoodadsColor(
     return (clamp01(color.0), clamp01(color.1), clamp01(color.2))
 }
 
+nonisolated private func embossedMetalColor(
+    mode: FractalMode,
+    x0: Double,
+    y0: Double,
+    sampleStep: Double,
+    reliefStrength: Double,
+    maxIterations: Int
+) -> (r: Double, g: Double, b: Double) {
+    let centerIteration = calculateFractalIteration(
+        mode: mode, x0: x0, y0: y0, maxIterations: maxIterations
+    )
+    let xIteration = calculateFractalIteration(
+        mode: mode, x0: x0 + sampleStep, y0: y0, maxIterations: maxIterations
+    )
+    let yIteration = calculateFractalIteration(
+        mode: mode, x0: x0, y0: y0 + sampleStep, maxIterations: maxIterations
+    )
+
+    let denominator = Double(max(maxIterations, 1))
+    let height = sqrt(Double(centerIteration) / denominator)
+    let reliefScale = 12.0 + 60.0 * clamp01(reliefStrength)
+    let dx = (sqrt(Double(xIteration) / denominator) - height) * reliefScale
+    let dy = (sqrt(Double(yIteration) / denominator) - height) * reliefScale
+    let normalLength = sqrt(dx * dx + dy * dy + 1.0)
+    let nx = -dx / normalLength
+    let ny = -dy / normalLength
+    let nz = 1.0 / normalLength
+    let diffuse = clamp01(nx * -0.48 + ny * 0.40 + nz * 0.78)
+    let rim = pow(clamp01(1.0 - nz), 1.35)
+    let contour = pow(
+        0.5 + 0.5 * cos(52.0 * sqrt(max(height, 0.0))),
+        7.0
+    )
+    let body = 0.10 + 0.48 * pow(height, 0.60)
+    let light = 0.18 + 0.82 * diffuse
+
+    var r = (0.10 + 0.62 * body) * light + 0.48 * rim + 0.32 * contour
+    var g = (0.105 + 0.47 * body) * light + 0.36 * rim + 0.24 * contour
+    var b = (0.11 + 0.29 * body) * light + 0.22 * rim + 0.15 * contour
+
+    if centerIteration == maxIterations {
+        r *= 0.30
+        g *= 0.28
+        b *= 0.25
+    }
+
+    return (clamp01(r), clamp01(g), clamp01(b))
+}
+
+nonisolated private func guillocheColor(
+    x0: Double,
+    y0: Double,
+    mode: FractalMode,
+    maxIterations: Int,
+    engraving: Double
+) -> (r: Double, g: Double, b: Double) {
+    var zx = mode == .julia ? x0 : 0.0
+    var zy = mode == .julia ? y0 : 0.0
+    let cx = mode == .julia ? -0.8 : x0
+    let cy = mode == .julia ? 0.156 : y0
+    let exponent = mode.powerExponent ?? 2
+    let density = 5.0 + 10.0 * clamp01(engraving)
+    var minimumLine = Double.greatestFiniteMagnitude
+    var closestIteration = 0
+    var iteration = 0
+
+    while iteration < maxIterations {
+        var powerX = zx
+        var powerY = zy
+        if exponent > 1 {
+            for _ in 1..<exponent {
+                let nextX = powerX * zx - powerY * zy
+                powerY = powerX * zy + powerY * zx
+                powerX = nextX
+            }
+        }
+        zx = powerX + cx
+        zy = powerY + cy
+
+        let radius = max(hypot(zx, zy), 1e-8)
+        let angle = atan2(zy, zx)
+        let logarithmicRadius = log(radius + 0.04)
+        let threadA = abs(sin(density * angle + 2.8 * logarithmicRadius))
+        let threadB = abs(sin((density + 3.0) * angle - 3.6 * logarithmicRadius))
+        let rosette = abs(
+            radius - 0.34 - 0.075 * cos((density - 1.0) * angle)
+        )
+        let lineDistance = min(
+            rosette * 3.0,
+            min(threadA, threadB) * radius * 0.16
+        )
+
+        if lineDistance < minimumLine {
+            minimumLine = lineDistance
+            closestIteration = iteration
+        }
+
+        iteration += 1
+        if zx * zx + zy * zy > 256.0 {
+            break
+        }
+    }
+
+    let ink = exp(-(34.0 + 30.0 * engraving) * sqrt(max(minimumLine, 0.0)))
+    let weave = 0.5 + 0.5 * cos(
+        0.44 * Double(closestIteration) + 30.0 * pow(max(minimumLine, 1e-8), 0.24)
+    )
+    let fineLine = pow(clamp01(ink), 2.5)
+    let paper = pow(clamp01(1.0 - ink), 1.4)
+    var r = 0.022 + 0.12 * paper + fineLine * (0.68 + 0.48 * weave)
+    var g = 0.032 + 0.14 * paper + fineLine * (0.46 + 0.44 * weave)
+    var b = 0.044 + 0.16 * paper + fineLine * (0.20 + 0.30 * weave)
+
+    if iteration == maxIterations {
+        r *= 0.50
+        g *= 0.56
+        b *= 0.64
+    }
+
+    return (clamp01(r), clamp01(g), clamp01(b))
+}
+
+nonisolated private func spheroidGlassColor(
+    x0: Double,
+    y0: Double,
+    mode: FractalMode,
+    maxIterations: Int,
+    glass: Double
+) -> (r: Double, g: Double, b: Double) {
+    var zx = mode == .julia ? x0 : 0.0
+    var zy = mode == .julia ? y0 : 0.0
+    let cx = mode == .julia ? -0.8 : x0
+    let cy = mode == .julia ? 0.156 : y0
+    let exponent = mode.powerExponent ?? 2
+    let sphereRadius = 0.24 + 0.18 * clamp01(glass)
+    var closestShell = Double.greatestFiniteMagnitude
+    var closestX = 0.0
+    var closestY = 0.0
+    var closestIteration = 0
+    var iteration = 0
+
+    while iteration < maxIterations {
+        var powerX = zx
+        var powerY = zy
+        if exponent > 1 {
+            for _ in 1..<exponent {
+                let nextX = powerX * zx - powerY * zy
+                powerY = powerX * zy + powerY * zx
+                powerX = nextX
+            }
+        }
+        zx = powerX + cx
+        zy = powerY + cy
+
+        let shell = abs(hypot(zx, zy) - sphereRadius)
+        if shell < closestShell {
+            closestShell = shell
+            closestX = zx
+            closestY = zy
+            closestIteration = iteration
+        }
+
+        iteration += 1
+        if zx * zx + zy * zy > 256.0 {
+            break
+        }
+    }
+
+    let radialLength = max(hypot(closestX, closestY), 1e-8)
+    let nx = closestX / radialLength
+    let ny = closestY / radialLength
+    let shellRatio = clamp01(closestShell / max(sphereRadius, 1e-8))
+    let nz = sqrt(max(1.0 - shellRatio * shellRatio, 0.0))
+    let diffuse = clamp01(nx * -0.42 + ny * 0.36 + nz * 0.82)
+    let rim = pow(clamp01(1.0 - nz), 1.7)
+    let lens = exp(-(18.0 + 24.0 * glass) * closestShell)
+    let caustic = pow(
+        0.5 + 0.5 * cos(0.38 * Double(closestIteration) - 13.0 * nz),
+        8.0
+    ) * lens
+    let body = 0.025 + 0.14 * lens
+    var r = body * (0.40 + 0.60 * diffuse) + 0.46 * rim + 0.76 * caustic
+    var g = (body + 0.10 * lens) * (0.42 + 0.58 * diffuse)
+        + 0.58 * rim + 0.84 * caustic
+    var b = (body + 0.16 * lens) * (0.45 + 0.55 * diffuse)
+        + 0.62 * rim + 0.76 * caustic
+
+    if iteration == maxIterations {
+        r *= 0.42
+        g *= 0.56
+        b *= 0.64
+    }
+
+    return (clamp01(r), clamp01(g), clamp01(b))
+}
+
 nonisolated private func paletteBaseColor(
     relief: Double,
     ridge: Double,
@@ -7453,6 +7804,31 @@ nonisolated private func paletteBaseColor(
             clamp01(0.006 + 0.20 * body + 0.18 * warm + 0.38 * metal),
             clamp01(0.003 + 0.045 * body + 0.05 * warm + 0.30 * metal)
         )
+    case .embossedMetal:
+        let body = pow(relief, 0.60)
+        let edge = pow(ridge, 2.8)
+        let light = pow(glow, 1.1)
+        return (
+            clamp01(0.04 + 0.46 * body + 0.34 * light + 0.30 * edge),
+            clamp01(0.045 + 0.36 * body + 0.26 * light + 0.23 * edge),
+            clamp01(0.05 + 0.24 * body + 0.16 * light + 0.14 * edge)
+        )
+    case .guilloche:
+        let line = pow(ridge, 4.0)
+        let body = pow(relief, 0.70)
+        return (
+            clamp01(0.015 + 0.24 * body + 0.72 * line),
+            clamp01(0.025 + 0.17 * body + 0.56 * line),
+            clamp01(0.035 + 0.13 * body + 0.30 * line)
+        )
+    case .spheroidGlass:
+        let lens = pow(glow, 0.65)
+        let rim = pow(ridge, 3.0)
+        return (
+            clamp01(0.01 + 0.20 * relief + 0.48 * lens + 0.32 * rim),
+            clamp01(0.02 + 0.42 * relief + 0.62 * lens + 0.40 * rim),
+            clamp01(0.03 + 0.50 * relief + 0.58 * lens + 0.34 * rim)
+        )
     }
 }
 
@@ -7523,6 +7899,12 @@ nonisolated private func insideColor(
             return (0.004, 0.010, 0.060)
         case .metallicDreams:
             return (0.025, 0.010, 0.003)
+        case .embossedMetal:
+            return (0.018, 0.019, 0.020)
+        case .guilloche:
+            return (0.004, 0.007, 0.010)
+        case .spheroidGlass:
+            return (0.004, 0.012, 0.016)
         }
     }
 
