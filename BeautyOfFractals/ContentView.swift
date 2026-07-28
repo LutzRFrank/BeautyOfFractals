@@ -326,6 +326,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case guilloche = 19
     case spheroidGlass = 20
     case quantumTraps = 21
+    case orbitalWaves = 22
 
     var id: Int {
         rawValue
@@ -377,6 +378,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Spheroid Glass"
         case .quantumTraps:
             return "Quantum Traps"
+        case .orbitalWaves:
+            return "Orbital Waves"
         }
     }
 
@@ -426,6 +429,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "SpheroidGlass"
         case .quantumTraps:
             return "QuantumTraps"
+        case .orbitalWaves:
+            return "OrbitalWaves"
         }
     }
 }
@@ -1243,6 +1248,7 @@ struct ContentView: View {
     @State private var guillocheEngraving: Double = 0.42
     @State private var spheroidGlass: Double = 0.55
     @State private var quantumInterference: Double = 0.46
+    @State private var orbitalWaves: Double = 0.48
     @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
@@ -1399,6 +1405,8 @@ struct ContentView: View {
                             ? spheroidGlass
                             : fractalPalette == .quantumTraps
                                 ? quantumInterference
+                                : fractalPalette == .orbitalWaves
+                                    ? orbitalWaves
                                 : doodadsStructure,
                 doodadsComplexity: doodadsComplexity,
                 doodadsCurl: doodadsCurl,
@@ -1920,7 +1928,7 @@ struct ContentView: View {
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps]
+                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves]
                             : fractalMode == .mandelbrotPlateau
                                 ? [.auric]
                                 : FractalPalette.allCases
@@ -2069,6 +2077,15 @@ struct ContentView: View {
                         value: $quantumInterference
                     )
                     Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 24)
+                .frame(height: 44)
+            } else if fractalPalette == .orbitalWaves {
+                HStack {
+                    Text("Waves")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Slider(value: $orbitalWaves, in: 0...1)
                 }
                 .padding(.horizontal, 24)
                 .frame(height: 44)
@@ -3005,6 +3022,8 @@ struct ContentView: View {
                     ? spheroidGlass
                     : snapshotPalette == .quantumTraps
                         ? quantumInterference
+                        : snapshotPalette == .orbitalWaves
+                            ? orbitalWaves
                         : doodadsStructure
         let snapshotDoodadsComplexity = doodadsComplexity
         let snapshotDoodadsCurl = doodadsCurl
@@ -4619,7 +4638,16 @@ nonisolated func renderFractalSupersampled(
                         || mode == .julia
                         || mode.powerExponent != nil
 
-                    if palette == .quantumTraps,
+                    if palette == .orbitalWaves,
+                       mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                        color = orbitalWavesColor(
+                            x0: x0,
+                            y0: y0,
+                            mode: mode,
+                            maxIterations: maxIterations,
+                            waves: doodadsStructure
+                        )
+                    } else if palette == .quantumTraps,
                        supportsAbstractOrbitRendering {
                         color = quantumTrapsColor(
                             x0: x0,
@@ -5914,7 +5942,16 @@ nonisolated func renderFractal(
 
             let color: (r: Double, g: Double, b: Double)
 
-            if palette == .quantumTraps,
+            if palette == .orbitalWaves,
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                color = orbitalWavesColor(
+                    x0: x0,
+                    y0: y0,
+                    mode: mode,
+                    maxIterations: maxIterations,
+                    waves: doodadsStructure
+                )
+            } else if palette == .quantumTraps,
                mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
                 color = quantumTrapsColor(
                     x0: x0,
@@ -6823,6 +6860,14 @@ nonisolated private func calculateNewtonColor(
             (1.00, 0.70, 0.28),
             (0.92, 0.96, 1.00)
         ]
+    case .orbitalWaves:
+        colors = [
+            (0.004, 0.008, 0.018),
+            (0.02, 0.18, 0.34),
+            (0.10, 0.66, 0.88),
+            (0.96, 0.78, 0.36),
+            (0.92, 0.98, 1.00)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -7454,6 +7499,66 @@ nonisolated private func spheroidGlassColor(
     return (clamp01(r), clamp01(g), clamp01(b))
 }
 
+nonisolated private func orbitalWavesColor(
+    x0: Double,
+    y0: Double,
+    mode: FractalMode,
+    maxIterations: Int,
+    waves: Double
+) -> (r: Double, g: Double, b: Double) {
+    var zx = mode == .julia ? x0 : 0.0
+    var zy = mode == .julia ? y0 : 0.0
+    let cx = mode == .julia ? -0.8 : x0
+    let cy = mode == .julia ? 0.156 : y0
+    let exponent = mode.powerExponent ?? 2
+    let frequency = 8.0 + 20.0 * clamp01(waves)
+    var closestWave = Double.greatestFiniteMagnitude
+    var phaseAtClosest = 0.0
+    var closestIteration = 0
+    var iteration = 0
+
+    while iteration < maxIterations {
+        var powerX = zx
+        var powerY = zy
+        if exponent > 1 {
+            for _ in 1..<exponent {
+                let nextX = powerX * zx - powerY * zy
+                powerY = powerX * zy + powerY * zx
+                powerX = nextX
+            }
+        }
+        zx = powerX + cx
+        zy = powerY + cy
+        let radius = max(hypot(zx, zy), 1e-8)
+        let angle = atan2(zy, zx)
+        let phase = frequency * log(radius + 0.06)
+            + (3.0 + 5.0 * waves) * angle
+            - 0.24 * Double(iteration)
+        let distance = abs(sin(phase)) * min(radius, 1.0)
+        if distance < closestWave {
+            closestWave = distance
+            phaseAtClosest = phase
+            closestIteration = iteration
+        }
+        iteration += 1
+        if zx * zx + zy * zy > 256.0 { break }
+    }
+
+    let wave = exp(-(30.0 + 34.0 * waves) * sqrt(max(closestWave, 0.0)))
+    let crest = pow(wave, 2.2)
+    let interference = 0.5 + 0.5 * cos(
+        0.38 * Double(closestIteration) + 2.0 * phaseAtClosest
+    )
+    let hot = pow(crest * interference, 2.2)
+    let cold = pow(crest * (1.0 - interference), 1.7)
+    let shade = iteration == maxIterations ? 0.72 : 1.0
+    return (
+        clamp01((0.018 + 0.26 * wave + 1.05 * hot + 0.20 * cold) * shade),
+        clamp01((0.034 + 0.62 * wave + 0.72 * hot + 0.88 * cold) * shade),
+        clamp01((0.072 + 0.95 * wave + 0.30 * hot + 1.12 * cold) * shade)
+    )
+}
+
 nonisolated private func quantumTrapsColor(
     x0: Double,
     y0: Double,
@@ -7977,6 +8082,14 @@ nonisolated private func paletteBaseColor(
             clamp01(0.02 + 0.38 * relief + 0.52 * interference + 0.54 * glass),
             clamp01(0.05 + 0.62 * relief + 0.22 * interference + 0.72 * glass)
         )
+    case .orbitalWaves:
+        let wave = pow(ridge, 2.8)
+        let waveGlow = pow(glow, 0.70)
+        return (
+            clamp01(0.01 + 0.16 * relief + 0.70 * wave + 0.24 * waveGlow),
+            clamp01(0.02 + 0.40 * relief + 0.58 * wave + 0.58 * waveGlow),
+            clamp01(0.05 + 0.68 * relief + 0.30 * wave + 0.82 * waveGlow)
+        )
     }
 }
 
@@ -8055,6 +8168,8 @@ nonisolated private func insideColor(
             return (0.004, 0.012, 0.016)
         case .quantumTraps:
             return (0.003, 0.006, 0.014)
+        case .orbitalWaves:
+            return (0.003, 0.008, 0.022)
         }
     }
 

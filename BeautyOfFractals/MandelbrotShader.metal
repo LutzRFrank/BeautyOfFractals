@@ -744,6 +744,60 @@ static float4 spheroidGlassColor(
     return float4(clamp(color, 0.0, 1.0), 1.0);
 }
 
+static float4 orbitalWavesColor(
+    float x0,
+    float y0,
+    uint mode,
+    uint maxIterations,
+    float waves
+) {
+    float2 z = mode == 1 ? float2(x0, y0) : float2(0.0);
+    float2 c = mode == 1 ? float2(-0.8, 0.156) : float2(x0, y0);
+    uint exponent = mode == 21 ? 2 : (mode == 11 ? 4 : (mode == 12 ? 3 : (mode >= 13 && mode <= 20 ? mode - 8 : 2)));
+    float frequency = 8.0 + 20.0 * clamp(waves, 0.0, 1.0);
+    float closest = 1e10;
+    float closestPhase = 0.0;
+    uint closestIteration = 0;
+    uint iteration = 0;
+
+    while (iteration < maxIterations) {
+        float2 powered = z;
+        for (uint power = 1; power < exponent; power++) {
+            powered = float2(
+                powered.x * z.x - powered.y * z.y,
+                powered.x * z.y + powered.y * z.x
+            );
+        }
+        z = powered + c;
+        float radius = max(length(z), 1e-8);
+        float angle = atan2(z.y, z.x);
+        float phase = frequency * log(radius + 0.06)
+            + (3.0 + 5.0 * waves) * angle
+            - 0.24 * float(iteration);
+        float distance = abs(sin(phase)) * min(radius, 1.0);
+        if (distance < closest) {
+            closest = distance;
+            closestPhase = phase;
+            closestIteration = iteration;
+        }
+        iteration++;
+        if (dot(z, z) > 256.0) break;
+    }
+
+    float wave = exp(-(30.0 + 34.0 * waves) * sqrt(max(closest, 0.0)));
+    float crest = pow(wave, 2.2);
+    float interference = 0.5 + 0.5 * cos(0.38 * float(closestIteration) + 2.0 * closestPhase);
+    float hot = pow(crest * interference, 2.2);
+    float cold = pow(crest * (1.0 - interference), 1.7);
+    float3 color = float3(
+        0.018 + 0.26 * wave + 1.05 * hot + 0.20 * cold,
+        0.034 + 0.62 * wave + 0.72 * hot + 0.88 * cold,
+        0.072 + 0.95 * wave + 0.30 * hot + 1.12 * cold
+    );
+    if (iteration == maxIterations) color *= float3(0.72);
+    return float4(clamp(color, 0.0, 1.0), 1.0);
+}
+
 static float4 quantumTrapsColor(
     float x0,
     float y0,
@@ -1603,6 +1657,19 @@ fragment float4 fractal_fragment(
     
     float x0 = uniforms.centerX + (uv.x - 0.5) * uniforms.scale * uniforms.aspectRatio;
     float y0 = uniforms.centerY + (0.5 - uv.y) * uniforms.scale;
+
+    if (uniforms.fractalPalette == 22 &&
+        (uniforms.fractalMode == 0 ||
+         uniforms.fractalMode == 1 ||
+         (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {
+        return orbitalWavesColor(
+            x0,
+            y0,
+            uniforms.fractalMode,
+            uniforms.maxIterations,
+            uniforms.doodadsStructure
+        );
+    }
 
     if (uniforms.fractalPalette == 21 &&
         (uniforms.fractalMode == 0 ||
