@@ -1397,6 +1397,10 @@ struct ContentView: View {
                 controlsOverlay
                     .padding(.bottom, 26)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                controlsRestoreHandle
+                    .padding(.bottom, 18)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             if showIterationJourneyPanel {
@@ -1813,6 +1817,13 @@ struct ContentView: View {
                         Image(systemName: "questionmark.circle")
                     }
                     .help("Welcome and controls")
+
+                    Button {
+                        showControls = false
+                    } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .help("Hide Controls (⇧⌘C)")
                 }
                 .font(.system(size: 17, weight: .semibold))
                 .buttonStyle(.plain)
@@ -1973,6 +1984,34 @@ struct ContentView: View {
         }
         .shadow(color: .black.opacity(0.42), radius: 26, x: 0, y: 12)
         .padding(.horizontal, 24)
+    }
+
+    private var controlsRestoreHandle: some View {
+        Button {
+            showControls = true
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "keyboard")
+                    .font(.system(size: 15, weight: .semibold))
+
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 10, weight: .bold))
+            }
+            .foregroundStyle(.white.opacity(0.9))
+            .padding(.horizontal, 14)
+            .frame(height: 36)
+            .background(.ultraThinMaterial)
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(.white.opacity(0.16), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.35), radius: 16, x: 0, y: 8)
+        }
+        .buttonStyle(.plain)
+        .help("Show Controls (⇧⌘C)")
+        .accessibilityLabel("Show Controls")
+        .accessibilityHint("Keyboard shortcut Shift Command C")
     }
 
     private var iterationJourneyPanel: some View {
