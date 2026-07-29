@@ -4851,6 +4851,350 @@ nonisolated private func continueMandelbrotIteration(
     return iteration
 }
 
+nonisolated private final class DeepOrbitArtAccumulator {
+    let palette: FractalPalette
+    let structure: Double
+    let complexity: Double
+    let curl: Double
+
+    private var minimum = Double.greatestFiniteMagnitude
+    private var secondMinimum = Double.greatestFiniteMagnitude
+    private var closestX = 0.0
+    private var closestY = 0.0
+    private var closestRadius = 0.28
+    private var phaseAtClosest = 0.0
+    private var closestIteration = 0
+
+    init(
+        palette: FractalPalette,
+        structure: Double,
+        complexity: Double,
+        curl: Double
+    ) {
+        self.palette = palette
+        self.structure = structure
+        self.complexity = complexity
+        self.curl = curl
+    }
+
+    func observe(iteration: Int, x: Double, y: Double) {
+        let radius = max(hypot(x, y), 1e-8)
+        let angle = atan2(y, x)
+        let candidate: Double
+        let candidateX = x
+        let candidateY = y
+        var candidateRadius = 0.28
+        var candidatePhase = 0.0
+
+        switch palette {
+        case .orbitalWaves:
+            let frequency = 8.0 + 20.0 * clamp01(structure)
+            candidatePhase = frequency * log(radius + 0.06)
+                + (3.0 + 5.0 * structure) * angle
+                - 0.24 * Double(iteration)
+            candidate = abs(sin(candidatePhase)) * min(radius, 1.0)
+
+        case .quantumTraps:
+            let separation = 0.08 + 0.24 * clamp01(structure)
+            let traps = [
+                (x: -separation, y: 0.0, radius: 0.28),
+                (x: separation, y: 0.0, radius: 0.22),
+                (x: 0.0, y: separation * 0.86, radius: 0.18)
+            ]
+            for trap in traps {
+                let localX = x - trap.x
+                let localY = y - trap.y
+                let distance = abs(hypot(localX, localY) - trap.radius)
+                if distance < minimum {
+                    secondMinimum = minimum
+                    minimum = distance
+                    closestX = localX
+                    closestY = localY
+                    closestRadius = trap.radius
+                    closestIteration = iteration
+                } else if distance < secondMinimum {
+                    secondMinimum = distance
+                }
+            }
+            return
+
+        case .spheroidGlass:
+            candidateRadius = 0.24 + 0.18 * clamp01(structure)
+            candidate = abs(radius - candidateRadius)
+
+        case .guilloche:
+            let density = 5.0 + 10.0 * clamp01(structure)
+            let logarithmicRadius = log(radius + 0.04)
+            let threadA = abs(
+                sin(density * angle + 2.8 * logarithmicRadius)
+            )
+            let threadB = abs(
+                sin((density + 3.0) * angle - 3.6 * logarithmicRadius)
+            )
+            let rosette = abs(
+                radius - 0.34 - 0.075 * cos((density - 1.0) * angle)
+            )
+            candidate = min(
+                rosette * 3.0,
+                min(threadA, threadB) * radius * 0.16
+            )
+
+        case .metallicDreams:
+            let petalCount = 4.0 + floor(clamp01(structure) * 7.0)
+            let petals = 0.29
+                + (0.045 + 0.060 * structure) * cos(petalCount * angle)
+            let petalTrap = abs(radius - petals)
+            let latticeTrap = abs(abs(x) * abs(y) - 0.055)
+                * (1.65 - 1.30 * complexity)
+            let curlTrap = abs(
+                sin(
+                    (2.0 + 2.0 * structure) * angle
+                        + (0.70 + 3.40 * curl) * log2(radius + 0.035)
+                )
+            ) * radius * (0.25 - 0.18 * complexity)
+            candidate = min(petalTrap, latticeTrap, curlTrap)
+
+        default:
+            return
+        }
+
+        if candidate < minimum {
+            secondMinimum = minimum
+            minimum = candidate
+            closestX = candidateX
+            closestY = candidateY
+            closestRadius = candidateRadius
+            phaseAtClosest = candidatePhase
+            closestIteration = iteration
+        } else if candidate < secondMinimum {
+            secondMinimum = candidate
+        }
+    }
+
+    func color(
+        iteration: Int,
+        maxIterations: Int
+    ) -> (r: Double, g: Double, b: Double)? {
+        guard minimum.isFinite else { return nil }
+        let inside = iteration == maxIterations
+
+        switch palette {
+        case .orbitalWaves:
+            let wave = exp(
+                -(30.0 + 34.0 * structure) * sqrt(max(minimum, 0.0))
+            )
+            let crest = pow(wave, 2.2)
+            let interference = 0.5 + 0.5 * cos(
+                0.38 * Double(closestIteration) + 2.0 * phaseAtClosest
+            )
+            let hot = pow(crest * interference, 2.2)
+            let cold = pow(crest * (1.0 - interference), 1.7)
+            let shade = inside ? 0.72 : 1.0
+            return (
+                clamp01((0.018 + 0.26 * wave + 1.05 * hot + 0.20 * cold) * shade),
+                clamp01((0.034 + 0.62 * wave + 0.72 * hot + 0.88 * cold) * shade),
+                clamp01((0.072 + 0.95 * wave + 0.30 * hot + 1.12 * cold) * shade)
+            )
+
+        case .quantumTraps:
+            let radialLength = max(hypot(closestX, closestY), 1e-8)
+            let nx = closestX / radialLength
+            let ny = closestY / radialLength
+            let shellRatio = clamp01(minimum / closestRadius)
+            let nz = sqrt(max(1.0 - shellRatio * shellRatio, 0.0))
+            let diffuse = clamp01(nx * -0.46 + ny * 0.30 + nz * 0.84)
+            let lens = exp(-(20.0 + 22.0 * structure) * minimum)
+            let overlap = exp(
+                -(34.0 - 16.0 * structure)
+                    * abs(secondMinimum - minimum)
+            ) * lens
+            let rim = pow(clamp01(1.0 - nz), 1.45)
+            let phase = 0.5 + 0.5 * cos(
+                0.52 * Double(closestIteration) + 18.0 * minimum
+            )
+            let hot = pow(overlap * phase, 2.4)
+            let cold = pow(lens * (1.0 - phase), 2.0)
+            let shade = inside ? (0.42, 0.50, 0.64) : (1.0, 1.0, 1.0)
+            return (
+                clamp01((0.008 + 0.10 * lens * diffuse + 0.34 * rim + hot + 0.18 * cold) * shade.0),
+                clamp01((0.014 + 0.28 * lens * diffuse + 0.48 * rim + 0.58 * hot + 0.62 * cold) * shade.1),
+                clamp01((0.032 + 0.48 * lens * diffuse + 0.70 * rim + 0.20 * hot + 0.92 * cold) * shade.2)
+            )
+
+        case .spheroidGlass:
+            let radialLength = max(hypot(closestX, closestY), 1e-8)
+            let nx = closestX / radialLength
+            let ny = closestY / radialLength
+            let shellRatio = clamp01(minimum / max(closestRadius, 1e-8))
+            let nz = sqrt(max(1.0 - shellRatio * shellRatio, 0.0))
+            let diffuse = clamp01(nx * -0.42 + ny * 0.36 + nz * 0.82)
+            let rim = pow(clamp01(1.0 - nz), 1.7)
+            let lens = exp(-(18.0 + 24.0 * structure) * minimum)
+            let caustic = pow(
+                0.5 + 0.5 * cos(
+                    0.38 * Double(closestIteration) - 13.0 * nz
+                ),
+                8.0
+            ) * lens
+            let body = 0.025 + 0.14 * lens
+            let shade = inside ? (0.42, 0.56, 0.64) : (1.0, 1.0, 1.0)
+            return (
+                clamp01((body * (0.40 + 0.60 * diffuse) + 0.46 * rim + 0.76 * caustic) * shade.0),
+                clamp01(((body + 0.10 * lens) * (0.42 + 0.58 * diffuse) + 0.58 * rim + 0.84 * caustic) * shade.1),
+                clamp01(((body + 0.16 * lens) * (0.45 + 0.55 * diffuse) + 0.62 * rim + 0.76 * caustic) * shade.2)
+            )
+
+        case .guilloche:
+            let ink = exp(
+                -(34.0 + 30.0 * structure) * sqrt(max(minimum, 0.0))
+            )
+            let weave = 0.5 + 0.5 * cos(
+                0.44 * Double(closestIteration)
+                    + 30.0 * pow(max(minimum, 1e-8), 0.24)
+            )
+            let fineLine = pow(clamp01(ink), 2.5)
+            let paper = pow(clamp01(1.0 - ink), 1.4)
+            let shade = inside ? (0.50, 0.56, 0.64) : (1.0, 1.0, 1.0)
+            return (
+                clamp01((0.022 + 0.12 * paper + fineLine * (0.68 + 0.48 * weave)) * shade.0),
+                clamp01((0.032 + 0.14 * paper + fineLine * (0.46 + 0.44 * weave)) * shade.1),
+                clamp01((0.044 + 0.16 * paper + fineLine * (0.20 + 0.30 * weave)) * shade.2)
+            )
+
+        case .metallicDreams:
+            let scale = exp(
+                -(23.0 - 8.0 * complexity) * sqrt(max(minimum, 0.0))
+            )
+            let bands = 0.5 + 0.5 * cos(
+                (18.0 + 28.0 * complexity)
+                    * pow(max(minimum, 1e-8), 0.22)
+                    - (0.18 + 0.32 * curl) * Double(closestIteration)
+            )
+            let filament = pow(scale, 2.1)
+            let highlight = pow(
+                clamp01(scale * (0.35 + 0.65 * bands)),
+                5.0
+            )
+            let depth = pow(clamp01(1.0 - scale), 1.55)
+            func blend(
+                _ a: (Double, Double, Double),
+                _ b: (Double, Double, Double),
+                _ amount: Double
+            ) -> (Double, Double, Double) {
+                (
+                    a.0 + (b.0 - a.0) * amount,
+                    a.1 + (b.1 - a.1) * amount,
+                    a.2 + (b.2 - a.2) * amount
+                )
+            }
+            var result = blend(
+                (0.008, 0.0035, 0.0015),
+                (0.30, 0.115, 0.028),
+                0.78 * depth
+            )
+            result = blend(
+                result,
+                (0.72, 0.30, 0.075),
+                filament * (0.48 + 0.52 * bands)
+            )
+            result = blend(result, (0.96, 0.88, 0.72), highlight)
+            if inside {
+                let shade = 0.50 + 0.50 * filament
+                result = (
+                    result.0 * shade,
+                    result.1 * shade,
+                    result.2 * shade
+                )
+            }
+            return (
+                clamp01(result.0),
+                clamp01(result.1),
+                clamp01(result.2)
+            )
+
+        default:
+            return nil
+        }
+    }
+}
+
+/// Keeps orbit-based art styles identical when a deep render switches from
+/// the general CPU loop to one of the optimized parallel Mandelbrot paths.
+nonisolated private func abstractOrbitPaletteColor(
+    palette: FractalPalette,
+    x0: Double,
+    y0: Double,
+    maxIterations: Int,
+    sampleStep: Double,
+    structure: Double,
+    complexity: Double,
+    curl: Double
+) -> (r: Double, g: Double, b: Double)? {
+    switch palette {
+    case .quantumGlass:
+        return quantumGlassColor(
+            x0: x0,
+            y0: y0,
+            mode: .mandelbrot,
+            maxIterations: maxIterations,
+            glass: structure
+        )
+    case .orbitalWaves:
+        return orbitalWavesColor(
+            x0: x0,
+            y0: y0,
+            mode: .mandelbrot,
+            maxIterations: maxIterations,
+            waves: structure
+        )
+    case .quantumTraps:
+        return quantumTrapsColor(
+            x0: x0,
+            y0: y0,
+            mode: .mandelbrot,
+            maxIterations: maxIterations,
+            interference: structure
+        )
+    case .spheroidGlass:
+        return spheroidGlassColor(
+            x0: x0,
+            y0: y0,
+            mode: .mandelbrot,
+            maxIterations: maxIterations,
+            glass: structure
+        )
+    case .guilloche:
+        return guillocheColor(
+            x0: x0,
+            y0: y0,
+            mode: .mandelbrot,
+            maxIterations: maxIterations,
+            engraving: structure
+        )
+    case .embossedMetal:
+        return embossedMetalColor(
+            mode: .mandelbrot,
+            x0: x0,
+            y0: y0,
+            sampleStep: sampleStep,
+            reliefStrength: structure,
+            maxIterations: maxIterations
+        )
+    case .metallicDreams:
+        return metallicDoodadsColor(
+            x0: x0,
+            y0: y0,
+            mode: .mandelbrot,
+            maxIterations: maxIterations,
+            structure: structure,
+            complexity: complexity,
+            curl: curl
+        )
+    default:
+        return nil
+    }
+}
+
 nonisolated private func renderDirectMandelbrotParallel(
     width: Int,
     height: Int,
@@ -4860,6 +5204,9 @@ nonisolated private func renderDirectMandelbrotParallel(
     scale: Double,
     maxIterations: Int,
     colorNormalizationIterations: Int?,
+    doodadsStructure: Double,
+    doodadsComplexity: Double,
+    doodadsCurl: Double,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -4954,7 +5301,18 @@ nonisolated private func renderDirectMandelbrotParallel(
 
                 let color: (r: Double, g: Double, b: Double)
 
-                if iteration == localMaxIterations {
+                if let abstractColor = abstractOrbitPaletteColor(
+                    palette: palette,
+                    x0: x0,
+                    y0: y0,
+                    maxIterations: localMaxIterations,
+                    sampleStep: scale / Double(max(width, height)),
+                    structure: doodadsStructure,
+                    complexity: doodadsComplexity,
+                    curl: doodadsCurl
+                ) {
+                    color = abstractColor
+                } else if iteration == localMaxIterations {
                     if palette == .motherOfPearl {
                         color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
                     } else if palette == .pearl {
@@ -5093,6 +5451,9 @@ nonisolated private func renderPerturbationMandelbrotParallel(
     scale: Double,
     maxIterations: Int,
     colorNormalizationIterations: Int?,
+    doodadsStructure: Double,
+    doodadsComplexity: Double,
+    doodadsCurl: Double,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -5254,7 +5615,18 @@ nonisolated private func renderPerturbationMandelbrotParallel(
 
             let color: (r: Double, g: Double, b: Double)
 
-            if iteration == localMaxIterations {
+            if let abstractColor = abstractOrbitPaletteColor(
+                palette: palette,
+                x0: x0,
+                y0: y0,
+                maxIterations: localMaxIterations,
+                sampleStep: scale / Double(max(width, height)),
+                structure: doodadsStructure,
+                complexity: doodadsComplexity,
+                curl: doodadsCurl
+            ) {
+                color = abstractColor
+            } else if iteration == localMaxIterations {
                 if palette == .motherOfPearl {
                     color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
                 } else if palette == .pearl {
@@ -5368,6 +5740,9 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
     preciseViewport: PreciseViewport,
     maxIterations: Int,
     colorNormalizationIterations: Int?,
+    doodadsStructure: Double,
+    doodadsComplexity: Double,
+    doodadsCurl: Double,
     viewportAspectRatio: Double,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
     progressCallback: (@Sendable (Double) -> Void)? = nil
@@ -5441,7 +5816,19 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
 
                 let color: (r: Double, g: Double, b: Double)
 
-                if iteration == localMaxIterations {
+                if let abstractColor = abstractOrbitPaletteColor(
+                    palette: palette,
+                    x0: x0.doubleValue,
+                    y0: y0.doubleValue,
+                    maxIterations: localMaxIterations,
+                    sampleStep: abs(preciseViewport.scale.doubleValue)
+                        / Double(max(width, height)),
+                    structure: doodadsStructure,
+                    complexity: doodadsComplexity,
+                    curl: doodadsCurl
+                ) {
+                    color = abstractColor
+                } else if iteration == localMaxIterations {
                     if palette == .motherOfPearl {
                         color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
                     } else if palette == .pearl {
@@ -5526,6 +5913,9 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
     preciseViewport: PreciseViewport,
     maxIterations: Int,
     colorNormalizationIterations: Int?,
+    doodadsStructure: Double,
+    doodadsComplexity: Double,
+    doodadsCurl: Double,
     viewportAspectRatio: Double,
     automaticIterationsEnabled: Bool = false,
     statsCallback: (@Sendable (String?) -> Void)? = nil,
@@ -5686,20 +6076,111 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                     ((Double(px) + 0.5) / pixelWidth - 0.5)
                     * viewportAspectRatio
                 let localMaxIterations = automaticTarget
-                let iteration = TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
+                let quantumGlassRadius = palette == .quantumGlass
+                    ? 0.24 + 0.18 * clamp01(doodadsStructure)
+                    : nil
+                let orbitArt: DeepOrbitArtAccumulator? = switch palette {
+                case .orbitalWaves, .quantumTraps, .spheroidGlass,
+                     .guilloche, .metallicDreams:
+                    DeepOrbitArtAccumulator(
+                        palette: palette,
+                        structure: doodadsStructure,
+                        complexity: doodadsComplexity,
+                        curl: doodadsCurl
+                    )
+                default:
+                    nil
+                }
+                let iterationResult =
+                    TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
                     horizontalOffset: horizontalOffset,
                     verticalOffset: verticalOffset,
                     scale: projectedScale,
                     references: references,
                     approximations: seriesApproximations,
-                    maxIterations: localMaxIterations
-                ).iteration
+                    maxIterations: localMaxIterations,
+                    orbitTrapRadius: quantumGlassRadius,
+                    orbitObserver: orbitArt.map { accumulator in
+                        { iteration, x, y in
+                            accumulator.observe(
+                                iteration: iteration,
+                                x: x,
+                                y: y
+                            )
+                        }
+                    }
+                )
+                let iteration = iterationResult.iteration
 
                 let color: (r: Double, g: Double, b: Double)
                 let normalizedX = (Double(px) + 0.5) / pixelWidth
                 let normalizedY = (Double(py) + 0.5) / pixelHeight
+                let x0 = tripleViewport.centerX.doubleValue
+                    + projectedScale * horizontalOffset
+                let y0 = tripleViewport.centerY.doubleValue
+                    + projectedScale * verticalOffset
 
-                if iteration == localMaxIterations {
+                if palette == .quantumGlass,
+                   let trap = iterationResult.orbitTrap,
+                   let quantumGlassRadius {
+                    color = quantumGlassColor(
+                        closestShell: trap.distance,
+                        closestX: trap.x,
+                        closestY: trap.y,
+                        closestIteration: trap.iteration,
+                        iteration: iteration,
+                        maxIterations: localMaxIterations,
+                        sphereRadius: quantumGlassRadius,
+                        glass: doodadsStructure
+                    )
+                } else if let artColor = orbitArt?.color(
+                    iteration: iteration,
+                    maxIterations: localMaxIterations
+                ) {
+                    color = artColor
+                } else if palette == .embossedMetal {
+                    let xIteration =
+                        TripleDoublePerturbation
+                            .acceleratedIterationWithLocalRebase(
+                                horizontalOffset: horizontalOffset
+                                    + viewportAspectRatio / pixelWidth,
+                                verticalOffset: verticalOffset,
+                                scale: projectedScale,
+                                references: references,
+                                approximations: seriesApproximations,
+                                maxIterations: localMaxIterations
+                            ).iteration
+                    let yIteration =
+                        TripleDoublePerturbation
+                            .acceleratedIterationWithLocalRebase(
+                                horizontalOffset: horizontalOffset,
+                                verticalOffset: verticalOffset
+                                    + 1.0 / pixelHeight,
+                                scale: projectedScale,
+                                references: references,
+                                approximations: seriesApproximations,
+                                maxIterations: localMaxIterations
+                            ).iteration
+                    color = embossedMetalColor(
+                        centerIteration: iteration,
+                        xIteration: xIteration,
+                        yIteration: yIteration,
+                        reliefStrength: doodadsStructure,
+                        maxIterations: localMaxIterations
+                    )
+                } else if let abstractColor = abstractOrbitPaletteColor(
+                    palette: palette,
+                    x0: x0,
+                    y0: y0,
+                    maxIterations: localMaxIterations,
+                    sampleStep: abs(projectedScale)
+                        / Double(max(width, height)),
+                    structure: doodadsStructure,
+                    complexity: doodadsComplexity,
+                    curl: doodadsCurl
+                ) {
+                    color = abstractColor
+                } else if iteration == localMaxIterations {
                     if palette == .motherOfPearl {
                         color = motherOfPearlInteriorColor(
                             normalizedX: normalizedX,
@@ -5810,6 +6291,9 @@ nonisolated func renderFractal(
             preciseViewport: preciseViewport,
             maxIterations: maxIterations,
             colorNormalizationIterations: colorNormalizationIterations,
+            doodadsStructure: doodadsStructure,
+            doodadsComplexity: doodadsComplexity,
+            doodadsCurl: doodadsCurl,
             viewportAspectRatio: aspectRatio,
             automaticIterationsEnabled: automaticIterationsEnabled,
             statsCallback: statsCallback,
@@ -5835,6 +6319,9 @@ nonisolated func renderFractal(
             preciseViewport: preciseViewport,
             maxIterations: maxIterations,
             colorNormalizationIterations: colorNormalizationIterations,
+            doodadsStructure: doodadsStructure,
+            doodadsComplexity: doodadsComplexity,
+            doodadsCurl: doodadsCurl,
             viewportAspectRatio: aspectRatio,
             statsCallback: statsCallback,
             progressCallback: progressCallback
@@ -5859,6 +6346,9 @@ nonisolated func renderFractal(
             scale: scale,
             maxIterations: maxIterations,
             colorNormalizationIterations: colorNormalizationIterations,
+            doodadsStructure: doodadsStructure,
+            doodadsComplexity: doodadsComplexity,
+            doodadsCurl: doodadsCurl,
             viewportAspectRatio: aspectRatio,
             statsCallback: statsCallback,
             progressCallback: progressCallback
@@ -5879,6 +6369,9 @@ nonisolated func renderFractal(
             scale: scale,
             maxIterations: maxIterations,
             colorNormalizationIterations: colorNormalizationIterations,
+            doodadsStructure: doodadsStructure,
+            doodadsComplexity: doodadsComplexity,
+            doodadsCurl: doodadsCurl,
             viewportAspectRatio: aspectRatio,
             statsCallback: statsCallback,
             progressCallback: progressCallback
@@ -7352,6 +7845,22 @@ nonisolated private func embossedMetalColor(
         mode: mode, x0: x0, y0: y0 + sampleStep, maxIterations: maxIterations
     )
 
+    return embossedMetalColor(
+        centerIteration: centerIteration,
+        xIteration: xIteration,
+        yIteration: yIteration,
+        reliefStrength: reliefStrength,
+        maxIterations: maxIterations
+    )
+}
+
+nonisolated private func embossedMetalColor(
+    centerIteration: Int,
+    xIteration: Int,
+    yIteration: Int,
+    reliefStrength: Double,
+    maxIterations: Int
+) -> (r: Double, g: Double, b: Double) {
     let denominator = Double(max(maxIterations, 1))
     let height = sqrt(Double(centerIteration) / denominator)
     let reliefScale = 12.0 + 60.0 * clamp01(reliefStrength)
@@ -7576,6 +8085,28 @@ nonisolated private func quantumGlassColor(
         }
     }
 
+    return quantumGlassColor(
+        closestShell: closestShell,
+        closestX: closestX,
+        closestY: closestY,
+        closestIteration: closestIteration,
+        iteration: iteration,
+        maxIterations: maxIterations,
+        sphereRadius: sphereRadius,
+        glass: glass
+    )
+}
+
+nonisolated private func quantumGlassColor(
+    closestShell: Double,
+    closestX: Double,
+    closestY: Double,
+    closestIteration: Int,
+    iteration: Int,
+    maxIterations: Int,
+    sphereRadius: Double,
+    glass: Double
+) -> (r: Double, g: Double, b: Double) {
     let radialLength = max(hypot(closestX, closestY), 1e-8)
     let nx = closestX / radialLength
     let ny = closestY / radialLength

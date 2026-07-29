@@ -21,6 +21,24 @@ nonisolated struct TripleDoubleSeriesApproximation: Sendable {
 nonisolated struct TripleDoubleIterationResult: Sendable {
     let iteration: Int
     let skippedIterations: Int
+    let orbitTrap: TripleDoubleOrbitTrapSample?
+
+    init(
+        iteration: Int,
+        skippedIterations: Int,
+        orbitTrap: TripleDoubleOrbitTrapSample? = nil
+    ) {
+        self.iteration = iteration
+        self.skippedIterations = skippedIterations
+        self.orbitTrap = orbitTrap
+    }
+}
+
+nonisolated struct TripleDoubleOrbitTrapSample: Sendable {
+    let distance: Double
+    let x: Double
+    let y: Double
+    let iteration: Int
 }
 
 nonisolated private final class TripleDoubleReferenceResults: @unchecked Sendable {
@@ -399,7 +417,9 @@ nonisolated enum TripleDoublePerturbation {
         scale: Double,
         references: [TripleDoublePerturbationReference],
         approximations: [TripleDoubleSeriesApproximation],
-        maxIterations: Int
+        maxIterations: Int,
+        orbitTrapRadius: Double? = nil,
+        orbitObserver: ((Int, Double, Double) -> Void)? = nil
     ) -> TripleDoubleIterationResult {
         // Every pixel starts from the same reference. Screen-space selection
         // creates visible Voronoi tiles when two projected reference orbits
@@ -423,10 +443,34 @@ nonisolated enum TripleDoublePerturbation {
         var dy = 0.0
         var rebaseCount = 0
         var startIteration = 0
+        var closestTrapDistance = Double.greatestFiniteMagnitude
+        var closestTrapX = 0.0
+        var closestTrapY = 0.0
+        var closestTrapIteration = 0
         let centralDeltaX = scale * horizontalOffset
         let centralDeltaY = scale * verticalOffset
 
-        for approximation in approximations.reversed()
+        func result(iteration: Int) -> TripleDoubleIterationResult {
+            let trap = orbitTrapRadius.map { _ in
+                TripleDoubleOrbitTrapSample(
+                    distance: closestTrapDistance,
+                    x: closestTrapX,
+                    y: closestTrapY,
+                    iteration: closestTrapIteration
+                )
+            }
+            return TripleDoubleIterationResult(
+                iteration: iteration,
+                skippedIterations: startIteration,
+                orbitTrap: trap
+            )
+        }
+
+        let eligibleApproximations =
+            orbitTrapRadius == nil && orbitObserver == nil
+            ? Array(approximations.reversed())
+            : []
+        for approximation in eligibleApproximations
         where approximation.iteration < reference.orbit.x.count
             && approximation.iteration < reference.orbit.y.count {
             let estimated = evaluateSeries(
@@ -469,10 +513,7 @@ nonisolated enum TripleDoublePerturbation {
                     }
 
                 guard let candidate else {
-                    return TripleDoubleIterationResult(
-                        iteration: maxIterations,
-                        skippedIterations: startIteration
-                    )
+                    return result(iteration: maxIterations)
                 }
                 reference = candidate
                 dx = currentX - candidate.orbit.x[iteration]
@@ -482,11 +523,9 @@ nonisolated enum TripleDoublePerturbation {
 
             guard iteration + 1 < reference.orbit.x.count,
                   iteration + 1 < reference.orbit.y.count else {
-                return TripleDoubleIterationResult(
+                return result(
                     iteration: reference.orbit.escapedAt < maxIterations
-                        ? reference.orbit.escapedAt
-                        : maxIterations,
-                    skippedIterations: startIteration
+                        ? reference.orbit.escapedAt : maxIterations
                 )
             }
 
@@ -508,19 +547,23 @@ nonisolated enum TripleDoublePerturbation {
 
             let fullX = reference.orbit.x[iteration + 1] + dx
             let fullY = reference.orbit.y[iteration + 1] + dy
+            orbitObserver?(iteration, fullX, fullY)
+            if let orbitTrapRadius {
+                let trapDistance = abs(hypot(fullX, fullY) - orbitTrapRadius)
+                if trapDistance < closestTrapDistance {
+                    closestTrapDistance = trapDistance
+                    closestTrapX = fullX
+                    closestTrapY = fullY
+                    closestTrapIteration = iteration
+                }
+            }
             if fullX * fullX + fullY * fullY > 4.0 {
-                return TripleDoubleIterationResult(
-                    iteration: iteration + 1,
-                    skippedIterations: startIteration
-                )
+                return result(iteration: iteration + 1)
             }
 
             let currentDeltaSquared = dx * dx + dy * dy
             guard currentDeltaSquared.isFinite else {
-                return TripleDoubleIterationResult(
-                    iteration: iteration + 1,
-                    skippedIterations: startIteration
-                )
+                return result(iteration: iteration + 1)
             }
 
             if currentDeltaSquared > 0.00001, rebaseCount < 8 {
@@ -554,10 +597,7 @@ nonisolated enum TripleDoublePerturbation {
             }
         }
 
-        return TripleDoubleIterationResult(
-            iteration: maxIterations,
-            skippedIterations: startIteration
-        )
+        return result(iteration: maxIterations)
     }
 
 
