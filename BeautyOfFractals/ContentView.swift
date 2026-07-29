@@ -327,6 +327,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case spheroidGlass = 20
     case quantumTraps = 21
     case orbitalWaves = 22
+    case quantumGlass = 23
 
     var id: Int {
         rawValue
@@ -380,6 +381,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Quantum Traps"
         case .orbitalWaves:
             return "Orbital Waves"
+        case .quantumGlass:
+            return "Quantum Glass"
         }
     }
 
@@ -431,6 +434,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "QuantumTraps"
         case .orbitalWaves:
             return "OrbitalWaves"
+        case .quantumGlass:
+            return "QuantumGlass"
         }
     }
 }
@@ -1401,7 +1406,7 @@ struct ContentView: View {
                     ? embossedRelief
                     : fractalPalette == .guilloche
                         ? guillocheEngraving
-                        : fractalPalette == .spheroidGlass
+                        : fractalPalette == .spheroidGlass || fractalPalette == .quantumGlass
                             ? spheroidGlass
                             : fractalPalette == .quantumTraps
                                 ? quantumInterference
@@ -1928,7 +1933,7 @@ struct ContentView: View {
                 Menu {
                     let availablePalettes: [FractalPalette] =
                         fractalMode == .julia
-                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves]
+                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves, .quantumGlass]
                             : fractalMode == .mandelbrotPlateau
                                 ? [.auric]
                                 : FractalPalette.allCases
@@ -2060,7 +2065,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 24)
                 .frame(height: 44)
-            } else if fractalPalette == .spheroidGlass {
+            } else if fractalPalette == .spheroidGlass || fractalPalette == .quantumGlass {
                 HStack {
                     doodadsSlider(
                         title: "Glass",
@@ -3018,7 +3023,7 @@ struct ContentView: View {
             ? embossedRelief
             : snapshotPalette == .guilloche
                 ? guillocheEngraving
-                : snapshotPalette == .spheroidGlass
+                : snapshotPalette == .spheroidGlass || snapshotPalette == .quantumGlass
                     ? spheroidGlass
                     : snapshotPalette == .quantumTraps
                         ? quantumInterference
@@ -4638,7 +4643,16 @@ nonisolated func renderFractalSupersampled(
                         || mode == .julia
                         || mode.powerExponent != nil
 
-                    if palette == .orbitalWaves,
+                    if palette == .quantumGlass,
+                       supportsAbstractOrbitRendering {
+                        color = quantumGlassColor(
+                            x0: x0,
+                            y0: y0,
+                            mode: mode,
+                            maxIterations: maxIterations,
+                            glass: doodadsStructure
+                        )
+                    } else if palette == .orbitalWaves,
                        mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
                         color = orbitalWavesColor(
                             x0: x0,
@@ -5942,7 +5956,16 @@ nonisolated func renderFractal(
 
             let color: (r: Double, g: Double, b: Double)
 
-            if palette == .orbitalWaves,
+            if palette == .quantumGlass,
+               mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
+                color = quantumGlassColor(
+                    x0: x0,
+                    y0: y0,
+                    mode: mode,
+                    maxIterations: maxIterations,
+                    glass: doodadsStructure
+                )
+            } else if palette == .orbitalWaves,
                mode == .mandelbrot || mode == .julia || mode.powerExponent != nil {
                 color = orbitalWavesColor(
                     x0: x0,
@@ -6868,6 +6891,14 @@ nonisolated private func calculateNewtonColor(
             (0.96, 0.78, 0.36),
             (0.92, 0.98, 1.00)
         ]
+    case .quantumGlass:
+        colors = [
+            (0.004, 0.008, 0.018),
+            (0.04, 0.16, 0.28),
+            (0.20, 0.62, 0.78),
+            (1.00, 0.70, 0.28),
+            (0.92, 0.96, 1.00)
+        ]
     }
 
     let base = colors[nearestRootIndex]
@@ -7499,6 +7530,82 @@ nonisolated private func spheroidGlassColor(
     return (clamp01(r), clamp01(g), clamp01(b))
 }
 
+nonisolated private func quantumGlassColor(
+    x0: Double,
+    y0: Double,
+    mode: FractalMode,
+    maxIterations: Int,
+    glass: Double
+) -> (r: Double, g: Double, b: Double) {
+    var zx = mode == .julia ? x0 : 0.0
+    var zy = mode == .julia ? y0 : 0.0
+    let cx = mode == .julia ? -0.8 : x0
+    let cy = mode == .julia ? 0.156 : y0
+    let exponent = mode.powerExponent ?? 2
+    let sphereRadius = 0.24 + 0.18 * clamp01(glass)
+    var closestShell = Double.greatestFiniteMagnitude
+    var closestX = 0.0
+    var closestY = 0.0
+    var closestIteration = 0
+    var iteration = 0
+
+    while iteration < maxIterations {
+        var powerX = zx
+        var powerY = zy
+        if exponent > 1 {
+            for _ in 1..<exponent {
+                let nextX = powerX * zx - powerY * zy
+                powerY = powerX * zy + powerY * zx
+                powerX = nextX
+            }
+        }
+        zx = powerX + cx
+        zy = powerY + cy
+
+        let shell = abs(hypot(zx, zy) - sphereRadius)
+        if shell < closestShell {
+            closestShell = shell
+            closestX = zx
+            closestY = zy
+            closestIteration = iteration
+        }
+
+        iteration += 1
+        if zx * zx + zy * zy > 256.0 {
+            break
+        }
+    }
+
+    let radialLength = max(hypot(closestX, closestY), 1e-8)
+    let nx = closestX / radialLength
+    let ny = closestY / radialLength
+    let shellRatio = clamp01(closestShell / max(sphereRadius, 1e-8))
+    let nz = sqrt(max(1.0 - shellRatio * shellRatio, 0.0))
+    let diffuse = clamp01(nx * -0.46 + ny * 0.30 + nz * 0.84)
+    let lens = exp(-(18.0 + 24.0 * glass) * closestShell)
+    let rim = pow(clamp01(1.0 - nz), 1.45)
+    let phase = 0.5 + 0.5 * cos(
+        0.52 * Double(closestIteration) + 18.0 * closestShell
+    )
+    let hotEdge = pow(lens * phase, 2.4)
+    let coldEdge = pow(lens * (1.0 - phase), 2.0)
+
+    var r = 0.008 + 0.10 * lens * diffuse + 0.34 * rim
+        + 1.00 * hotEdge + 0.18 * coldEdge
+    var g = 0.014 + 0.28 * lens * diffuse + 0.48 * rim
+        + 0.58 * hotEdge + 0.62 * coldEdge
+    var b = 0.032 + 0.48 * lens * diffuse + 0.70 * rim
+        + 0.20 * hotEdge + 0.92 * coldEdge
+
+    if iteration == maxIterations {
+        r *= 0.42
+        g *= 0.50
+        b *= 0.64
+    }
+
+    return (clamp01(r), clamp01(g), clamp01(b))
+}
+
 nonisolated private func orbitalWavesColor(
     x0: Double,
     y0: Double,
@@ -8090,6 +8197,14 @@ nonisolated private func paletteBaseColor(
             clamp01(0.02 + 0.40 * relief + 0.58 * wave + 0.58 * waveGlow),
             clamp01(0.05 + 0.68 * relief + 0.30 * wave + 0.82 * waveGlow)
         )
+    case .quantumGlass:
+        let lens = pow(glow, 0.72)
+        let rim = pow(ridge, 3.4)
+        return (
+            clamp01(0.01 + 0.18 * relief + 0.82 * rim + 0.24 * lens),
+            clamp01(0.02 + 0.38 * relief + 0.52 * rim + 0.54 * lens),
+            clamp01(0.05 + 0.62 * relief + 0.22 * rim + 0.72 * lens)
+        )
     }
 }
 
@@ -8170,6 +8285,8 @@ nonisolated private func insideColor(
             return (0.003, 0.006, 0.014)
         case .orbitalWaves:
             return (0.003, 0.008, 0.022)
+        case .quantumGlass:
+            return (0.003, 0.006, 0.014)
         }
     }
 
