@@ -2,8 +2,8 @@
 
 ## macOS
 
-Start with a new visual welcome experience, explore adaptive Mandelbrot deep zooms to selected 10^50x views, and sync precise favorites with iCloud.
+Create striking abstract fractals with Spheroid Glass, Quantum Traps, Orbital Waves, Metallic Dreams, Embossed Metal, and Guilloché.
 
 ## iPhone and iPad
 
-Explore adaptive Mandelbrot deep zooms to selected 10^50x views, sync precise favorites with iCloud, and mirror renders on Apple Watch.
+Discover Spheroid Glass, Quantum Traps, Orbital Waves, Metallic Dreams, Embossed Metal, and Guilloché—with expressive touch controls.

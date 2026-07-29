@@ -3,7 +3,7 @@
 Do not store credentials, private contact details, or other secrets in this
 file.
 
-## Version 2.11 - macOS
+## Version 2.12 - macOS
 
 Thank you for reviewing Beauty of Fractals.
 
@@ -13,8 +13,16 @@ Thank you for reviewing Beauty of Fractals.
 - Fractal rendering and PNG export are performed locally.
 - Favorites can sync through the user's Apple iCloud account. This uses the
   configured iCloud container only for the favorites feature.
-- Version 2.11 adds guarded Extreme Precision based on 6xDouble reference
-  calculations, adaptive reference anchor selection, and coverage repair.
+- Version 2.12 adds six abstract rendering styles: Metallic Dreams, Embossed
+  Metal, Guilloché, Spheroid Glass, Quantum Traps, and Orbital Waves.
+- These styles are available from the palette menu for Mandelbrot, Julia, and
+  Power fractals. Other supported modes also retain their applicable palette
+  choices.
+- Selecting an abstract style reveals its dedicated controls below the standard
+  iteration controls. Metallic Dreams provides Structure, Complexity, and Curl;
+  the other styles provide Relief, Engraving, Glass, Interference, or Waves.
+- Favorites preserve the selected abstract style. PNG export reproduces its
+  current custom settings.
 - The Help button now opens a visual welcome and quick-start view with rotating
   fractal artwork, essential controls, and a link to the product website.
 - Automatic Deep mode can raise the effective iteration budget from the center
@@ -39,7 +47,7 @@ Thank you for reviewing Beauty of Fractals.
 - During PNG export, the Export button changes to an hourglass and remains
   unavailable until rendering completes.
 
-## Version 2.11 - iPhone, iPad, and Apple Watch
+## Version 2.12 - iPhone, iPad, and Apple Watch
 
 Thank you for reviewing Beauty of Fractals.
 
@@ -51,9 +59,12 @@ Thank you for reviewing Beauty of Fractals.
   appear across iPhone, iPad, and Mac when iCloud is available.
 - The Apple Watch companion receives render progress, preview images, and zoom
   values from the paired iPhone through Apple WatchConnectivity.
-- Version 2.11 brings the current guarded 6xDouble deep-zoom renderer,
-  adaptive reference anchor selection, and automatic iteration budgeting to
-  iPhone and iPad.
+- Version 2.12 brings Metallic Dreams, Embossed Metal, Guilloché, Spheroid
+  Glass, Quantum Traps, and Orbital Waves to iPhone and iPad.
+- The new styles are available for Mandelbrot, Julia, and Power fractals and
+  expose the same dedicated style controls as the Mac version.
+- Favorites preserve the selected abstract style. Local PNG export reproduces
+  its current custom setting.
 - Manual Deep mode supports up to 250,000 iterations.
 - Selected Mandelbrot views around 10^50x are reachable at suitable locations.
   Deeper views are experimental and can depend strongly on the selected

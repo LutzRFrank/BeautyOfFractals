@@ -1,30 +1,28 @@
 # App Store Release Notes
 
-## Version 2.11
+## Version 2.12
 
 ### macOS
 
-- Added a new visual welcome and quick-start experience with rotating fractal
-  artwork and direct access to essential controls.
-- Added guarded Extreme Precision with 6xDouble reference rendering for much
-  deeper Mandelbrot exploration.
-- Added adaptive reference anchor selection and coverage repair for difficult
-  deep-zoom viewports.
-- Automatic mode now raises the iteration budget from the center escape value
-  plus a reserve, so slow-escape views resolve more reliably.
-- The manual Deep iteration range now reaches 250,000 iterations.
-- Favorites now preserve the effective iteration count used for automatic deep
-  renders.
-- Render diagnostics now expose the selected reference strategy, automatic
-  iteration budget, reserve, anchors, and coverage details.
+- Added six expressive abstract rendering styles: Metallic Dreams, Embossed
+  Metal, Guilloché, Spheroid Glass, Quantum Traps, and Orbital Waves.
+- Added live style controls for structure, complexity, curl, relief, engraving,
+  glass, interference, and waves.
+- Extended the new abstract styles to Mandelbrot, Julia, and Power fractals.
+- Added a compact on-screen toggle that keeps the artwork unobstructed while
+  controls are hidden.
+- Updated favorites to preserve the selected style and high-resolution export
+  to reproduce its current settings.
+- Improved the appearance and brightness of the abstract styles across normal
+  views and deep zooms.
 
 ### iPhone, iPad, and Apple Watch
 
-- Brought the current guarded deep-zoom renderer to iPhone and iPad.
-- Added the same adaptive reference anchor selection and automatic iteration
-  budgeting used on Mac.
-- The manual Deep iteration range now reaches 250,000 iterations.
-- Improved iCloud favorite synchronization with Mac, including newer deep-zoom
-  favorites and effective iteration counts.
-- Apple Watch now shows render progress while the paired iPhone renders, then
-  displays the finished preview with the current zoom value.
+- Added Metallic Dreams, Embossed Metal, Guilloché, Spheroid Glass, Quantum
+  Traps, and Orbital Waves to iPhone and iPad.
+- Added touch controls for each style's distinctive visual character.
+- Made the abstract styles available for Mandelbrot, Julia, and Power fractals.
+- Favorites now preserve the selected style across iPhone, iPad, and Mac.
+- Updated local PNG export to reproduce the new abstract rendering styles.
+- Apple Watch continues to mirror render progress and finished previews from
+  the paired iPhone.

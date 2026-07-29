@@ -7,7 +7,8 @@ journey on your Mac.
 
 Explore the Mandelbrot set and a diverse collection of related fractals with
 smooth navigation, fast Metal rendering, precise CPU deep zooms, expressive
-palettes, iCloud-synced favorite spots, and local high-resolution PNG export.
+palettes and abstract rendering styles, iCloud-synced favorite spots, and local
+high-resolution PNG export.
 
 FEATURES
 
@@ -27,8 +28,12 @@ FEATURES
   mode, and effective iteration counts
 - Sync favorites through iCloud across Mac, iPhone, and iPad
 - Follow longer renders on Apple Watch through the paired iPhone app
-- Choose from a wide range of distinctive color palettes, including Aurora,
-  Auric, Pearl, Rainbows, and Deep Current
+- Create abstract worlds with Metallic Dreams, Embossed Metal, Guilloché,
+  Spheroid Glass, Quantum Traps, and Orbital Waves
+- Shape the new styles with dedicated controls for structure, complexity, curl,
+  relief, engraving, glass, interference, and waves
+- Choose from additional distinctive color palettes, including Aurora, Auric,
+  Pearl, Rainbows, and Deep Current
 - Export true high-resolution PNG images recalculated locally for the selected
   output size
 - Hide the controls for a clean, immersive gallery view
@@ -47,8 +52,8 @@ journey for iPhone and iPad.
 
 Explore the Mandelbrot set and a diverse collection of related fractals with
 natural touch navigation, fast Metal rendering, precise CPU deep zooms,
-expressive palettes, iCloud-synced favorite spots, PNG export, and Apple Watch
-render mirroring.
+expressive palettes and abstract rendering styles, iCloud-synced favorite
+spots, PNG export, and Apple Watch render mirroring.
 
 FEATURES
 
@@ -68,8 +73,11 @@ FEATURES
   mode, and effective iteration counts
 - Sync favorites through iCloud across iPhone, iPad, and Mac
 - See render progress, final previews, and the current zoom on Apple Watch
-- Choose from expressive color palettes, including Aurora, Auric, Pearl,
-  Rainbows, and Deep Current
+- Create abstract worlds with Metallic Dreams, Embossed Metal, Guilloché,
+  Spheroid Glass, Quantum Traps, and Orbital Waves
+- Shape each new style with its dedicated touch control
+- Choose from additional expressive color palettes, including Aurora, Auric,
+  Pearl, Rainbows, and Deep Current
 - Export PNG images recalculated locally for the selected output size
 - Collapse the controls for an unobstructed view of the fractal
 - Follow longer calculations with clear render status and diagnostics
