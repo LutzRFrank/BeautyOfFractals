@@ -29,7 +29,7 @@ FEATURES
 - Sync favorites through iCloud across Mac, iPhone, and iPad
 - Follow longer renders on Apple Watch through the paired iPhone app
 - Create abstract worlds with Metallic Dreams, Embossed Metal, Guilloché,
-  Spheroid Glass, Quantum Traps, and Orbital Waves
+  Spheroid Glass, Quantum Glass, Quantum Traps, and Orbital Waves
 - Shape the new styles with dedicated controls for structure, complexity, curl,
   relief, engraving, glass, interference, and waves
 - Choose from additional distinctive color palettes, including Aurora, Auric,
@@ -74,7 +74,7 @@ FEATURES
 - Sync favorites through iCloud across iPhone, iPad, and Mac
 - See render progress, final previews, and the current zoom on Apple Watch
 - Create abstract worlds with Metallic Dreams, Embossed Metal, Guilloché,
-  Spheroid Glass, Quantum Traps, and Orbital Waves
+  Spheroid Glass, Quantum Glass, Quantum Traps, and Orbital Waves
 - Shape each new style with its dedicated touch control
 - Choose from additional expressive color palettes, including Aurora, Auric,
   Pearl, Rainbows, and Deep Current

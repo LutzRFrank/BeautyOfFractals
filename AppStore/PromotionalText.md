@@ -2,8 +2,8 @@
 
 ## macOS
 
-Create striking abstract fractals with Spheroid Glass, Quantum Traps, Orbital Waves, Metallic Dreams, Embossed Metal, and Guilloché.
+Explore luminous Quantum Glass and improved deep zooms for the new generation of abstract fractal styles.
 
 ## iPhone and iPad
 
-Discover Spheroid Glass, Quantum Traps, Orbital Waves, Metallic Dreams, Embossed Metal, and Guilloché—with expressive touch controls.
+Explore luminous Quantum Glass and improved deep zooms for the new generation of abstract fractal styles.

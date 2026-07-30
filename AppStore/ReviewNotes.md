@@ -3,7 +3,7 @@
 Do not store credentials, private contact details, or other secrets in this
 file.
 
-## Version 2.12 - macOS
+## Version 2.13 - macOS
 
 Thank you for reviewing Beauty of Fractals.
 
@@ -13,8 +13,14 @@ Thank you for reviewing Beauty of Fractals.
 - Fractal rendering and PNG export are performed locally.
 - Favorites can sync through the user's Apple iCloud account. This uses the
   configured iCloud container only for the favorites feature.
-- Version 2.12 adds six abstract rendering styles: Metallic Dreams, Embossed
-  Metal, Guilloché, Spheroid Glass, Quantum Traps, and Orbital Waves.
+- Version 2.13 adds Quantum Glass and improves deep-zoom rendering for the
+  recently introduced abstract styles.
+- Artistic orbit details now use a stable observation range across progressive
+  previews and final high-precision renders. At extreme depths, the app falls
+  back to stable iteration coloring when orbit coordinates can no longer
+  provide reliable decorative detail.
+- Quantum Glass is available from the palette menu and provides a dedicated
+  Glass control.
 - These styles are available from the palette menu for Mandelbrot, Julia, and
   Power fractals. Other supported modes also retain their applicable palette
   choices.
@@ -47,7 +53,7 @@ Thank you for reviewing Beauty of Fractals.
 - During PNG export, the Export button changes to an hourglass and remains
   unavailable until rendering completes.
 
-## Version 2.12 - iPhone, iPad, and Apple Watch
+## Version 2.13 - iPhone, iPad, and Apple Watch
 
 Thank you for reviewing Beauty of Fractals.
 
@@ -59,8 +65,11 @@ Thank you for reviewing Beauty of Fractals.
   appear across iPhone, iPad, and Mac when iCloud is available.
 - The Apple Watch companion receives render progress, preview images, and zoom
   values from the paired iPhone through Apple WatchConnectivity.
-- Version 2.12 brings Metallic Dreams, Embossed Metal, Guilloché, Spheroid
-  Glass, Quantum Traps, and Orbital Waves to iPhone and iPad.
+- Version 2.13 adds Quantum Glass to iPhone and iPad and improves deep-zoom
+  rendering for the recently introduced abstract styles.
+- Artistic orbit details now remain stable between progressive previews and
+  full-size PNG exports. At extreme depths, the app falls back to stable
+  iteration coloring when decorative orbit coordinates are no longer reliable.
 - The new styles are available for Mandelbrot, Julia, and Power fractals and
   expose the same dedicated style controls as the Mac version.
 - Favorites preserve the selected abstract style. Local PNG export reproduces
