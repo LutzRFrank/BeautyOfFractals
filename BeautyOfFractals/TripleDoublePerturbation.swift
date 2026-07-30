@@ -419,6 +419,7 @@ nonisolated enum TripleDoublePerturbation {
         approximations: [TripleDoubleSeriesApproximation],
         maxIterations: Int,
         orbitTrapRadius: Double? = nil,
+        orbitObservationLimit: Int? = nil,
         orbitObserver: ((Int, Double, Double) -> Void)? = nil
     ) -> TripleDoubleIterationResult {
         // Every pixel starts from the same reference. Screen-space selection
@@ -547,8 +548,13 @@ nonisolated enum TripleDoublePerturbation {
 
             let fullX = reference.orbit.x[iteration + 1] + dx
             let fullY = reference.orbit.y[iteration + 1] + dy
-            orbitObserver?(iteration, fullX, fullY)
-            if let orbitTrapRadius {
+            let observesOrbit = orbitObservationLimit.map {
+                iteration < $0
+            } ?? true
+            if observesOrbit {
+                orbitObserver?(iteration, fullX, fullY)
+            }
+            if observesOrbit, let orbitTrapRadius {
                 let trapDistance = abs(hypot(fullX, fullY) - orbitTrapRadius)
                 if trapDistance < closestTrapDistance {
                     closestTrapDistance = trapDistance

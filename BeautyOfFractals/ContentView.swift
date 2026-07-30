@@ -53,7 +53,7 @@ private let highPrecisionPreviewMaxPixelWidth: Int = 1800
 private let highPrecisionPreviewMaxPixelHeight: Int = 1200
 private let deepCPUPreviewMaxPixelWidth: Int = 720
 private let deepCPUPreviewMaxPixelHeight: Int = 480
-private let deepCPUPreviewIterationCap: Int = 2_500
+nonisolated private let deepCPUPreviewIterationCap: Int = 2_500
 private let tripleDoublePreviewMaxPixelWidth: Int = 640
 private let tripleDoublePreviewMaxPixelHeight: Int = 400
 
@@ -6076,21 +6076,30 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                     ((Double(px) + 0.5) / pixelWidth - 0.5)
                     * viewportAspectRatio
                 let localMaxIterations = automaticTarget
-                let quantumGlassRadius = palette == .quantumGlass
+                // At extreme depths the Mandelbrot iteration remains precise,
+                // but the decorative orbit coordinates no longer retain enough
+                // Double precision for stable traps. Fall back to the palette's
+                // iteration colors instead of publishing noisy pseudo-detail.
+                let supportsStableOrbitArt = abs(projectedScale) >= 1e-15
+                let quantumGlassRadius =
+                    palette == .quantumGlass && supportsStableOrbitArt
                     ? 0.24 + 0.18 * clamp01(doodadsStructure)
                     : nil
-                let orbitArt: DeepOrbitArtAccumulator? = switch palette {
-                case .orbitalWaves, .quantumTraps, .spheroidGlass,
-                     .guilloche, .metallicDreams:
-                    DeepOrbitArtAccumulator(
-                        palette: palette,
-                        structure: doodadsStructure,
-                        complexity: doodadsComplexity,
-                        curl: doodadsCurl
-                    )
-                default:
-                    nil
-                }
+                let orbitArt: DeepOrbitArtAccumulator? = {
+                    guard supportsStableOrbitArt else { return nil }
+                    return switch palette {
+                    case .orbitalWaves, .quantumTraps, .spheroidGlass,
+                         .guilloche, .metallicDreams:
+                        DeepOrbitArtAccumulator(
+                            palette: palette,
+                            structure: doodadsStructure,
+                            complexity: doodadsComplexity,
+                            curl: doodadsCurl
+                        )
+                    default:
+                        nil
+                    }
+                }()
                 let iterationResult =
                     TripleDoublePerturbation.acceleratedIterationWithLocalRebase(
                     horizontalOffset: horizontalOffset,
@@ -6100,6 +6109,10 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                     approximations: seriesApproximations,
                     maxIterations: localMaxIterations,
                     orbitTrapRadius: quantumGlassRadius,
+                    orbitObservationLimit:
+                        (quantumGlassRadius != nil || orbitArt != nil)
+                            ? deepCPUPreviewIterationCap
+                            : nil,
                     orbitObserver: orbitArt.map { accumulator in
                         { iteration, x, y in
                             accumulator.observe(
@@ -6168,7 +6181,8 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                         reliefStrength: doodadsStructure,
                         maxIterations: localMaxIterations
                     )
-                } else if let abstractColor = abstractOrbitPaletteColor(
+                } else if supportsStableOrbitArt,
+                          let abstractColor = abstractOrbitPaletteColor(
                     palette: palette,
                     x0: x0,
                     y0: y0,
@@ -7735,6 +7749,7 @@ nonisolated private func metallicDoodadsColor(
     complexity: Double,
     curl: Double
 ) -> (r: Double, g: Double, b: Double) {
+    let orbitIterationLimit = min(maxIterations, deepCPUPreviewIterationCap)
     var zx = mode == .julia ? x0 : 0.0
     var zy = mode == .julia ? y0 : 0.0
     let cx = mode == .julia ? -0.8 : x0
@@ -7744,7 +7759,7 @@ nonisolated private func metallicDoodadsColor(
     var closestIteration = 0
     var iteration = 0
 
-    while iteration < maxIterations {
+    while iteration < orbitIterationLimit {
         var powerX = zx
         var powerY = zy
         if exponent > 1 {
@@ -7815,7 +7830,7 @@ nonisolated private func metallicDoodadsColor(
     color = blend(color, copper, filament * (0.48 + 0.52 * bands))
     color = blend(color, silver, highlight)
 
-    if iteration == maxIterations {
+    if iteration == orbitIterationLimit {
         let interiorShade = 0.50 + 0.50 * filament
         color = (
             color.0 * interiorShade,
@@ -7899,6 +7914,7 @@ nonisolated private func guillocheColor(
     maxIterations: Int,
     engraving: Double
 ) -> (r: Double, g: Double, b: Double) {
+    let orbitIterationLimit = min(maxIterations, deepCPUPreviewIterationCap)
     var zx = mode == .julia ? x0 : 0.0
     var zy = mode == .julia ? y0 : 0.0
     let cx = mode == .julia ? -0.8 : x0
@@ -7909,7 +7925,7 @@ nonisolated private func guillocheColor(
     var closestIteration = 0
     var iteration = 0
 
-    while iteration < maxIterations {
+    while iteration < orbitIterationLimit {
         var powerX = zx
         var powerY = zy
         if exponent > 1 {
@@ -7956,7 +7972,7 @@ nonisolated private func guillocheColor(
     var g = 0.032 + 0.14 * paper + fineLine * (0.46 + 0.44 * weave)
     var b = 0.044 + 0.16 * paper + fineLine * (0.20 + 0.30 * weave)
 
-    if iteration == maxIterations {
+    if iteration == orbitIterationLimit {
         r *= 0.50
         g *= 0.56
         b *= 0.64
@@ -7972,6 +7988,7 @@ nonisolated private func spheroidGlassColor(
     maxIterations: Int,
     glass: Double
 ) -> (r: Double, g: Double, b: Double) {
+    let orbitIterationLimit = min(maxIterations, deepCPUPreviewIterationCap)
     var zx = mode == .julia ? x0 : 0.0
     var zy = mode == .julia ? y0 : 0.0
     let cx = mode == .julia ? -0.8 : x0
@@ -7984,7 +8001,7 @@ nonisolated private func spheroidGlassColor(
     var closestIteration = 0
     var iteration = 0
 
-    while iteration < maxIterations {
+    while iteration < orbitIterationLimit {
         var powerX = zx
         var powerY = zy
         if exponent > 1 {
@@ -8030,7 +8047,7 @@ nonisolated private func spheroidGlassColor(
     var b = (body + 0.16 * lens) * (0.45 + 0.55 * diffuse)
         + 0.62 * rim + 0.76 * caustic
 
-    if iteration == maxIterations {
+    if iteration == orbitIterationLimit {
         r *= 0.42
         g *= 0.56
         b *= 0.64
@@ -8046,6 +8063,14 @@ nonisolated private func quantumGlassColor(
     maxIterations: Int,
     glass: Double
 ) -> (r: Double, g: Double, b: Double) {
+    // Progressive deep previews intentionally top out at this budget. Keep the
+    // artistic orbit trap on the same limit for the final high-iteration pass
+    // so a later, unrelated shell encounter cannot replace the established
+    // Quantum Glass composition when the precise render is published.
+    let orbitIterationLimit = min(
+        maxIterations,
+        deepCPUPreviewIterationCap
+    )
     var zx = mode == .julia ? x0 : 0.0
     var zy = mode == .julia ? y0 : 0.0
     let cx = mode == .julia ? -0.8 : x0
@@ -8058,7 +8083,7 @@ nonisolated private func quantumGlassColor(
     var closestIteration = 0
     var iteration = 0
 
-    while iteration < maxIterations {
+    while iteration < orbitIterationLimit {
         var powerX = zx
         var powerY = zy
         if exponent > 1 {
@@ -8091,7 +8116,7 @@ nonisolated private func quantumGlassColor(
         closestY: closestY,
         closestIteration: closestIteration,
         iteration: iteration,
-        maxIterations: maxIterations,
+        maxIterations: orbitIterationLimit,
         sphereRadius: sphereRadius,
         glass: glass
     )
@@ -8144,6 +8169,7 @@ nonisolated private func orbitalWavesColor(
     maxIterations: Int,
     waves: Double
 ) -> (r: Double, g: Double, b: Double) {
+    let orbitIterationLimit = min(maxIterations, deepCPUPreviewIterationCap)
     var zx = mode == .julia ? x0 : 0.0
     var zy = mode == .julia ? y0 : 0.0
     let cx = mode == .julia ? -0.8 : x0
@@ -8155,7 +8181,7 @@ nonisolated private func orbitalWavesColor(
     var closestIteration = 0
     var iteration = 0
 
-    while iteration < maxIterations {
+    while iteration < orbitIterationLimit {
         var powerX = zx
         var powerY = zy
         if exponent > 1 {
@@ -8189,7 +8215,7 @@ nonisolated private func orbitalWavesColor(
     )
     let hot = pow(crest * interference, 2.2)
     let cold = pow(crest * (1.0 - interference), 1.7)
-    let shade = iteration == maxIterations ? 0.72 : 1.0
+    let shade = iteration == orbitIterationLimit ? 0.72 : 1.0
     return (
         clamp01((0.018 + 0.26 * wave + 1.05 * hot + 0.20 * cold) * shade),
         clamp01((0.034 + 0.62 * wave + 0.72 * hot + 0.88 * cold) * shade),
@@ -8204,6 +8230,7 @@ nonisolated private func quantumTrapsColor(
     maxIterations: Int,
     interference: Double
 ) -> (r: Double, g: Double, b: Double) {
+    let orbitIterationLimit = min(maxIterations, deepCPUPreviewIterationCap)
     var zx = mode == .julia ? x0 : 0.0
     var zy = mode == .julia ? y0 : 0.0
     let cx = mode == .julia ? -0.8 : x0
@@ -8223,7 +8250,7 @@ nonisolated private func quantumTrapsColor(
     var closestIteration = 0
     var iteration = 0
 
-    while iteration < maxIterations {
+    while iteration < orbitIterationLimit {
         var powerX = zx
         var powerY = zy
         if exponent > 1 {
@@ -8282,7 +8309,7 @@ nonisolated private func quantumTrapsColor(
     var b = 0.032 + 0.48 * lens * diffuse + 0.70 * rim
         + 0.20 * hotEdge + 0.92 * coldEdge
 
-    if iteration == maxIterations {
+    if iteration == orbitIterationLimit {
         r *= 0.42
         g *= 0.50
         b *= 0.64
