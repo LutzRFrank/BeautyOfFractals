@@ -428,11 +428,17 @@ nonisolated enum TripleDoublePerturbation {
         // longest-lived orbit is the best-conditioned global anchor; the other
         // orbits are used only for state-preserving rebases. Series coefficients
         // are built around the centre, so their shallower path remains central.
-        let initialReference = approximations.isEmpty
-            ? references.max { $0.orbit.escapedAt < $1.orbit.escapedAt }
-            : references.first(where: {
-                $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
-            }) ?? references.first
+        let centralReference = references.first(where: {
+            $0.horizontalOffset == 0.0 && $0.verticalOffset == 0.0
+        })
+        let isExactCenter = horizontalOffset == 0.0 && verticalOffset == 0.0
+        let initialReference = if isExactCenter {
+            centralReference
+        } else if approximations.isEmpty {
+            references.max { $0.orbit.escapedAt < $1.orbit.escapedAt }
+        } else {
+            centralReference ?? references.first
+        }
         guard var reference = initialReference else {
             return TripleDoubleIterationResult(
                 iteration: maxIterations,
@@ -514,7 +520,12 @@ nonisolated enum TripleDoublePerturbation {
                     }
 
                 guard let candidate else {
-                    return result(iteration: maxIterations)
+                    // The pixel has not been classified as interior; only the
+                    // available reference orbits have ended. Returning the
+                    // iteration at which coverage ended gives it the palette's
+                    // high-iteration boundary color instead of introducing a
+                    // false black interior speckle.
+                    return result(iteration: iteration)
                 }
                 reference = candidate
                 dx = currentX - candidate.orbit.x[iteration]

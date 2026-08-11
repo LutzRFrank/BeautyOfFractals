@@ -7,7 +7,8 @@ import Foundation
 nonisolated func calculateMandelbrotIterationDoubleDouble(
     cX: DoubleDouble,
     cY: DoubleDouble,
-    maxIterations: Int
+    maxIterations: Int,
+    orbitObserver: ((Int, Double, Double) -> Void)? = nil
 ) -> Int {
     var x = DoubleDouble.zero
     var y = DoubleDouble.zero
@@ -27,6 +28,7 @@ nonisolated func calculateMandelbrotIterationDoubleDouble(
 
         x = nextX
         y = nextY
+        orbitObserver?(iteration, x.doubleValue, y.doubleValue)
         iteration += 1
     }
 
