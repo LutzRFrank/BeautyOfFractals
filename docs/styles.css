@@ -111,6 +111,23 @@ nav {
   color: var(--text);
 }
 
+.language-switch {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding-left: 2px;
+  color: rgba(174, 184, 209, 0.55);
+}
+
+.language-switch strong {
+  color: var(--text);
+  font-weight: 760;
+}
+
+.language-switch a {
+  color: var(--muted);
+}
+
 .hero {
   position: relative;
   display: grid;
