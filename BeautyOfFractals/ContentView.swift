@@ -1260,6 +1260,7 @@ struct ContentView: View {
     @State private var exportStatusText: String?
     @State private var showHelp: Bool = false
     @State private var showControls: Bool = true
+    @State private var showDualMonitorGuide: Bool = false
     @State private var showFavoritesPanel: Bool = false
     @State private var showIterationJourneyPanel: Bool = false
     @State private var journeyStartIterations: Int = 300
@@ -1446,6 +1447,42 @@ struct ContentView: View {
                         .padding(.bottom, 34)
                         .offset(y: 40)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .overlay {
+                if showDualMonitorGuide {
+                    GeometryReader { geometry in
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.black.opacity(0.38))
+                                .frame(width: 8)
+                                .position(
+                                    x: geometry.size.width / 2,
+                                    y: geometry.size.height / 2
+                                )
+
+                            Rectangle()
+                                .fill(Color.white.opacity(0.9))
+                                .frame(width: 1)
+                                .position(
+                                    x: geometry.size.width / 2,
+                                    y: geometry.size.height / 2
+                                )
+
+                            Text("MONITOR SEAM · 1920 | 1920")
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.92))
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(.black.opacity(0.62))
+                                .clipShape(Capsule())
+                                .position(
+                                    x: geometry.size.width / 2,
+                                    y: 24
+                                )
+                        }
+                        .allowsHitTesting(false)
+                    }
                 }
             }
 
@@ -1848,6 +1885,27 @@ struct ContentView: View {
 
                         Divider()
 
+                        Button("Dual Monitor 3840 × 1080 PNG") {
+                            saveSnapshot(width: 3840, height: 1080, dualMonitorExport: true)
+                        }
+
+                        Button("Dual Monitor Overscan 4608 × 1296 PNG · 10% edges") {
+                            saveSnapshot(
+                                width: 4608,
+                                height: 1296,
+                                viewportScale: 1.2,
+                                dualMonitorExport: true
+                            )
+                        }
+
+                        Button {
+                            showDualMonitorGuide.toggle()
+                        } label: {
+                            Text("\(showDualMonitorGuide ? "✓ " : "   ")Show Dual Monitor Seam")
+                        }
+
+                        Divider()
+
                         if ultraExportUnavailableInDeepZoom {
                             Text("Use normal export for deep zoom")
                         }
@@ -1859,6 +1917,22 @@ struct ContentView: View {
 
                         Button("Ultra Export 2560 × 1600 PNG · 2×") {
                             saveSnapshot(width: 2560, height: 1600, supersampling: 2)
+                        }
+                        .disabled(ultraExportUnavailableInDeepZoom)
+
+                        Button("Ultra Dual Monitor 3840 × 1080 PNG · 2×") {
+                            saveSnapshot(width: 3840, height: 1080, supersampling: 2, dualMonitorExport: true)
+                        }
+                        .disabled(ultraExportUnavailableInDeepZoom)
+
+                        Button("Ultra Dual Monitor Overscan 4608 × 1296 PNG · 2×") {
+                            saveSnapshot(
+                                width: 4608,
+                                height: 1296,
+                                supersampling: 2,
+                                viewportScale: 1.2,
+                                dualMonitorExport: true
+                            )
                         }
                         .disabled(ultraExportUnavailableInDeepZoom)
                     } label: {
@@ -3006,7 +3080,13 @@ struct ContentView: View {
     }
 
 
-    private func saveSnapshot(width exportWidth: Int = 2560, height exportHeight: Int = 1600, supersampling: Int = 1) {
+    private func saveSnapshot(
+        width exportWidth: Int = 2560,
+        height exportHeight: Int = 1600,
+        supersampling: Int = 1,
+        viewportScale: Double = 1.0,
+        dualMonitorExport: Bool = false
+    ) {
         if isSavingSnapshot {
             return
         }
@@ -3015,8 +3095,9 @@ struct ContentView: View {
         let snapshotPalette = fractalPalette
         let snapshotCenterX = centerX
         let snapshotCenterY = centerY
-        let snapshotScale = scale
-        let snapshotPreciseViewport = preciseViewport
+        let snapshotViewportScale = max(viewportScale, 1.0)
+        let snapshotScale = scale * snapshotViewportScale
+        let snapshotPreciseViewport = preciseViewport.zoomed(by: snapshotViewportScale)
         let snapshotSupersampling = max(1, min(supersampling, 2))
         let snapshotIterations = snapshotSupersampling > 1 ? ultraExportEffectiveIterations : exportEffectiveIterations
         let snapshotDoodadsStructure = snapshotPalette == .embossedMetal
@@ -3032,7 +3113,9 @@ struct ContentView: View {
                         : doodadsStructure
         let snapshotDoodadsComplexity = doodadsComplexity
         let snapshotDoodadsCurl = doodadsCurl
-        let snapshotExportSuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
+        let snapshotQualitySuffix = snapshotSupersampling > 1 ? "-Ultra\(snapshotSupersampling)x" : ""
+        let snapshotOverscanSuffix = snapshotViewportScale > 1.0 ? "-Overscan20" : ""
+        let snapshotExportSuffix = snapshotQualitySuffix + snapshotOverscanSuffix
         let snapshotDeepRenderMethod = snapshotSupersampling == 1
             ? automaticDeepRenderMethod(
                 preciseViewport: snapshotPreciseViewport,
@@ -3040,16 +3123,10 @@ struct ContentView: View {
             )
             : .directDouble
 
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue =
+        let snapshotFileName =
             "BeautyOfFractals-\(snapshotMode.fileName)-\(snapshotPalette.fileName)-\(snapshotIterations)-iterations\(snapshotExportSuffix)-\(exportWidth)x\(exportHeight).png"
 
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else {
-                return
-            }
-
+        let startExport: (URL) -> Void = { url in
             isSavingSnapshot = true
             exportStartDate = Date()
             exportStatusText = nil
@@ -3122,6 +3199,62 @@ struct ContentView: View {
                 let exportSucceeded: Bool
                 do {
                     try pngData.write(to: url)
+
+                    if dualMonitorExport {
+                        let monitorWidth = 1920
+                        let monitorHeight = 1080
+                        let panoramaWidth = monitorWidth * 2
+                        let cropX = (exportWidth - panoramaWidth) / 2
+                        let cropY = (exportHeight - monitorHeight) / 2
+                        let baseURL = url.deletingPathExtension()
+                        let fileExtension = url.pathExtension.isEmpty ? "png" : url.pathExtension
+
+                        guard cropX >= 0, cropY >= 0 else {
+                            throw CocoaError(.fileWriteUnknown)
+                        }
+
+                        guard
+                            let leftImage = finalImage.cropping(
+                                to: CGRect(
+                                    x: cropX,
+                                    y: cropY,
+                                    width: monitorWidth,
+                                    height: monitorHeight
+                                )
+                            ),
+                            let rightImage = finalImage.cropping(
+                                to: CGRect(
+                                    x: cropX + monitorWidth,
+                                    y: cropY,
+                                    width: monitorWidth,
+                                    height: monitorHeight
+                                )
+                            ),
+                            let leftPNG = NSBitmapImageRep(cgImage: leftImage).representation(
+                                using: .png,
+                                properties: [:]
+                            ),
+                            let rightPNG = NSBitmapImageRep(cgImage: rightImage).representation(
+                                using: .png,
+                                properties: [:]
+                            )
+                        else {
+                            throw CocoaError(.fileWriteUnknown)
+                        }
+
+                        let leftURL = baseURL
+                            .deletingLastPathComponent()
+                            .appendingPathComponent(baseURL.lastPathComponent + "-Left")
+                            .appendingPathExtension(fileExtension)
+                        let rightURL = baseURL
+                            .deletingLastPathComponent()
+                            .appendingPathComponent(baseURL.lastPathComponent + "-Right")
+                            .appendingPathExtension(fileExtension)
+
+                        try leftPNG.write(to: leftURL)
+                        try rightPNG.write(to: rightURL)
+                    }
+
                     exportSucceeded = true
                 } catch {
                     print("Snapshot konnte nicht gespeichert werden:", error)
@@ -3137,6 +3270,38 @@ struct ContentView: View {
                     exportStartDate = nil
                     isSavingSnapshot = false
                 }
+            }
+        }
+
+        if dualMonitorExport {
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.canCreateDirectories = true
+            panel.allowsMultipleSelection = false
+            panel.prompt = "Export"
+            panel.message = snapshotViewportScale > 1.0
+                ? "Choose a folder for the overscan panorama and both centered 1920 × 1080 monitor images."
+                : "Choose a folder for the panorama and both 1920 × 1080 monitor images."
+
+            panel.begin { response in
+                guard response == .OK, let directoryURL = panel.url else {
+                    return
+                }
+
+                startExport(directoryURL.appendingPathComponent(snapshotFileName))
+            }
+        } else {
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.png]
+            panel.nameFieldStringValue = snapshotFileName
+
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else {
+                    return
+                }
+
+                startExport(url)
             }
         }
     }
