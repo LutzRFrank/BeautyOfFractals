@@ -53,9 +53,12 @@ Thank you for reviewing Beauty of Fractals.
 - During PNG export, the Export button changes to an hourglass and remains
   unavailable until rendering completes.
 
-## Version 2.13 - iPhone, iPad, and Apple Watch
+## Version 2.20 - iPhone, iPad, and Apple Watch
 
-Thank you for reviewing Beauty of Fractals.
+Thank you for reviewing Beauty of Fractals 2.20, featuring initial support for
+the fully opened iPhone Duo display. Please check the adaptive controls and
+safe-area placement in portrait and landscape. Dedicated partially folded
+layouts are outside this release’s scope.
 
 - No account, sign-in, subscription, or purchase is required.
 - The app does not use advertising, analytics, tracking, or a
@@ -65,12 +68,15 @@ Thank you for reviewing Beauty of Fractals.
   appear across iPhone, iPad, and Mac when iCloud is available.
 - The Apple Watch companion receives render progress, preview images, and zoom
   values from the paired iPhone through Apple WatchConnectivity.
-- Version 2.13 adds Quantum Glass to iPhone and iPad and improves deep-zoom
-  rendering for the recently introduced abstract styles.
+- Version 2.20 adds initial compatibility for the fully opened iPhone Duo
+  display. The collapsible phone controls expand with the available width;
+  zoom and status labels respect the current safe areas.
+- Resizing clears transient gesture state while preserving the fractal center
+  and zoom. Dedicated partially folded layouts are not part of this release.
 - Artistic orbit details now remain stable between progressive previews and
   full-size PNG exports. At extreme depths, the app falls back to stable
   iteration coloring when decorative orbit coordinates are no longer reliable.
-- The new styles are available for Mandelbrot, Julia, and Power fractals and
+- Abstract styles are available for Mandelbrot, Julia, and Power fractals and
   expose the same dedicated style controls as the Mac version.
 - Favorites preserve the selected abstract style. Local PNG export reproduces
   its current custom setting.
@@ -80,7 +86,8 @@ Thank you for reviewing Beauty of Fractals.
   location and iteration budget.
 - Use the controls to select a fractal mode, palette, render quality, and
   iteration depth.
-- Navigate with standard touch and pinch gestures.
+- Drag with one finger to draw a zoom selection; double-tap to zoom at a point.
+  Use two fingers to pan and pinch to zoom. Zoom buttons are also available.
 - The controls can be collapsed to provide an unobstructed fractal view.
 - Export options are available from the Export control. Deep-zoom exports are
   recalculated locally at the selected target resolution.

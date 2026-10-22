@@ -12,13 +12,17 @@
   high-precision renders.
 - Improved the appearance of abstract palettes at extreme zoom levels.
 
-### iPhone, iPad, and Apple Watch
+## Version 2.20 — iPhone, iPad, and Apple Watch
 
-- Added Quantum Glass to iPhone and iPad.
-- Improved deep-zoom rendering for Quantum Glass and the recently introduced
-  abstract palettes.
-- Stabilized artistic orbit details between on-device previews and full-size
-  PNG exports.
-- Improved palette behavior at extreme zoom levels.
-- Apple Watch continues to mirror render progress and finished previews from
-  the paired iPhone.
+Initial iPhone Duo support: explore fractals across the fully opened display
+with controls that adapt to the available width.
+
+- Added initial support for the fully opened iPhone Duo display.
+- The collapsible controls now expand to use the available width on larger
+  iPhone layouts.
+- Zoom and status labels adapt to the display's safe areas.
+- Resizing clears temporary gesture state while keeping your fractal's center
+  and zoom.
+
+German release notes and the complete iOS metadata package are available in
+[iOS-2.20-Release.md](iOS-2.20-Release.md).

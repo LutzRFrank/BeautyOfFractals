@@ -47,8 +47,9 @@ services.
 
 ## iPhone and iPad
 
-Beauty of Fractals turns mathematical structures into an immersive visual
-journey for iPhone and iPad.
+Beauty of Fractals brings fractal exploration to the fully opened iPhone Duo
+display, with controls that adapt to the available width. Version 2.20 adds
+initial Duo support alongside the familiar iPhone and iPad experience.
 
 Explore the Mandelbrot set and a diverse collection of related fractals with
 natural touch navigation, fast Metal rendering, precise CPU deep zooms,
@@ -61,6 +62,8 @@ FEATURES
   Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D, and Eight
   Rainbows
 - Navigate naturally with pinch-to-zoom and touch gestures
+- Explore the fully opened iPhone Duo display with controls that adapt to the
+  available width and status labels that respect safe areas
 - Use Automatic precision selection from fast interactive views through guarded
   Extreme Precision
 - Reveal selected Mandelbrot structures around 10^50x, with deeper views
