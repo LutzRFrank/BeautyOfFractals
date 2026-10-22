@@ -26,4 +26,4 @@ The gauge button toggles render status. Ordinary zoom levels use Metal; deeper s
 
 On iPhone and iPad, actions use the system top and bottom bars. On iPhone Duo, supported layouts move actions into adaptive side bars. Support targets the fully opened display; dedicated partially folded layouts are not claimed. At constrained sizes, iOS may move some actions into the overflow menu.
 
-Drag with one finger to select a zoom area, double-tap to zoom at a point, use two fingers to pan, and pinch to zoom. The paired Apple Watch companion receives render progress, preview images, and zoom values through WatchConnectivity. Its version is also 2.30 (4); the companion functionality is unchanged.
+Drag with one finger to select a zoom area, double-tap to zoom at a point, use two fingers to pan, and pinch to zoom. The paired Apple Watch companion receives render progress, preview images, and zoom values through WatchConnectivity. Its version is also 2.30 (75); the companion functionality is unchanged.

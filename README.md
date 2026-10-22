@@ -5,7 +5,7 @@ iPad, and Apple Watch. It combines Metal rendering, precise CPU deep zooms,
 iCloud-synced favorite spots, local PNG export, and a small Watch companion for
 following long renders.
 
-## Current release candidate: 2.30 (build 4)
+## Current release candidate: 2.30 (build 75)
 
 The shared Mac and iOS release introduces native action toolbars and two compact
 settings popovers: Fractal, Skin & Quality and Iterations & Effects. The fractal

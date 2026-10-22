@@ -1,10 +1,10 @@
-# Beauty of Fractals 2.30 (4) — shared release package
+# Beauty of Fractals 2.30 (75) — shared release package
 
 Prepared 22 October 2026. Local release candidate; not uploaded or submitted. The previously submitted iOS version 2.20 is unaffected.
 
 ## Version
 
-macOS, iPhone/iPad, and the embedded Watch companion: 2.30, build 4, in Debug and Release. 2.30 is the increasing version corresponding to the requested “2.3” step after 2.20. Version 2.3 would compare lower than 2.20. Existing signing, schemes, bundle IDs, and deployment targets are retained.
+macOS, iPhone/iPad, and the embedded Watch companion: 2.30, build 75, in Debug and Release. 2.30 is the increasing version corresponding to the requested “2.3” step after 2.20. Version 2.3 would compare lower than 2.20. Existing signing, schemes, bundle IDs, and deployment targets are retained.
 
 Copy field contents without Markdown headings. Use the existing app name “Beauty of Fractals”, copyright, review contact, support and privacy URLs from App Store Connect. Account state and version availability have not been checked here.
 
@@ -285,8 +285,8 @@ Use the platform-specific English notes in [ReviewNotes.md](ReviewNotes.md).
 
 ## Local validation
 
-- macOS Release build: succeeded; built bundle reports 2.30 (4).
-- iOS Release build for generic physical devices: succeeded; iOS and embedded Watch bundles both report 2.30 (4).
+- macOS Release build: succeeded; built bundle reports 2.30 (75).
+- iOS Release build for generic physical devices: succeeded; iOS and embedded Watch bundles both report 2.30 (75).
 - Mac runtime: native toolbar and both popovers opened successfully. Selecting Quantum Glass updated the selection. Iteration and Glass values changed while their popover stayed open; test values were restored.
 - Both repositories pass `git diff --check`; localized field lengths pass the limits below. Signing and shared schemes were not changed.
 - Full export, deep-zoom, and cross-device regression checks remain part of the manual handoff below.
@@ -296,7 +296,7 @@ Use the platform-specific English notes in [ReviewNotes.md](ReviewNotes.md).
 - Complete manual Mac toolbar/popover and export regression checks, plus iPhone/iPad and Duo interaction checks on the final versioned builds. The previous iOS UI was exercised by the owner on iPhone and Duo before the shared version bump.
 - The Watch companion must retain matching version/build numbers in the signed iOS archive.
 - Retain unrelated pre-existing asset edits for owner review; the missing AccentColor warning predates this work.
-- Confirm that version 2.30 and build 4 are available in App Store Connect. This account was not inspected.
+- App Store Connect rejected build 4 because the previously uploaded build was 74. Build 75 is the corrected candidate. Recreate the signed archives from this source; existing build-4 archives retain the invalid build number.
 - Capture current Mac, iPhone, iPad, and Duo screenshots from the final candidates.
 - Archive and validate both signed distribution builds with existing signing settings, upload them, and assign the localized metadata. This preparation does not upload or submit either app.
 - When commits are requested, commit/push iOS source first, then update the submodule pointer and commit the parent changes separately. Unrelated local assets and AGENTS.md are outside this release work.
