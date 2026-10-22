@@ -4,7 +4,16 @@ Beauty of Fractals is an interactive Mandelbrot and fractal explorer for Mac.
 It uses Metal for responsive navigation and CPU-based precision renderers for
 deep Mandelbrot views.
 
-## Version 2.11
+## Version 2.30 (build 4)
+
+Native window-toolbar actions replace the floating controls. Open Fractal, Skin
+& Quality or Iterations & Effects from their toolbar icons. All existing Mac
+export options, diagnostics, Iteration Journey, favorites, and navigation remain
+available. Command-Shift-C toggles the selection popover.
+
+Release metadata: `AppStore/Release-2.30.md` in the parent repository.
+
+## Deep-zoom features
 
 The 2.11 macOS line focuses on deep zoom quality and cross-device continuity:
 

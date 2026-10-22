@@ -3,7 +3,8 @@
 ## macOS
 
 Beauty of Fractals turns mathematical structures into an immersive visual
-journey on your Mac.
+journey on your Mac. Version 2.30 brings a cleaner workspace with native toolbar
+actions and compact popovers for fractal selection, quality, iterations, and effects.
 
 Explore the Mandelbrot set and a diverse collection of related fractals with
 smooth navigation, fast Metal rendering, precise CPU deep zooms, expressive
@@ -36,7 +37,8 @@ FEATURES
   Pearl, Rainbows, and Deep Current
 - Export true high-resolution PNG images recalculated locally for the selected
   output size
-- Hide the controls for a clean, immersive gallery view
+- Open selection and effect settings on demand from toolbar icons for an
+  unobstructed fractal view
 - Inspect render status and advanced diagnostics when you want to see what the
   precision engine is doing
 
@@ -48,8 +50,8 @@ services.
 ## iPhone and iPad
 
 Beauty of Fractals brings fractal exploration to the fully opened iPhone Duo
-display, with controls that adapt to the available width. Version 2.20 adds
-initial Duo support alongside the familiar iPhone and iPad experience.
+display, with native bars that adapt to the available space. Version 2.30 adds
+compact settings popovers alongside the familiar iPhone and iPad experience.
 
 Explore the Mandelbrot set and a diverse collection of related fractals with
 natural touch navigation, fast Metal rendering, precise CPU deep zooms,
@@ -82,7 +84,8 @@ FEATURES
 - Choose from additional expressive color palettes, including Aurora, Auric,
   Pearl, Rainbows, and Deep Current
 - Export PNG images recalculated locally for the selected output size
-- Collapse the controls for an unobstructed view of the fractal
+- Open compact popovers for fractal type, skin, quality, iterations, and effects
+  from dedicated toolbar icons
 - Follow longer calculations with clear render status and diagnostics
 
 Beauty of Fractals is designed for exploration. There are no accounts,

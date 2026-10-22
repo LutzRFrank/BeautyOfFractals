@@ -5,7 +5,16 @@ iPad, and Apple Watch. It combines Metal rendering, precise CPU deep zooms,
 iCloud-synced favorite spots, local PNG export, and a small Watch companion for
 following long renders.
 
-## Current line: 2.11
+## Current release candidate: 2.30 (build 4)
+
+The shared Mac and iOS release introduces native action toolbars and two compact
+settings popovers: Fractal, Skin & Quality and Iterations & Effects. The fractal
+canvas stays unobstructed until settings are opened. iPhone Duo uses adaptive
+side bars in supported layouts; the Watch companion retains render mirroring.
+
+Release texts and validation handoff: [AppStore/Release-2.30.md](AppStore/Release-2.30.md).
+
+## Deep-zoom engine
 
 Version 2.11 extends the Mandelbrot deep-zoom engine with guarded 6xDouble
 reference rendering, adaptive anchor selection, automatic iteration budgeting,

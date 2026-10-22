@@ -1,13 +1,17 @@
-# App Store Promotional Text
+# Promotional Text — Version 2.30
 
-## macOS
+## macOS — English
 
-Explore luminous Quantum Glass and improved deep zooms for the new generation of abstract fractal styles.
+Explore fractals with a cleaner Mac workspace: native toolbar actions, compact settings popovers, precise deep zooms, and local PNG export.
 
-## iPhone and iPad — Version 2.20
+## macOS — Deutsch
 
-Explore fractals across the fully opened iPhone Duo display, with adaptive controls, expressive palettes, precise deep zooms, and local PNG export.
+Entdecke Fraktale mit mehr freier Fläche auf dem Mac: native Toolbar, kompakte Einstellungs-Popovers, präzise Tiefenzooms und lokaler PNG-Export.
 
-### Deutsch
+## iPhone and iPad — English
 
-Entdecke Fraktale auf dem vollständig geöffneten iPhone Duo – mit anpassbaren Bedienelementen, ausdrucksstarken Farbwelten, präzisen Tiefenzooms und PNG-Export.
+Explore the fully opened iPhone Duo with adaptive side bars and compact settings popovers. Enjoy the same clear controls on iPhone and iPad.
+
+## iPhone und iPad — Deutsch
+
+Entdecke Fraktale auf dem geöffneten iPhone Duo mit adaptiven Seitenleisten und kompakten Popovers – mit derselben klaren Bedienung auf iPhone und iPad.

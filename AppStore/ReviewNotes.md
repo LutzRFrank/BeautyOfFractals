@@ -1,95 +1,29 @@
-# App Review Notes
+# App Review Notes — Version 2.30
 
-Do not store credentials, private contact details, or other secrets in this
-file.
+Do not store credentials or private review contact details in this file.
 
-## Version 2.13 - macOS
+## macOS
 
-Thank you for reviewing Beauty of Fractals.
+Thank you for reviewing Beauty of Fractals 2.30.
 
-- No account, sign-in, subscription, or purchase is required.
-- The app does not use advertising, analytics, tracking, or a
-  developer-operated backend.
-- Fractal rendering and PNG export are performed locally.
-- Favorites can sync through the user's Apple iCloud account. This uses the
-  configured iCloud container only for the favorites feature.
-- Version 2.13 adds Quantum Glass and improves deep-zoom rendering for the
-  recently introduced abstract styles.
-- Artistic orbit details now use a stable observation range across progressive
-  previews and final high-precision renders. At extreme depths, the app falls
-  back to stable iteration coloring when orbit coordinates can no longer
-  provide reliable decorative detail.
-- Quantum Glass is available from the palette menu and provides a dedicated
-  Glass control.
-- These styles are available from the palette menu for Mandelbrot, Julia, and
-  Power fractals. Other supported modes also retain their applicable palette
-  choices.
-- Selecting an abstract style reveals its dedicated controls below the standard
-  iteration controls. Metallic Dreams provides Structure, Complexity, and Curl;
-  the other styles provide Relief, Engraving, Glass, Interference, or Waves.
-- Favorites preserve the selected abstract style. PNG export reproduces its
-  current custom settings.
-- The Help button now opens a visual welcome and quick-start view with rotating
-  fractal artwork, essential controls, and a link to the product website.
-- Automatic Deep mode can raise the effective iteration budget from the center
-  orbit plus a reserve; manual Deep mode supports up to 250,000 iterations.
-- Selected Mandelbrot views around 10^50x are reachable at suitable locations.
-  Deeper views are labeled experimental because quality depends on the selected
-  location and iteration budget.
-- Use the controls at the bottom of the window to select a fractal mode,
-  palette, render quality, and iteration depth.
-- Select Power of n from the fractal menu, then use the Power slider to choose
-  an integer exponent from 2 through 12.
-- Zoom by clicking the magnifying-glass controls or by interacting directly with
-  the fractal. Pan by dragging.
-- Press Command-Shift-C, or choose Fractal > Show / Hide Controls, to toggle the
-  controls.
-- Press Command-Shift-P, use the gauge button, or choose Fractal > Show / Hide
-  Render Status to toggle the render status panel.
-- The compact control bar includes direct buttons for render status,
-  diagnostics, favorites, and export.
-- Export options are available from the Export menu in the controls. Deep-zoom
-  exports are recalculated locally at the selected target resolution.
-- During PNG export, the Export button changes to an hourglass and remains
-  unavailable until rendering completes.
+No sign-in, subscription, or purchase is required. The app has no advertising, analytics, tracking, or developer-operated backend. Rendering and PNG export happen locally. Optional favorites sync uses the user's Apple iCloud account.
 
-## Version 2.20 - iPhone, iPad, and Apple Watch
+Open the selection icon (line.3.horizontal.decrease) for fractal type, skin, and quality. Open the sliders icon (slider.horizontal.3) for iterations and style controls such as Glass. The settings remain open while adjusting their values. Tap or click outside a popover to dismiss it.
 
-Thank you for reviewing Beauty of Fractals 2.20, featuring initial support for
-the fully opened iPhone Duo display. Please check the adaptive controls and
-safe-area placement in portrait and landscape. Dedicated partially folded
-layouts are outside this release’s scope.
+The gauge button toggles render status. Ordinary zoom levels use Metal; deeper supported views use CPU high-precision rendering. Rendering progress is shown during CPU calculations. Experimental extreme zoom quality depends on location and iteration budget.
 
-- No account, sign-in, subscription, or purchase is required.
-- The app does not use advertising, analytics, tracking, or a
-  developer-operated backend.
-- Fractal rendering and PNG export are performed locally on the device.
-- Favorites can sync through the user's Apple iCloud account. New favorites can
-  appear across iPhone, iPad, and Mac when iCloud is available.
-- The Apple Watch companion receives render progress, preview images, and zoom
-  values from the paired iPhone through Apple WatchConnectivity.
-- Version 2.20 adds initial compatibility for the fully opened iPhone Duo
-  display. The collapsible phone controls expand with the available width;
-  zoom and status labels respect the current safe areas.
-- Resizing clears transient gesture state while preserving the fractal center
-  and zoom. Dedicated partially folded layouts are not part of this release.
-- Artistic orbit details now remain stable between progressive previews and
-  full-size PNG exports. At extreme depths, the app falls back to stable
-  iteration coloring when decorative orbit coordinates are no longer reliable.
-- Abstract styles are available for Mandelbrot, Julia, and Power fractals and
-  expose the same dedicated style controls as the Mac version.
-- Favorites preserve the selected abstract style. Local PNG export reproduces
-  its current custom setting.
-- Manual Deep mode supports up to 250,000 iterations.
-- Selected Mandelbrot views around 10^50x are reachable at suitable locations.
-  Deeper views are experimental and can depend strongly on the selected
-  location and iteration budget.
-- Use the controls to select a fractal mode, palette, render quality, and
-  iteration depth.
-- Drag with one finger to draw a zoom selection; double-tap to zoom at a point.
-  Use two fingers to pan and pinch to zoom. Zoom buttons are also available.
-- The controls can be collapsed to provide an unobstructed fractal view.
-- Export options are available from the Export control. Deep-zoom exports are
-  recalculated locally at the selected target resolution.
-- Longer high-precision renders display progress and may be cancelled from the
-  render status interface.
+On Mac, actions are in the native window toolbar. Existing Undo, zoom, Reset, favorites, help, diagnostics, Iteration Journey, and export options remain available. The export menu retains normal PNG, Ultra, Dual Monitor, Overscan, and seam-guide options. Command-Shift-C opens or closes the selection popover. Command-Shift-P toggles render status; Command-S exports a 2560 × 1600 PNG. Drag a selection to zoom, and Option-drag to pan.
+
+## iPhone, iPad, and Apple Watch
+
+Thank you for reviewing Beauty of Fractals 2.30.
+
+No sign-in, subscription, or purchase is required. The app has no advertising, analytics, tracking, or developer-operated backend. Rendering and PNG export happen locally. Optional favorites sync uses the user's Apple iCloud account.
+
+Open the selection icon (line.3.horizontal.decrease) for fractal type, skin, and quality. Open the sliders icon (slider.horizontal.3) for iterations and style controls such as Glass. The settings remain open while adjusting their values. Tap or click outside a popover to dismiss it.
+
+The gauge button toggles render status. Ordinary zoom levels use Metal; deeper supported views use CPU high-precision rendering. Rendering progress is shown during CPU calculations. Experimental extreme zoom quality depends on location and iteration budget.
+
+On iPhone and iPad, actions use the system top and bottom bars. On iPhone Duo, supported layouts move actions into adaptive side bars. Support targets the fully opened display; dedicated partially folded layouts are not claimed. At constrained sizes, iOS may move some actions into the overflow menu.
+
+Drag with one finger to select a zoom area, double-tap to zoom at a point, use two fingers to pan, and pinch to zoom. The paired Apple Watch companion receives render progress, preview images, and zoom values through WatchConnectivity. Its version is also 2.30 (4); the companion functionality is unchanged.

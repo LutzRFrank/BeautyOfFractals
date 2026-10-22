@@ -1123,7 +1123,7 @@ private struct FractalWelcomeView: View {
 
             Divider()
 
-            Text("Choose Fast, High or Deep quality from the control bar. Deep Mandelbrot locations automatically switch to high-precision CPU rendering when ordinary coordinates are no longer enough.")
+            Text("Choose Fast, High or Deep quality from the Fractal, Skin & Quality toolbar popover. Deep Mandelbrot locations automatically switch to high-precision CPU rendering when ordinary coordinates are no longer enough.")
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
@@ -1258,8 +1258,12 @@ struct ContentView: View {
     @State private var isSavingSnapshot: Bool = false
     @State private var exportStartDate: Date?
     @State private var exportStatusText: String?
+    @State private var iterationInput = ""
+    @FocusState private var iterationFieldFocused: Bool
     @State private var showHelp: Bool = false
-    @State private var showControls: Bool = true
+    @State private var showSelectionPopover = false
+    @State private var showRenderingPopover = false
+    @State private var showLiveRenderStatus = false
     @State private var showDualMonitorGuide: Bool = false
     @State private var showFavoritesPanel: Bool = false
     @State private var showIterationJourneyPanel: Bool = false
@@ -1393,8 +1397,15 @@ struct ContentView: View {
     }
 
     var body: some View {
+        GeometryReader { geometry in
+            explorerCanvas(safeAreaInsets: geometry.safeAreaInsets)
+        }
+    }
+
+    private func explorerCanvas(safeAreaInsets: EdgeInsets) -> some View {
         ZStack(alignment: .bottom) {
             MandelbrotView(
+                overlaySafeAreaInsets: safeAreaInsets,
                 fractalMode: fractalMode,
                 fractalPalette: fractalPalette,
                 centerX: $centerX,
@@ -1486,23 +1497,13 @@ struct ContentView: View {
                 }
             }
 
-            if showControls {
-                controlsOverlay
-                    .padding(.bottom, 26)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            } else {
-                controlsRestoreHandle
-                    .padding(.bottom, 18)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
             if showIterationJourneyPanel {
                 iterationJourneyPanel
-                    .padding(.bottom, 154)
+                    .padding(.bottom, 26)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showControls)
+        .toolbar { explorerToolbar }
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: showFavoritesPanel)
         .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showIterationJourneyPanel)
         .background(Color.black)
@@ -1520,7 +1521,27 @@ struct ContentView: View {
             resetView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleFractalControls)) { _ in
-            showControls.toggle()
+            showRenderingPopover = false
+            showSelectionPopover.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleRenderStatus)) { _ in
+            if !fractalMode.supportsHighPrecisionPreview || scale >= highPrecisionScaleLimit {
+                showLiveRenderStatus.toggle()
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if showLiveRenderStatus,
+               !fractalMode.supportsHighPrecisionPreview || scale >= highPrecisionScaleLimit {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("Render Status", systemImage: "gauge").font(.headline)
+                    Text("Live preview · Metal")
+                    Text("Iterations: \(effectiveIterations.formatted())").monospacedDigit()
+                }
+                .padding(16)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .padding(.top, 60)
+                .padding(.leading, 24)
+            }
         }
         .focusedValue(\.fractalActions, FractalActions(
             snap: {
@@ -1745,443 +1766,385 @@ struct ContentView: View {
         }
     }
 
-    private var controlsOverlay: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                HStack(spacing: 8) {
-                    Button {
-                        undoView()
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                    }
-                    .disabled(navigationHistory.isEmpty)
-                    .keyboardShortcut("z", modifiers: .command)
-                    .help("Undo last zoom, pan or reset")
-
-                    Button {
-                        zoomOut()
-                    } label: {
-                        Image(systemName: "minus.magnifyingglass")
-                    }
-                    .keyboardShortcut("-", modifiers: [])
-                    .help("Zoom Out")
-
-                    Button {
-                        zoomIn()
-                    } label: {
-                        Image(systemName: "plus.magnifyingglass")
-                    }
-                    .keyboardShortcut("+", modifiers: [])
-                    .keyboardShortcut("=", modifiers: [])
-                    .help("Zoom In")
-
-                    Button {
-                        resetView()
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                    }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Reset View")
-
-                    Spacer(minLength: 190)
-
-                    Button {
-                        NotificationCenter.default.post(
-                            name: .toggleRenderStatus,
-                            object: nil
-                        )
-                    } label: {
-                        Image(systemName: "gauge.with.dots.needle.50percent")
-                    }
-                    .keyboardShortcut("p", modifiers: [.command, .shift])
-                    .help("Show / Hide Render Status (⇧⌘P)")
-
-                    Menu {
-                        ForEach(RenderQuality.allCases) { quality in
-                            Button {
-                                clearExportStatus()
-                                renderQuality = quality
-                                maxIterations = min(maxIterations, maximumBaseIterations)
-                            } label: {
-                                Text("\(renderQuality == quality ? "✓ " : "   ")\(quality.rawValue)")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "dial.medium")
-                    }
-                    .help("Quality: \(renderQuality.rawValue)")
-
-                    Menu {
-                        ForEach(DeepRenderMethod.allCases) { method in
-                            Button {
-                                deepRenderMethod = method
-                                latestHighPrecisionThumbnailPNG = nil
-                                lastPerturbationStatsText = nil
-                                navigationRevision &+= 1
-                            } label: {
-                                Text("\(deepRenderMethod == method ? "◉" : "○")  \(method.rawValue)")
-                            }
-                            .disabled(
-                                fractalMode != .mandelbrot
-                                    && !(
-                                        fractalMode == .mandelbrotPlateau
-                                            && (method == .automatic || method == .directDouble)
-                                    )
-                            )
-                        }
-
-                        Divider()
-
-                        Button("Show Diagnostics") {
-                            showPerturbationStats = true
-                        }
-
-                        Divider()
-
-                        Button("Copy Exact Viewport") {
-                            copyExactViewport()
-                        }
-
-                        Button("Paste Exact Viewport") {
-                            pasteExactViewport()
-                        }
-                    } label: {
-                        Image(systemName: "waveform.path.ecg")
-                    }
-                    .help("Render diagnostics")
-
-                    Button {
-                        showFavoritesPanel.toggle()
-                    } label: {
-                        Image(systemName: showFavoritesPanel ? "star.fill" : "star")
-                    }
-                    .help("Favorite Spots")
-
-                    Button {
-                        if showIterationJourneyPanel {
-                            cancelIterationJourney(restoreOriginal: true)
-                            showIterationJourneyPanel = false
-                        } else {
-                            prepareIterationJourney()
-                            showIterationJourneyPanel = true
-                        }
-                    } label: {
-                        Image(systemName: showIterationJourneyPanel ? "film.fill" : "film")
-                    }
-                    .help("Iteration Journey")
-
-                    Menu {
-                        Button("Export 1440 × 900 PNG") {
-                            saveSnapshot(width: 1440, height: 900)
-                        }
-
-                        Button("Export 2560 × 1600 PNG") {
-                            saveSnapshot(width: 2560, height: 1600)
-                        }
-
-                        Button("Export 2880 × 1800 PNG") {
-                            saveSnapshot(width: 2880, height: 1800)
-                        }
-
-                        Divider()
-
-                        Button("Dual Monitor 3840 × 1080 PNG") {
-                            saveSnapshot(width: 3840, height: 1080, dualMonitorExport: true)
-                        }
-
-                        Button("Dual Monitor Overscan 4608 × 1296 PNG · 10% edges") {
-                            saveSnapshot(
-                                width: 4608,
-                                height: 1296,
-                                viewportScale: 1.2,
-                                dualMonitorExport: true
-                            )
-                        }
-
-                        Button {
-                            showDualMonitorGuide.toggle()
-                        } label: {
-                            Text("\(showDualMonitorGuide ? "✓ " : "   ")Show Dual Monitor Seam")
-                        }
-
-                        Divider()
-
-                        if ultraExportUnavailableInDeepZoom {
-                            Text("Use normal export for deep zoom")
-                        }
-
-                        Button("Ultra Export 1440 × 900 PNG · 2×") {
-                            saveSnapshot(width: 1440, height: 900, supersampling: 2)
-                        }
-                        .disabled(ultraExportUnavailableInDeepZoom)
-
-                        Button("Ultra Export 2560 × 1600 PNG · 2×") {
-                            saveSnapshot(width: 2560, height: 1600, supersampling: 2)
-                        }
-                        .disabled(ultraExportUnavailableInDeepZoom)
-
-                        Button("Ultra Dual Monitor 3840 × 1080 PNG · 2×") {
-                            saveSnapshot(width: 3840, height: 1080, supersampling: 2, dualMonitorExport: true)
-                        }
-                        .disabled(ultraExportUnavailableInDeepZoom)
-
-                        Button("Ultra Dual Monitor Overscan 4608 × 1296 PNG · 2×") {
-                            saveSnapshot(
-                                width: 4608,
-                                height: 1296,
-                                supersampling: 2,
-                                viewportScale: 1.2,
-                                dualMonitorExport: true
-                            )
-                        }
-                        .disabled(ultraExportUnavailableInDeepZoom)
-                    } label: {
-                        Image(systemName: isSavingSnapshot ? "hourglass" : "square.and.arrow.up")
-                    }
-                    .disabled(isSavingSnapshot)
-                    .help(isSavingSnapshot ? "Rendering…" : "Export")
-
-                    Button {
-                        showHelp = true
-                    } label: {
-                        Image(systemName: "questionmark.circle")
-                    }
-                    .help("Welcome and controls")
-
-                    Button {
-                        showControls = false
-                    } label: {
-                        Image(systemName: "chevron.down")
-                    }
-                    .help("Hide Controls (⇧⌘C)")
-                }
-                .font(.system(size: 17, weight: .semibold))
-                .buttonStyle(.plain)
-
-                HStack(spacing: 9) {
-                    Image(systemName: "hurricane")
-                        .font(.system(size: 22, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
-
-                    Menu {
-                        modeMenuButton(.mandelbrot)
-                        modeMenuButton(.power4)
-                        modeMenuButton(.celtic)
-                        modeMenuButton(.julia)
-                        modeMenuButton(.eightRainbows)
-
-                        Divider()
-
-                        modeMenuButton(.burningShip)
-                        modeMenuButton(.tricorn)
-                        modeMenuButton(.kleinian)
-                        modeMenuButton(.mandelbrotRelief)
-                        modeMenuButton(.mandelbrotPlateau)
-
-                        Divider()
-
-                        modeMenuButton(.mandelbulb3D)
-                        modeMenuButton(.mandelbox3D)
-
-                        Divider()
-
-                        modeMenuButton(.newton)
-                    } label: {
-                        Text(fractalMode.displayName)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    }
-                    .menuIndicator(.hidden)
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help("Choose fractal mode")
-                }
+    @ToolbarContentBuilder
+    private var explorerToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .automatic) {
+            Button {
+                undoView()
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
             }
-            .padding(.horizontal, 24)
-            .frame(height: 64)
+            .disabled(navigationHistory.isEmpty)
+            .keyboardShortcut("z", modifiers: .command)
+            .help("Undo last zoom, pan or reset")
 
-            Divider()
-                .overlay(.white.opacity(0.12))
-                .padding(.horizontal, 24)
+            Button {
+                zoomOut()
+            } label: {
+                Image(systemName: "minus.magnifyingglass")
+            }
+            .keyboardShortcut("-", modifiers: [])
+            .help("Zoom Out")
 
-            HStack(spacing: 12) {
-                Menu {
-                    let availablePalettes: [FractalPalette] =
-                        fractalMode == .julia
-                            ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves, .quantumGlass]
-                            : fractalMode == .mandelbrotPlateau
-                                ? [.auric]
-                                : FractalPalette.allCases
+            Button {
+                zoomIn()
+            } label: {
+                Image(systemName: "plus.magnifyingglass")
+            }
+            .keyboardShortcut("+", modifiers: [])
+            .keyboardShortcut("=", modifiers: [])
+            .help("Zoom In")
 
-                    ForEach(availablePalettes) { palette in
-                        Button {
-                            clearExportStatus()
-                            fractalPalette = palette
-                        } label: {
-                            Text(
-                                "\(fractalPalette == palette ? "✓ " : "   ")\(palette.displayName)"
-                            )
-                        }
+            Button {
+                resetView()
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .help("Reset View")
+
+
+            Button {
+                NotificationCenter.default.post(
+                    name: .toggleRenderStatus,
+                    object: nil
+                )
+            } label: {
+                Image(systemName: "gauge.with.dots.needle.50percent")
+            }
+            .keyboardShortcut("p", modifiers: [.command, .shift])
+            .help("Show / Hide Render Status (⇧⌘P)")
+
+            Menu {
+                ForEach(DeepRenderMethod.allCases) { method in
+                    Button {
+                        deepRenderMethod = method
+                        latestHighPrecisionThumbnailPNG = nil
+                        lastPerturbationStatsText = nil
+                        navigationRevision &+= 1
+                    } label: {
+                        Text("\(deepRenderMethod == method ? "◉" : "○")  \(method.rawValue)")
                     }
+                    .disabled(
+                        fractalMode != .mandelbrot
+                            && !(
+                                fractalMode == .mandelbrotPlateau
+                                    && (method == .automatic || method == .directDouble)
+                            )
+                    )
+                }
+
+                Divider()
+
+                Button("Show Diagnostics") {
+                    showPerturbationStats = true
+                }
+
+                Divider()
+
+                Button("Copy Exact Viewport") {
+                    copyExactViewport()
+                }
+
+                Button("Paste Exact Viewport") {
+                    pasteExactViewport()
+                }
+            } label: {
+                Image(systemName: "waveform.path.ecg")
+            }
+            .help("Render diagnostics")
+
+            Button {
+                showFavoritesPanel.toggle()
+            } label: {
+                Image(systemName: showFavoritesPanel ? "star.fill" : "star")
+            }
+            .help("Favorite Spots")
+
+            Button {
+                if showIterationJourneyPanel {
+                    cancelIterationJourney(restoreOriginal: true)
+                    showIterationJourneyPanel = false
+                } else {
+                    prepareIterationJourney()
+                    showIterationJourneyPanel = true
+                }
+            } label: {
+                Image(systemName: showIterationJourneyPanel ? "film.fill" : "film")
+            }
+            .help("Iteration Journey")
+
+            Menu {
+                Button("Export 1440 × 900 PNG") {
+                    saveSnapshot(width: 1440, height: 900)
+                }
+
+                Button("Export 2560 × 1600 PNG") {
+                    saveSnapshot(width: 2560, height: 1600)
+                }
+
+                Button("Export 2880 × 1800 PNG") {
+                    saveSnapshot(width: 2880, height: 1800)
+                }
+
+                Divider()
+
+                Button("Dual Monitor 3840 × 1080 PNG") {
+                    saveSnapshot(width: 3840, height: 1080, dualMonitorExport: true)
+                }
+
+                Button("Dual Monitor Overscan 4608 × 1296 PNG · 10% edges") {
+                    saveSnapshot(
+                        width: 4608,
+                        height: 1296,
+                        viewportScale: 1.2,
+                        dualMonitorExport: true
+                    )
+                }
+
+                Button {
+                    showDualMonitorGuide.toggle()
                 } label: {
-                    Label(fractalPalette.displayName, systemImage: "paintpalette")
-                        .frame(width: 154, alignment: .leading)
+                    Text("\(showDualMonitorGuide ? "✓ " : "   ")Show Dual Monitor Seam")
                 }
-                .help("Choose color palette")
 
-                if let exponent = fractalMode.powerExponent {
-                    Text("Power: \(exponent)")
-                        .monospacedDigit()
-                        .frame(width: 72, alignment: .trailing)
-                    Slider(
-                        value: Binding(
-                            get: { Double(exponent) },
-                            set: {
-                                clearExportStatus()
-                                latestHighPrecisionThumbnailPNG = nil
-                                fractalMode = .power(Int($0.rounded()))
-                            }
-                        ),
-                        in: 2...12,
-                        step: 1
+                Divider()
+
+                if ultraExportUnavailableInDeepZoom {
+                    Text("Use normal export for deep zoom")
+                }
+
+                Button("Ultra Export 1440 × 900 PNG · 2×") {
+                    saveSnapshot(width: 1440, height: 900, supersampling: 2)
+                }
+                .disabled(ultraExportUnavailableInDeepZoom)
+
+                Button("Ultra Export 2560 × 1600 PNG · 2×") {
+                    saveSnapshot(width: 2560, height: 1600, supersampling: 2)
+                }
+                .disabled(ultraExportUnavailableInDeepZoom)
+
+                Button("Ultra Dual Monitor 3840 × 1080 PNG · 2×") {
+                    saveSnapshot(width: 3840, height: 1080, supersampling: 2, dualMonitorExport: true)
+                }
+                .disabled(ultraExportUnavailableInDeepZoom)
+
+                Button("Ultra Dual Monitor Overscan 4608 × 1296 PNG · 2×") {
+                    saveSnapshot(
+                        width: 4608,
+                        height: 1296,
+                        supersampling: 2,
+                        viewportScale: 1.2,
+                        dualMonitorExport: true
                     )
-                    .frame(width: 150)
                 }
+                .disabled(ultraExportUnavailableInDeepZoom)
+            } label: {
+                Image(systemName: isSavingSnapshot ? "hourglass" : "square.and.arrow.up")
+            }
+            .disabled(isSavingSnapshot)
+            .help(isSavingSnapshot ? "Rendering…" : "Export")
 
-                if fractalMode == .mandelbrotPlateau {
-                    Text("Tilt \(Int(plateauTiltDegrees.rounded()))°")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                        .frame(width: 62, alignment: .trailing)
+            Button {
+                showHelp = true
+            } label: {
+                Image(systemName: "questionmark.circle")
+            }
+            .help("Welcome and controls")
 
-                    Slider(
-                        value: $plateauTiltDegrees,
-                        in: 80...90,
-                        step: 1
-                    )
-                    .frame(width: 130)
-                    .help("Adjust the Plateau camera tilt")
+            Button {
+                showRenderingPopover = false
+                showSelectionPopover.toggle()
+            } label: {
+                Label("Fractal, skin & quality", systemImage: "line.3.horizontal.decrease")
+            }
+            .help("Fractal, Skin & Quality (⇧⌘C)")
+            .popover(isPresented: $showSelectionPopover) {
+                selectionPopover
+            }
+
+            Button {
+                showSelectionPopover = false
+                showRenderingPopover.toggle()
+            } label: {
+                Label("Iterations & effects", systemImage: "slider.horizontal.3")
+            }
+            .help("Iterations & Effects")
+            .popover(isPresented: $showRenderingPopover) {
+                renderingPopover
+            }
+        }
+    }
+
+    private var selectionPopover: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Fractal, Skin & Quality").font(.headline)
+            Menu {
+                modeMenuButton(.mandelbrot)
+                modeMenuButton(.power4)
+                modeMenuButton(.celtic)
+                modeMenuButton(.julia)
+                modeMenuButton(.eightRainbows)
+
+                Divider()
+
+                modeMenuButton(.burningShip)
+                modeMenuButton(.tricorn)
+                modeMenuButton(.kleinian)
+                modeMenuButton(.mandelbrotRelief)
+                modeMenuButton(.mandelbrotPlateau)
+
+                Divider()
+
+                modeMenuButton(.mandelbulb3D)
+                modeMenuButton(.mandelbox3D)
+
+                Divider()
+
+                modeMenuButton(.newton)
+            } label: {
+                Text(fractalMode.displayName)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+            }
+            .menuIndicator(.hidden)
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Choose fractal mode")
+            Menu {
+                let availablePalettes: [FractalPalette] =
+                    fractalMode == .julia
+                        ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves, .quantumGlass]
+                        : fractalMode == .mandelbrotPlateau
+                            ? [.auric]
+                            : FractalPalette.allCases
+
+                ForEach(availablePalettes) { palette in
+                    Button {
+                        clearExportStatus()
+                        fractalPalette = palette
+                    } label: {
+                        Text(
+                            "\(fractalPalette == palette ? "✓ " : "   ")\(palette.displayName)"
+                        )
+                    }
                 }
-                Spacer()
-
-                Text("Iterations: \((automaticDisplayedIterations ?? effectiveIterations).formatted())")
-                    .font(.system(.body, design: .rounded))
-                    .fontWeight(.medium)
-                    .monospacedDigit()
-                    .frame(width: 130, alignment: .trailing)
-
+            } label: {
+                Label(fractalPalette.displayName, systemImage: "paintpalette")
+                    .frame(width: 154, alignment: .leading)
+            }
+            .help("Choose color palette")
+            Menu {
+                ForEach(RenderQuality.allCases) { quality in
+                    Button {
+                        clearExportStatus()
+                        renderQuality = quality
+                        maxIterations = min(maxIterations, maximumBaseIterations)
+                    } label: {
+                        Text("\(renderQuality == quality ? "✓ " : "   ")\(quality.rawValue)")
+                    }
+                }
+            } label: {
+                Label(renderQuality.rawValue, systemImage: "dial.medium")
+            }
+            .help("Quality: \(renderQuality.rawValue)")
+            if let exponent = fractalMode.powerExponent {
+                Text("Power: \(exponent)").monospacedDigit()
                 Slider(
                     value: Binding(
-                        get: {
-                            Double(maxIterations)
-                        },
+                        get: { Double(exponent) },
                         set: {
                             clearExportStatus()
-                            maxIterations = Int(($0 / 100).rounded()) * 100
+                            latestHighPrecisionThumbnailPNG = nil
+                            fractalMode = .power(Int($0.rounded()))
                         }
                     ),
-                    in: 300...Double(maximumBaseIterations)
+                    in: 2...12, step: 1
                 )
-                .frame(width: 260)
-
-                Stepper(
-                    "",
-                    value: Binding(
-                        get: { maxIterations },
-                        set: {
-                            clearExportStatus()
-                            maxIterations = $0
-                        }
-                    ),
-                    in: 300...maximumBaseIterations,
-                    step: 100
-                )
-                .labelsHidden()
-
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .frame(height: 48)
-
-            if fractalPalette == .metallicDreams {
-                HStack(spacing: 12) {
-                    doodadsSlider(
-                        title: "Structure",
-                        value: $doodadsStructure
-                    )
-                    doodadsSlider(
-                        title: "Complexity",
-                        value: $doodadsComplexity
-                    )
-                    doodadsSlider(
-                        title: "Curl",
-                        value: $doodadsCurl
-                    )
-                }
-                .padding(.horizontal, 24)
-                .frame(height: 44)
-            } else if fractalPalette == .embossedMetal {
-                HStack {
-                    doodadsSlider(
-                        title: "Relief",
-                        value: $embossedRelief
-                    )
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 24)
-                .frame(height: 44)
-            } else if fractalPalette == .guilloche {
-                HStack {
-                    doodadsSlider(
-                        title: "Engraving",
-                        value: $guillocheEngraving
-                    )
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 24)
-                .frame(height: 44)
-            } else if fractalPalette == .spheroidGlass || fractalPalette == .quantumGlass {
-                HStack {
-                    doodadsSlider(
-                        title: "Glass",
-                        value: $spheroidGlass
-                    )
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 24)
-                .frame(height: 44)
-            } else if fractalPalette == .quantumTraps {
-                HStack {
-                    doodadsSlider(
-                        title: "Interference",
-                        value: $quantumInterference
-                    )
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 24)
-                .frame(height: 44)
-            } else if fractalPalette == .orbitalWaves {
-                HStack {
-                    Text("Waves")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                    Slider(value: $orbitalWaves, in: 0...1)
-                }
-                .padding(.horizontal, 24)
-                .frame(height: 44)
+                .accessibilityLabel("Power")
             }
         }
-        .buttonStyle(.borderless)
         .controlSize(.regular)
-        .frame(maxWidth: 900)
-        .background(.ultraThinMaterial)
-        .background(Color.black.opacity(0.16))
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
+        .padding(20)
+        .frame(width: 320)
+    }
+
+    private func commitIterationInput() {
+        if let value = Int(iterationInput.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            clearExportStatus()
+            maxIterations = min(max(value, 300), maximumBaseIterations)
         }
-        .shadow(color: .black.opacity(0.42), radius: 26, x: 0, y: 12)
-        .padding(.horizontal, 24)
+        iterationInput = String(maxIterations)
+    }
+
+    private var iterationBudgetEditor: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Iterations")
+                Spacer()
+                TextField("Iterations", text: $iterationInput)
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(width: 100)
+                    .focused($iterationFieldFocused)
+                    .onSubmit {
+                        commitIterationInput()
+                        iterationFieldFocused = false
+                    }
+                    .accessibilityLabel("Iteration budget")
+            }
+            if (automaticDisplayedIterations ?? effectiveIterations) != maxIterations {
+                Text("Render budget: \((automaticDisplayedIterations ?? effectiveIterations).formatted())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear { iterationInput = String(maxIterations) }
+        .onChange(of: maxIterations) { iterationInput = String(maxIterations) }
+        .onChange(of: iterationFieldFocused) {
+            if !iterationFieldFocused { commitIterationInput() }
+        }
+        .onDisappear { commitIterationInput() }
+    }
+
+    private var renderingPopover: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Iterations & Effects").font(.headline)
+            iterationBudgetEditor
+            Slider(
+                value: Binding(
+                    get: { Double(maxIterations) },
+                    set: {
+                        clearExportStatus()
+                        maxIterations = Int(($0 / 100).rounded()) * 100
+                    }
+                ),
+                in: 300...Double(maximumBaseIterations)
+            )
+            .accessibilityLabel("Iterations")
+            if fractalMode == .mandelbrotPlateau {
+                Text("Tilt \(Int(plateauTiltDegrees.rounded()))°")
+                Slider(value: $plateauTiltDegrees, in: 80...90, step: 1)
+                    .accessibilityLabel("Plateau tilt")
+            }
+            if fractalPalette == .metallicDreams {
+                doodadsSlider(title: "Structure", value: $doodadsStructure)
+                doodadsSlider(title: "Complexity", value: $doodadsComplexity)
+                doodadsSlider(title: "Curl", value: $doodadsCurl)
+            } else if fractalPalette == .embossedMetal {
+                doodadsSlider(title: "Relief", value: $embossedRelief)
+            } else if fractalPalette == .guilloche {
+                doodadsSlider(title: "Engraving", value: $guillocheEngraving)
+            } else if fractalPalette == .spheroidGlass || fractalPalette == .quantumGlass {
+                doodadsSlider(title: "Glass", value: $spheroidGlass)
+            } else if fractalPalette == .quantumTraps {
+                doodadsSlider(title: "Interference", value: $quantumInterference)
+            } else if fractalPalette == .orbitalWaves {
+                doodadsSlider(title: "Waves", value: $orbitalWaves)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 
     private func doodadsSlider(
@@ -2205,34 +2168,6 @@ struct ContentView: View {
             )
             .frame(minWidth: 90)
         }
-    }
-
-    private var controlsRestoreHandle: some View {
-        Button {
-            showControls = true
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: "keyboard")
-                    .font(.system(size: 15, weight: .semibold))
-
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 10, weight: .bold))
-            }
-            .foregroundStyle(.white.opacity(0.9))
-            .padding(.horizontal, 14)
-            .frame(height: 36)
-            .background(.ultraThinMaterial)
-            .clipShape(Capsule())
-            .overlay {
-                Capsule()
-                    .stroke(.white.opacity(0.16), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.35), radius: 16, x: 0, y: 8)
-        }
-        .buttonStyle(.plain)
-        .help("Show Controls (⇧⌘C)")
-        .accessibilityLabel("Show Controls")
-        .accessibilityHint("Keyboard shortcut Shift Command C")
     }
 
     private var iterationJourneyPanel: some View {
@@ -3318,6 +3253,7 @@ struct HighPrecisionViewportState: Equatable {
 
 
 struct MandelbrotView: View {
+    let overlaySafeAreaInsets: EdgeInsets
     let fractalMode: FractalMode
     let fractalPalette: FractalPalette
 
@@ -3608,8 +3544,8 @@ struct MandelbrotView: View {
                         .padding(.vertical, 6)
                         .background(.ultraThinMaterial)
                         .clipShape(Capsule())
-                        .padding(.top, 16)
-                        .padding(.leading, 18)
+                        .padding(.top, max(geometry.safeAreaInsets.top, overlaySafeAreaInsets.top) + 16)
+                        .padding(.leading, max(geometry.safeAreaInsets.leading, overlaySafeAreaInsets.leading) + 18)
 
                     Spacer()
 
@@ -3634,8 +3570,8 @@ struct MandelbrotView: View {
                                 .clipShape(Capsule())
                         }
                     }
-                    .padding(.top, 16)
-                    .padding(.trailing, 18)
+                    .padding(.top, max(geometry.safeAreaInsets.top, overlaySafeAreaInsets.top) + 16)
+                    .padding(.trailing, max(geometry.safeAreaInsets.trailing, overlaySafeAreaInsets.trailing) + 18)
                 }
             }
             .contentShape(Rectangle())

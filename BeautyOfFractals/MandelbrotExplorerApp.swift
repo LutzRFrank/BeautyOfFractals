@@ -55,7 +55,7 @@ struct MandelbrotExplorerApp: App {
                 
                 Divider()
 
-                Button("Show / Hide Controls") {
+                Button("Fractal, Skin & Quality") {
                     NotificationCenter.default.post(
                         name: .toggleFractalControls,
                         object: nil
