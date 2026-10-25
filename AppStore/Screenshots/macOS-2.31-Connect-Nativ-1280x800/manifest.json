@@ -1,0 +1,206 @@
+[
+  {
+    "file": "01-Mandelbrot-Deep-Blue.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.26.04.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "02-Mandelbrot-Relief-Pearl.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.26.55.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "03-Paletten-und-Favoriten.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.26.26.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "04-Pearl-Metal-Renderstatus.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.31.54.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "05-Praezision-und-Diagnostik.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.31.46.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "06-Embossed-Metal-Favoriten.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.34.14.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "07-PNG-Exportoptionen.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.34.19.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "08-Quick-Start.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.31.37.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "09-Embossed-Metal-Zoom-150.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.36.23.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "10-Embossed-Metal-Iterationen-Effekte.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.37.13.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "11-Embossed-Metal-Renderstatus.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-25 at 14.36.44.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "12-Abstrakte-Fraktalwelt-Blau.png",
+    "source": "/var/folders/vm/t32l4kk546v37zv5wx2qv8l80000gn/T/TemporaryItems/NSIRD_screencaptureui_3gvFZp/Screenshot 2026-10-25 at 14.38.49.png",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
+  }
+]

@@ -15,7 +15,7 @@ struct MandelbrotExplorerApp: App {
                     }
                 }
         }
-        .defaultSize(width: 1180, height: 740)
+        .defaultSize(width: 1280, height: 800)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("Fractal") {
@@ -89,7 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        let targetSize = NSSize(width: 1180, height: 740)
+        // 16:10 window bounds: 1280 × 800 points, or 2560 × 1600 pixels at 2×.
+        // Window screenshots may additionally include the transparent outer shadow.
+        let targetSize = NSSize(width: 1280, height: 800)
 
         guard let screen = window.screen ?? NSScreen.main else {
             return
