@@ -1,17 +1,17 @@
-# Promotional Text — Version 2.30
+# Promotional Text — Version 2.31
 
-## macOS — English
+## macOS — en-US
 
-Explore fractals with a cleaner Mac workspace: native toolbar actions, compact settings popovers, precise deep zooms, and local PNG export.
+Explore fractals with a compact selection bar, clearer Quick Start tips, expressive palettes, precise deep zooms, and local PNG export.
 
-## macOS — Deutsch
+## macOS — de-DE
 
-Entdecke Fraktale mit mehr freier Fläche auf dem Mac: native Toolbar, kompakte Einstellungs-Popovers, präzise Tiefenzooms und lokaler PNG-Export.
+Entdecke Fraktale mit kompakter Auswahlleiste, klaren Einstiegstipps, ausdrucksstarken Farbpaletten, präzisen Tiefenzooms und lokalem PNG-Export.
 
-## iPhone and iPad — English
+## iOS — en-US
 
-Explore the fully opened iPhone Duo with adaptive side bars and compact settings popovers. Enjoy the same clear controls on iPhone and iPad.
+Explore fractals on iPhone and iPad with clearer Quick Start tips, expressive palettes, precise deep zooms, PNG export, and Apple Watch previews.
 
-## iPhone und iPad — Deutsch
+## iOS — de-DE
 
-Entdecke Fraktale auf dem geöffneten iPhone Duo mit adaptiven Seitenleisten und kompakten Popovers – mit derselben klaren Bedienung auf iPhone und iPad.
+Entdecke Fraktale auf iPhone und iPad: mit klaren Einstiegstipps, ausdrucksstarken Farbpaletten, präzisen Tiefenzooms, PNG-Export und Apple-Watch-Vorschau.

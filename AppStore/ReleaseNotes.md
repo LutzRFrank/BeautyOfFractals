@@ -1,41 +1,37 @@
-# App Store Release Notes — Version 2.30
+# App Store Release Notes — Version 2.31
 
-## macOS — English
+## macOS — en-US
 
-A clearer workspace for fractal exploration:
+A clearer start and easier access to your fractal settings:
 
-• Native toolbar actions replace the large floating control panel.
-• Open Fractal, Skin & Quality and Iterations & Effects in compact popovers.
-• Keep navigation, favorites, help, render status, diagnostics, Iteration Journey, and all existing export options within reach.
-• Show renderer information during the live Metal preview as well as progress during deep-zoom calculations.
-• Enter exact iteration budgets directly in the settings popover.
+• Show or hide the compact selection bar for fractal type, skin, and quality. The app remembers your preference.
+• Find the Power exponent alongside iterations and effects.
+• Get started with revised Quick Start tips, clearer icons, and German or English guidance.
+• Open supported direct links to Mandelbrot, Julia, Burning Ship, and Eight Rainbows.
 
-## macOS — Deutsch
+## macOS — de-DE
 
-Mehr Platz zum Entdecken von Fraktalen:
+Ein klarerer Einstieg und Fraktal-Einstellungen direkt im Blick:
 
-• Native Toolbar-Aktionen ersetzen das große schwebende Bedienfeld.
-• Typ, Skin und Qualität sowie Iterationen und Effekte sind über kompakte Popovers erreichbar.
-• Navigation, Favoriten, Hilfe, Renderstatus, Diagnostik, Iteration Journey und alle bisherigen Exportoptionen bleiben verfügbar.
-• Die Statusanzeige zeigt den Renderer während der Metal-Vorschau und den Fortschritt beim Tiefenzoom.
-• Genaue Iterationswerte lassen sich direkt eingeben.
+• Blende die kompakte Auswahlleiste für Fraktaltyp, Skin und Qualität ein oder aus. Die App merkt sich deine Auswahl.
+• Den Power-Exponenten findest du jetzt bei Iterationen und Effekten.
+• Überarbeitete Quick-Start-Hinweise mit klaren Symbolen erklären die Bedienung auf Deutsch oder Englisch.
+• Unterstützte Direktlinks öffnen Mandelbrot, Julia, Burning Ship oder Eight Rainbows.
 
-## iPhone, iPad, and Apple Watch — English
+## iOS — en-US
 
-More room for your fractals on iPhone, iPad, and iPhone Duo:
+A clearer guide to fractal exploration:
 
-• Native toolbars keep navigation, favorites, help, render status, and export within reach.
-• Two compact popovers provide Fractal, Skin & Quality and Iterations & Effects, including Glass and other style controls.
-• The fully opened iPhone Duo uses adaptive side bars where supported by the current layout.
-• The zoom label respects system safe areas, and render status is available during Metal previews and CPU deep zooms.
-• Enter exact iteration budgets directly in the settings popover.
+• Revised Quick Start tips explain navigation, undo, zoom, settings, favorites, render status, and PNG export.
+• German and English Quick Start guidance follows your language setting.
+• Clearer icons and text alignment make the tips easier to scan.
+• Supported direct links open Mandelbrot, Julia, Burning Ship, and Eight Rainbows.
 
-## iPhone, iPad und Apple Watch — Deutsch
+## iOS — de-DE
 
-Mehr Platz für Fraktale auf iPhone, iPad und iPhone Duo:
+Ein klarerer Einstieg in die Welt der Fraktale:
 
-• Native Leisten halten Navigation, Favoriten, Hilfe, Renderstatus und Export erreichbar.
-• Zwei kompakte Popovers bieten Typ, Skin und Qualität sowie Iterationen und Effekte, einschließlich Glass und weiterer Stilregler.
-• Das vollständig geöffnete iPhone Duo verwendet je nach Ansicht adaptive seitliche Leisten.
-• Die Zoom-Anzeige berücksichtigt die sicheren Systembereiche. Der Renderstatus ist bei Metal-Vorschauen und CPU-Tiefenzooms verfügbar.
-• Genaue Iterationswerte lassen sich direkt eingeben.
+• Überarbeitete Quick-Start-Hinweise erklären Navigation, Rückgängig, Zoom, Einstellungen, Favoriten, Renderstatus und PNG-Export.
+• Die Quick-Start-Hinweise erscheinen passend zur Spracheinstellung auf Deutsch oder Englisch.
+• Klare Symbole und eine verbesserte Textausrichtung machen die Hinweise übersichtlicher.
+• Unterstützte Direktlinks öffnen Mandelbrot, Julia, Burning Ship oder Eight Rainbows.
