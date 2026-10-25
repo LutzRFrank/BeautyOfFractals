@@ -962,6 +962,7 @@ nonisolated private func automaticDeepRenderMethod(
 }
 
 private struct FractalWelcomeView: View {
+    @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentArtwork = 0
@@ -1096,44 +1097,44 @@ private struct FractalWelcomeView: View {
 
     private var controlsCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Label("Quick Start", systemImage: "sparkles")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                Spacer()
-                Text("Everything renders locally")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Label("Quick Start", systemImage: "sparkles")
+                .font(.system(size: 19, weight: .bold, design: .rounded))
+            Text(welcomeText("Die Fraktale werden lokal auf deinem Gerät berechnet.", "Fractals are rendered locally on your device."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 18),
-                    GridItem(.flexible(), spacing: 18)
-                ],
-                alignment: .leading,
-                spacing: 14
-            ) {
-                quickTip(keys: "Drag", text: "Select an area and zoom in")
-                quickTip(keys: "⌥ + Drag", text: "Move across the fractal")
-                quickTip(keys: "+  /  −", text: "Zoom in or out")
-                quickTip(keys: "⌘ R", text: "Reset the current mode")
-                quickTip(keys: "★", text: "Save or load Favorite Spots")
-                quickTip(keys: "⇧ ⌘ P", text: "Show or hide render status")
+            VStack(alignment: .leading, spacing: 13) {
+                quickTip(icon: "hand.draw", text: welcomeText("Ziehe einen Bereich auf, um hineinzuzoomen.", "Drag to select an area and zoom in."))
+                quickTip(icon: "hand.point.up.left", text: welcomeText("Bewege die Ansicht mit ⌥ + Ziehen.", "Move the view with Option-drag."))
+                quickTip(icon: "arrow.uturn.backward", text: welcomeText("Mache den letzten Navigationsschritt rückgängig.", "Undo the last navigation step."))
+                quickTip(icon: "plus.magnifyingglass", text: welcomeText("Vergrößere oder verkleinere die Ansicht mit den Lupen.", "Use the magnifying glasses to zoom in or out."))
+                quickTip(icon: "arrow.counterclockwise", text: welcomeText("Setze die Ansicht des aktuellen Fraktals zurück.", "Reset the view of the current fractal."))
+                quickTip(icon: "line.3.horizontal.decrease", text: welcomeText("Wähle Fraktaltyp, Skin und Qualität: Fast, High oder Deep.", "Choose the fractal type, skin and quality: Fast, High or Deep."))
+                quickTip(icon: "slider.horizontal.3", text: welcomeText("Passe Iterationen und Effekte an, zum Beispiel den Glass-Effekt.", "Adjust iterations and effects, such as the glass effect."))
+                quickTip(icon: "star", text: welcomeText("Speichere und öffne deine Lieblingsorte.", "Save and open your favorite spots."))
+                quickTip(icon: "gauge", text: welcomeText("Blende den Renderstatus ein oder aus.", "Show or hide render status."))
+                quickTip(icon: "square.and.arrow.up", text: welcomeText("Exportiere das Fraktal als PNG – ohne Bedienoberfläche.", "Export the fractal as a PNG without the interface."))
             }
 
             Divider()
 
-            Text("Choose Fast, High or Deep quality from the Fractal, Skin & Quality toolbar popover. Deep Mandelbrot locations automatically switch to high-precision CPU rendering when ordinary coordinates are no longer enough.")
+            Text(welcomeText("Bei extremen Mandelbrot-Zooms wechselt Beauty of Fractals automatisch zur hochpräzisen CPU-Berechnung.", "Deep Mandelbrot locations automatically switch to high-precision CPU rendering when ordinary coordinates are no longer enough."))
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
         }
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         }
+    }
+
+    private func welcomeText(_ german: String, _ english: String) -> String {
+        locale.language.languageCode?.identifier == "de" ? german : english
     }
 
     private func welcomeFeature(icon: String, title: String, text: String) -> some View {
@@ -1164,20 +1165,22 @@ private struct FractalWelcomeView: View {
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
-    private func quickTip(keys: String, text: String) -> some View {
-        HStack(spacing: 12) {
-            Text(keys)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .frame(minWidth: 64)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 7)
-                .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+    private func quickTip(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.cyan)
+                .frame(width: 28, height: 22, alignment: .center)
+                .accessibilityHidden(true)
 
             Text(text)
-                .font(.system(size: 13))
+                .font(.system(size: 14))
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+
 }
 
 private struct WelcomeMonitorScene: View {
@@ -1261,7 +1264,7 @@ struct ContentView: View {
     @State private var iterationInput = ""
     @FocusState private var iterationFieldFocused: Bool
     @State private var showHelp: Bool = false
-    @State private var showSelectionPopover = false
+    @AppStorage("macSelectionBarExpanded") private var selectionBarExpanded = true
     @State private var showRenderingPopover = false
     @State private var showLiveRenderStatus = false
     @State private var showDualMonitorGuide: Bool = false
@@ -1497,17 +1500,34 @@ struct ContentView: View {
                 }
             }
 
-            if showIterationJourneyPanel {
-                iterationJourneyPanel
-                    .padding(.bottom, 26)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            VStack(spacing: 12) {
+                if showIterationJourneyPanel {
+                    iterationJourneyPanel
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                compactSelectionBar
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, max(safeAreaInsets.bottom, 0) + 18)
         }
         .toolbar { explorerToolbar }
+        .animation(.easeInOut(duration: 0.2), value: selectionBarExpanded)
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: showFavoritesPanel)
         .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showIterationJourneyPanel)
         .background(Color.black)
         .preferredColorScheme(.dark)
+        .onOpenURL { url in
+            guard let event = FractalEventLink(url: url) else { return }
+            showHelp = false
+            showFavoritesPanel = false
+            showRenderingPopover = false
+            cancelIterationJourney(restoreOriginal: false)
+            showIterationJourneyPanel = false
+            showDualMonitorGuide = false
+            selectionBarExpanded = true
+            fractalPalette = .deepBlue
+            setMode(event.mode)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .exportDefaultFractal)) { _ in
             saveSnapshot(width: 2560, height: 1600)
         }
@@ -1522,7 +1542,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleFractalControls)) { _ in
             showRenderingPopover = false
-            showSelectionPopover.toggle()
+            selectionBarExpanded.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleRenderStatus)) { _ in
             if !fractalMode.supportsHighPrecisionPreview || scale >= highPrecisionScaleLimit {
@@ -1954,17 +1974,13 @@ struct ContentView: View {
 
             Button {
                 showRenderingPopover = false
-                showSelectionPopover.toggle()
+                selectionBarExpanded.toggle()
             } label: {
                 Label("Fractal, skin & quality", systemImage: "line.3.horizontal.decrease")
             }
-            .help("Fractal, Skin & Quality (⇧⌘C)")
-            .popover(isPresented: $showSelectionPopover) {
-                selectionPopover
-            }
+            .help("Show or hide Fractal, Skin & Quality (⇧⌘C)")
 
             Button {
-                showSelectionPopover = false
                 showRenderingPopover.toggle()
             } label: {
                 Label("Iterations & effects", systemImage: "slider.horizontal.3")
@@ -1976,9 +1992,41 @@ struct ContentView: View {
         }
     }
 
-    private var selectionPopover: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Fractal, Skin & Quality").font(.headline)
+    private var compactSelectionBar: some View {
+        VStack(spacing: 0) {
+            Button {
+                selectionBarExpanded.toggle()
+            } label: {
+                Capsule()
+                    .fill(.secondary)
+                    .frame(width: 34, height: 5)
+                    .frame(width: 64, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(selectionBarExpanded ? "Hide selection bar" : "Show selection bar")
+            .accessibilityLabel(selectionBarExpanded ? "Hide selection bar" : "Show selection bar")
+            .accessibilityValue(selectionBarExpanded ? "Expanded" : "Collapsed")
+
+            if selectionBarExpanded {
+                selectionMenus
+                    .padding(.horizontal, 18)
+                    .padding(.top, 2)
+                    .padding(.bottom, 14)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+    }
+
+    private var selectionMenus: some View {
+        HStack(spacing: 16) {
             Menu {
                 modeMenuButton(.mandelbrot)
                 modeMenuButton(.power4)
@@ -2006,7 +2054,7 @@ struct ContentView: View {
                 Text(fractalMode.displayName)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
             }
-            .menuIndicator(.hidden)
+            .menuIndicator(.visible)
             .menuStyle(.borderlessButton)
             .fixedSize()
             .help("Choose fractal mode")
@@ -2047,25 +2095,9 @@ struct ContentView: View {
                 Label(renderQuality.rawValue, systemImage: "dial.medium")
             }
             .help("Quality: \(renderQuality.rawValue)")
-            if let exponent = fractalMode.powerExponent {
-                Text("Power: \(exponent)").monospacedDigit()
-                Slider(
-                    value: Binding(
-                        get: { Double(exponent) },
-                        set: {
-                            clearExportStatus()
-                            latestHighPrecisionThumbnailPNG = nil
-                            fractalMode = .power(Int($0.rounded()))
-                        }
-                    ),
-                    in: 2...12, step: 1
-                )
-                .accessibilityLabel("Power")
-            }
         }
         .controlSize(.regular)
-        .padding(20)
-        .frame(width: 320)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func commitIterationInput() {
@@ -2110,6 +2142,21 @@ struct ContentView: View {
     private var renderingPopover: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Iterations & Effects").font(.headline)
+            if let exponent = fractalMode.powerExponent {
+                Text("Power: \(exponent)").monospacedDigit()
+                Slider(
+                    value: Binding(
+                        get: { Double(exponent) },
+                        set: {
+                            clearExportStatus()
+                            latestHighPrecisionThumbnailPNG = nil
+                            fractalMode = .power(Int($0.rounded()))
+                        }
+                    ),
+                    in: 2...12, step: 1
+                )
+                .accessibilityLabel("Power")
+            }
             iterationBudgetEditor
             Slider(
                 value: Binding(

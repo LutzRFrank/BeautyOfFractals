@@ -134,3 +134,32 @@ extension FocusedValues {
         set { self[FractalActionsKey.self] = newValue }
     }
 }
+
+// Keep this route contract identical in the macOS and iOS app entry points.
+// Only known event destinations may change the current fractal view.
+enum FractalEventLink: String {
+    case explore
+    case julia
+    case burningShip = "burning-ship"
+    case eightRainbows = "eight-rainbows"
+
+    init?(url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == "beautyoffractals",
+              components.host?.lowercased() == "event",
+              components.user == nil, components.password == nil,
+              components.port == nil,
+              components.query == nil, components.fragment == nil,
+              components.path.hasPrefix("/") else { return nil }
+        self.init(rawValue: String(components.path.dropFirst()))
+    }
+
+    var mode: FractalMode {
+        switch self {
+        case .explore: return .mandelbrot
+        case .julia: return .julia
+        case .burningShip: return .burningShip
+        case .eightRainbows: return .eightRainbows
+        }
+    }
+}
