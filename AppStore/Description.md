@@ -1,8 +1,8 @@
-# App Store Description — Version 2.31
+# App Store Description — macOS 2.32 / iOS 2.31
 
 ## macOS — en-US
 
-Beauty of Fractals turns mathematical structures into an immersive visual journey on your Mac. A compact selection bar keeps fractal type, skin, and quality within reach, while revised Quick Start tips help you find your way.
+Beauty of Fractals turns mathematical structures into an immersive visual journey on your Mac. A compact selection bar keeps fractal type, skin, quality, iterations, and effects within reach. Collapse it for a clear view; its handle fades away after a short delay. Revised Quick Start tips help you find your way.
 
 Explore the Mandelbrot set and a diverse collection of related fractals with
 smooth navigation, fast Metal rendering, precise CPU deep zooms, expressive
@@ -36,7 +36,7 @@ FEATURES
 - Export true high-resolution PNG images recalculated locally for the selected
   output size
 - Show or hide the compact fractal selection bar and open iterations and effects
-  in a dedicated popover
+  directly above it or from the toolbar
 - Inspect render status and advanced diagnostics when you want to see what the
   precision engine is doing
 
@@ -47,7 +47,7 @@ services.
 
 ## macOS — de-DE
 
-Beauty of Fractals verwandelt mathematische Strukturen in eine Entdeckungsreise auf deinem Mac. Die kompakte Auswahlleiste hält Fraktaltyp, Skin und Qualität bereit. Überarbeitete Quick-Start-Hinweise helfen dir beim Einstieg.
+Beauty of Fractals verwandelt mathematische Strukturen in eine Entdeckungsreise auf deinem Mac. Die kompakte Auswahlleiste hält Fraktaltyp, Skin, Qualität sowie den Zugang zu Iterationen und Effekten bereit. Eingeklappt gibt sie die Bildfläche frei; ihr Griff blendet sich nach kurzer Zeit aus. Überarbeitete Quick-Start-Hinweise helfen dir beim Einstieg.
 
 Erkunde die Mandelbrot-Menge und viele verwandte Fraktale mit flüssiger Maus- und Trackpad-Bedienung, schnellem Metal-Rendering, präzisen CPU-Tiefenzooms, ausdrucksstarken Farbpaletten und abstrakten Darstellungsstilen. Sichere Lieblingsorte mit iCloud-Synchronisierung, exportiere PNG-Bilder und verfolge Berechnungen auf deiner Apple Watch.
 
@@ -55,7 +55,7 @@ FUNKTIONEN
 
 • Entdecke Mandelbrot, Potenzen von 2 bis 12, Julia, Burning Ship, Tricorn, Celtic, Newton, Kleinian, Mandelbrot Relief, Mandelbulb 3D, Mandelbox 3D und Eight Rainbows.
 • Ziehe ein Zoom-Rechteck auf und verschiebe die Ansicht mit Wahltaste und Ziehen.
-• Blende die Auswahlleiste für Typ, Skin und Qualität nach Bedarf ein. Iterationen und Effekte findest du in einem eigenen Popover.
+• Blende die Auswahlleiste nach Bedarf ein. Iterationen und Effekte öffnest du direkt aus der Leiste oder über die Toolbar.
 • Wechsle mit automatischer Präzisionswahl von schnellen interaktiven Ansichten bis zur abgesicherten Extreme Precision.
 • Erkunde geeignete Mandelbrot-Strukturen bei etwa 10^50-facher Vergrößerung. Noch tiefere Ansichten sind experimentell.
 • Berechne anspruchsvolle Tiefenzooms mit adaptiven Referenzpunkten und Reparatur unvollständiger Bildbereiche.

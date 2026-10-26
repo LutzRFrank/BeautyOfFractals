@@ -202,5 +202,23 @@
     "mode": "RGB",
     "resampled": false,
     "opaque_source_pixels_unchanged": true
+  },
+  {
+    "file": "13-Iterations-und-Effekte-Unten.png",
+    "source": "/Users/lutz-r.frank/Desktop/Screenshot 2026-10-26 at 06.00.58.png",
+    "release": "macOS 2.32 (77)",
+    "crop": [
+      56,
+      38,
+      1336,
+      838
+    ],
+    "size": [
+      1280,
+      800
+    ],
+    "mode": "RGB",
+    "resampled": false,
+    "opaque_source_pixels_unchanged": true
   }
 ]

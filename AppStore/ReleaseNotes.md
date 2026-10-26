@@ -1,22 +1,22 @@
-# App Store Release Notes — Version 2.31
+# App Store Release Notes — macOS 2.32 / iOS 2.31
 
 ## macOS — en-US
 
-A clearer start and easier access to your fractal settings:
+Your creative controls, closer to the fractal:
 
-• Show or hide the compact selection bar for fractal type, skin, and quality. The app remembers your preference.
-• Find the Power exponent alongside iterations and effects.
-• Get started with revised Quick Start tips, clearer icons, and German or English guidance.
-• Open supported direct links to Mandelbrot, Julia, Burning Ship, and Eight Rainbows.
+• Open Iterations & Effects directly from the bottom selection bar. The popover appears just above its button.
+• The controls stay visible while the lower effects popover is open.
+• After you collapse the selection bar, its handle fades away after 10 seconds, leaving an unobstructed view.
+• Hover over the visible handle to keep it available, or reopen the controls at any time using the toolbar button or Shift-Command-C.
 
 ## macOS — de-DE
 
-Ein klarerer Einstieg und Fraktal-Einstellungen direkt im Blick:
+Die kreativen Regler direkt am Fraktal:
 
-• Blende die kompakte Auswahlleiste für Fraktaltyp, Skin und Qualität ein oder aus. Die App merkt sich deine Auswahl.
-• Den Power-Exponenten findest du jetzt bei Iterationen und Effekten.
-• Überarbeitete Quick-Start-Hinweise mit klaren Symbolen erklären die Bedienung auf Deutsch oder Englisch.
-• Unterstützte Direktlinks öffnen Mandelbrot, Julia, Burning Ship oder Eight Rainbows.
+• Öffne Iterationen und Effekte direkt aus der unteren Auswahlleiste. Das Popover erscheint unmittelbar über dem Button.
+• Solange das untere Effekte-Popover geöffnet ist, bleiben die Bedienelemente sichtbar.
+• Nach dem Einklappen der Auswahlleiste blendet sich der Griff nach zehn Sekunden langsam aus und gibt die Bildfläche frei.
+• Solange die Maus über dem sichtbaren Griff steht, bleibt er erhalten. Über den Toolbar-Button oder Umschalt-Befehl-C lässt sich die Leiste jederzeit wieder öffnen.
 
 ## iOS — en-US
 

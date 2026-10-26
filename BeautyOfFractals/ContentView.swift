@@ -1266,6 +1266,9 @@ struct ContentView: View {
     @State private var showHelp: Bool = false
     @AppStorage("macSelectionBarExpanded") private var selectionBarExpanded = true
     @State private var showRenderingPopover = false
+    @State private var showSelectionEffectsPopover = false
+    @State private var selectionHandleHidden = false
+    @State private var selectionBarHovered = false
     @State private var showLiveRenderStatus = false
     @State private var showDualMonitorGuide: Bool = false
     @State private var showFavoritesPanel: Bool = false
@@ -1518,6 +1521,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .onOpenURL { url in
             guard let event = FractalEventLink(url: url) else { return }
+            showSelectionEffectsPopover = false
             showHelp = false
             showFavoritesPanel = false
             showRenderingPopover = false
@@ -1981,6 +1985,7 @@ struct ContentView: View {
             .help("Show or hide Fractal, Skin & Quality (⇧⌘C)")
 
             Button {
+                showSelectionEffectsPopover = false
                 showRenderingPopover.toggle()
             } label: {
                 Label("Iterations & effects", systemImage: "slider.horizontal.3")
@@ -2023,6 +2028,27 @@ struct ContentView: View {
                 .allowsHitTesting(false)
         }
         .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+        .opacity(selectionHandleHidden && !selectionBarExpanded ? 0 : 1)
+        .allowsHitTesting(!selectionHandleHidden || selectionBarExpanded)
+        .accessibilityHidden(selectionHandleHidden && !selectionBarExpanded)
+        .onHover { selectionBarHovered = $0 }
+        .task(id: selectionBarExpanded || selectionBarHovered || showSelectionEffectsPopover) {
+            // Reopening the controls or hovering the handle starts a fresh delay.
+            selectionHandleHidden = false
+            guard !selectionBarExpanded else { return }
+            guard !selectionBarHovered, !showSelectionEffectsPopover else { return }
+
+            do {
+                try await Task.sleep(for: .seconds(10))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, !selectionBarExpanded, !selectionBarHovered,
+                  !showSelectionEffectsPopover else { return }
+            withAnimation(.easeOut(duration: 2)) {
+                selectionHandleHidden = true
+            }
+        }
     }
 
     private var selectionMenus: some View {
@@ -2095,6 +2121,17 @@ struct ContentView: View {
                 Label(renderQuality.rawValue, systemImage: "dial.medium")
             }
             .help("Quality: \(renderQuality.rawValue)")
+
+            Button {
+                showRenderingPopover = false
+                showSelectionEffectsPopover.toggle()
+            } label: {
+                Label("Iterations & Effects", systemImage: "slider.horizontal.3")
+            }
+            .help("Iterations & Effects")
+            .popover(isPresented: $showSelectionEffectsPopover, arrowEdge: .bottom) {
+                renderingPopover
+            }
         }
         .controlSize(.regular)
         .fixedSize(horizontal: true, vertical: false)

@@ -1,12 +1,12 @@
-# Promotional Text — Version 2.31
+# Promotional Text — macOS 2.32 / iOS 2.31
 
 ## macOS — en-US
 
-Explore fractals with a compact selection bar, clearer Quick Start tips, expressive palettes, precise deep zooms, and local PNG export.
+Explore fractals with iterations and effects within reach in the bottom bar. Hide the controls for a clear view, then return to creating with one click.
 
 ## macOS — de-DE
 
-Entdecke Fraktale mit kompakter Auswahlleiste, klaren Einstiegstipps, ausdrucksstarken Farbpaletten, präzisen Tiefenzooms und lokalem PNG-Export.
+Entdecke Fraktale mit Iterationen und Effekten direkt in der unteren Leiste. Blende die Bedienung für freie Sicht aus und öffne sie jederzeit wieder.
 
 ## iOS — en-US
 

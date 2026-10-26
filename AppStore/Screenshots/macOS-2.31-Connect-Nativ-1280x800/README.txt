@@ -1,6 +1,6 @@
 Beauty of Fractals 2.31 – native Mac-Fensteraufnahmen
 
-12 PNGs: exakt 1280 x 800 Pixel, RGB ohne Transparenz.
+13 PNGs: exakt 1280 x 800 Pixel, RGB ohne Transparenz.
 Fensterbereich aus dem Original ausgeschnitten: (56,38) bis (1336,838).
 Nur aeusserer Schattenrand entfernt; transparente Fensterecken schwarz hinterlegt.
 Keine Skalierung, keine KI, keine Retusche der Oberflaeche.
@@ -28,6 +28,9 @@ Originale dieser Ergaenzung: ../macOS-2.31-Originale-1431/
 Originale dieser Ergaenzung: ../macOS-2.31-Originale-1436/
 
 Auswahlhinweis: Connect erlaubt bis zu 10 Screenshots pro Satz.
-Dieser Ordner enthaelt 12 Kandidaten; vor Upload mindestens zwei weglassen.
+Dieser Ordner enthaelt 13 Kandidaten; vor Upload mindestens drei weglassen.
 
 12 Abstrakte Fraktalwelt in Blau (14.38.49)
+
+13 Iterations & Effects am unteren Bedienfeld – macOS 2.32 (77).
+Diese neue Aufnahme liegt zur fortlaufenden Nummerierung im bisherigen Ordner.
