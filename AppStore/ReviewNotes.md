@@ -1,41 +1,13 @@
-# App Review Notes — macOS 2.32 (77) / iOS 2.31 (76)
-
-Do not store credentials or private review contact details in this file.
+# App Review Notes — macOS 2.33.1 (79) / iOS and watchOS 2.31.1 (77)
 
 ## macOS — English
 
-Thank you for reviewing Beauty of Fractals 2.32 (77) for macOS.
+Open the selection bar, choose Mandelbrot as the fractal type, then choose Saphire from the Skin menu. In the full Mandelbrot view, look for gemstone-like facets in the central shape and alternating cobalt-blue and silver bands around its boundary.
 
-This update improves access to existing controls. Open the bottom selection bar with the selection toolbar button or Shift-Command-C. The bar now includes an Iterations & Effects button that opens the existing settings directly above the lower button. The toolbar effects button remains available and opens its own popover at the toolbar. Only one effects popover is shown at a time.
-
-The expanded selection bar stays visible. When the bar is collapsed and the lower effects popover is closed, its handle waits 10 seconds, then fades out over two seconds. Hovering the visible handle pauses the delay; leaving it starts a fresh delay. Hidden controls do not intercept clicks. Reopen the selection bar at any time through the toolbar button or Shift-Command-C. The lower effects popover is not dismissed by the fade timer.
-
-No app account, sign-in, subscription, or in-app purchase is required. The app has no advertising, analytics, tracking, or developer-operated backend. Rendering and PNG export happen locally. Optional favorites sync uses the user's Apple iCloud account. No additional data collection is introduced.
-
-Existing navigation, favorites, render status, diagnostics, Iteration Journey, PNG export, and the event deep links are retained. Direct-link example: beautyoffractals://event/julia. Unknown routes are ignored. The update does not announce or schedule an App Store event.
-
-This is a macOS-only update. The iOS app and Watch companion remain at 2.31 (76).
+Rendering and PNG export happen locally. The app requires no account, sign-in, subscription, or in-app purchase. Optional favorites sync uses iCloud.
 
 ## iPhone, iPad, and Apple Watch — English
 
-Thank you for reviewing Beauty of Fractals 2.31 (76).
+On iPhone or iPad, tap the selection button in the toolbar, choose Mandelbrot as the fractal type, then select Saphire from the Skin menu. The full Mandelbrot view shows gemstone-like facets inside the central shape and alternating cobalt-blue and silver bands around its boundary.
 
-No app account, sign-in, subscription, or in-app purchase is required. The app has no advertising, analytics, tracking, or developer-operated backend. Fractal rendering and PNG export happen locally. Optional favorites sync uses the user's Apple iCloud account.
-
-Version 2.31 updates the Quick Start guidance with German and English instructions, clearer icons, and improved text alignment. This update introduces no additional data collection.
-
-Direct-link support is included for the following destinations:
-beautyoffractals://event/explore
-beautyoffractals://event/julia
-beautyoffractals://event/burning-ship
-beautyoffractals://event/eight-rainbows
-
-To test, put a link into Notes and open it with this build installed. The link selects the destination's default viewport, palette, and 300 base iterations. It also works while the app is already running. Ordinary navigation remains available afterward. Unknown routes are ignored. Link support does not depend on an active App Store event, a login, or a remote service.
-
-The gauge button toggles render status. Ordinary views use Metal; supported deep zooms use high-precision CPU rendering. Extreme-zoom results depend on location and iteration budget.
-
-On iPhone and iPad, use the selection toolbar button for fractal type, skin, and quality, and the sliders button for iterations and effects. Tap outside a popover to dismiss it. At constrained sizes, some actions may appear in the system overflow menu. Existing adaptive layouts for the fully opened iPhone Duo are retained; dedicated partially folded layouts are not claimed.
-
-Drag with one finger to select a zoom area, double-tap to zoom at a point, use two fingers to pan, and pinch to zoom. The Help button opens the welcome and Quick Start view.
-
-The paired Apple Watch companion receives render progress, preview images, and zoom values through WatchConnectivity. Companion functionality is unchanged; its version is also 2.31 (76).
+Rendering and PNG export happen locally. The app requires no account, sign-in, subscription, or in-app purchase. Optional favorites sync uses iCloud. A paired Apple Watch can display render progress, previews, and zoom values from the iPhone app. Select Saphire on the iPhone to see it in previews sent to Apple Watch.

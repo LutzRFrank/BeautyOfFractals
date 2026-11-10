@@ -172,7 +172,21 @@ static float3 paletteColor(
 ) {
     float3 color;
     
-    if (palette == 0) {
+    if (palette == 24) {
+        // Alternate cobalt ribbons with silver, with a narrow highlight on each ridge.
+        float band = 0.5 - 0.5 * cos(20.0 * sqrt(clamp(relief, 0.0, 1.0)));
+        float blue = smoothstep(0.28, 0.72, band);
+        float face = pow(ridge, 1.4);
+        float glint = pow(ridge, 12.0) * (0.55 + 0.45 * glow);
+        float silver = 0.045 + 0.48 * face + 0.35 * glint;
+        color = mix(
+            silver * float3(1.0, 1.02, 1.05),
+            float3(0.018, 0.035, 0.16)
+                + face * float3(0.16, 0.29, 0.57)
+                + glint * float3(0.33, 0.44, 0.24),
+            blue
+        );
+    } else if (palette == 0) {
         color = float3(
             0.02 + 0.18 * relief + 0.18 * glow + 0.10 * ridge,
             0.08 + 0.65 * relief + 0.28 * glow + 0.12 * ridge,
@@ -1046,6 +1060,82 @@ static float3 motherOfPearlInteriorColor(float2 uv) {
     return clamp(color, 0.0, 1.0);
 }
 
+// Match the CPU cut in the main cardioid and period-two bulb.
+static float2 saphireCutPoint(float2 fallback, float2 parameter, uint mode) {
+    if (mode != 0 && mode != 6) {
+        return fallback;
+    }
+
+    float2 bulb = 4.0 * (parameter + float2(1.0, 0.0));
+    if (dot(bulb, bulb) <= 1.0) {
+        return bulb;
+    }
+
+    float2 value = float2(1.0, 0.0) - 4.0 * parameter;
+    float magnitude = length(value);
+    float2 root = sqrt(max(float2(0.0), 0.5 * (magnitude + float2(value.x, -value.x))));
+    float2 cardioid = float2(1.0 - root.x, parameter.y < 0.0 ? -root.y : root.y);
+    return dot(cardioid, cardioid) <= 1.0 ? cardioid : fallback;
+}
+
+static float3 saphireInteriorColor(float2 uv, float2 parameter, constant Uniforms& uniforms) {
+    float aspect = uniforms.aspectRatio;
+    float2 fallback = (uv * 2.0 - float2(1.0, 1.14)) * max(float2(1.0), float2(aspect, 1.0 / aspect));
+    float2 p = saphireCutPoint(fallback, parameter, uniforms.fractalMode);
+    const float step = 2.0 * M_PI_F / 5.0;
+    float angle = (dot(p, p) > 0.0 ? atan2(p.y, p.x) : 0.0) + M_PI_F * 0.5;
+    float turn = angle / step + 5.0;
+    float sector = fmod(floor(turn), 5.0);
+    float offset = (fract(turn) - 0.5) * step;
+    float radius = length(p) * cos(offset) / cos(step * 0.5);
+    float side = 0.5 + 0.5 * tan(offset) / tan(step * 0.5);
+
+    const float table = 0.45;
+    float tableEdge = 1.0 - smoothstep(0.002, 0.019, abs(radius - table));
+    float light = 1.0 - smoothstep(0.015, 0.70, abs(p.x + 0.44 * p.y + 0.14));
+    float body = 0.61 + 0.24 * light - 0.13 * p.y;
+    float sheen = 0.36 * light * light + 0.15 * tableEdge;
+
+    if (radius > table) {
+        // Stagger the shoulders by sector and tighten the cuts toward the rim.
+        float spread = smoothstep(table, 0.67, radius);
+        float shoulder = 0.070 * sin(2.0 * angle + 0.4) + 0.038 * cos(3.0 * angle - 0.7);
+        float r = radius + spread * shoulder;
+        float inner, outer, ring;
+        if (r < 0.67) {
+            inner = table; outer = 0.67; ring = 0.0;
+        } else if (r < 0.82) {
+            inner = 0.67; outer = 0.82; ring = 1.0;
+        } else if (r < 0.93) {
+            inner = 0.82; outer = 0.93; ring = 2.0;
+        } else {
+            float extra = floor((r - 0.93) / 0.066);
+            inner = 0.93 + 0.066 * extra; outer = inner + 0.066; ring = 3.0 + extra;
+        }
+
+        float height = clamp((r - inner) / (outer - inner), 0.0, 1.0);
+        float cuts = min(5.0, ring + 1.0);
+        float skew = 0.16 * sin(2.7 * sector + 1.9 * ring);
+        float across = side * cuts + skew * sin(M_PI_F * side);
+        float slice = floor(across);
+        float u = fract(across);
+        float split = height * outer / max(r, table);
+        float diagonal = u - (sin(sector + slice + ring) > 0.0 ? split : 1.0 - split);
+        float face = smoothstep(-0.025, 0.025, diagonal);
+        float edge = min(min(min(u, 1.0 - u), min(height, 1.0 - height)), abs(diagonal) * 0.72);
+        float bevel = 1.0 - smoothstep(0.008, 0.058, edge);
+
+        float tone = 0.5 + 0.5 * sin(2.13 * sector + 1.77 * ring + 3.06 * slice + 2.4 * face);
+        float flash = smoothstep(0.57, 0.96, tone);
+        body = (0.22 + 0.57 * tone + 0.10 * (1.0 - height)) * (1.0 - 0.25 * bevel);
+        sheen = flash * (0.11 + 0.35 * light) + (0.05 + 0.20 * flash) * bevel;
+    }
+
+    return float3(0.009, 0.024, 0.105)
+        + body * float3(0.074, 0.256, 0.580)
+        + sheen * float3(0.37, 0.55, 0.35);
+}
+
 static float3 insideColor(uint mode, uint palette) {
     if (mode == 0 || mode == 6) {
         if (palette == 13) {
@@ -1060,7 +1150,9 @@ static float3 insideColor(uint mode, uint palette) {
     }
     
     if (mode == 4) {
-        if (palette == 0) {
+        if (palette == 24) {
+            return float3(0.012, 0.015, 0.022);
+        } else if (palette == 0) {
             return float3(0.02, 0.04, 0.11);
         } else if (palette == 1) {
             return float3(0.00, 0.03, 0.12);
@@ -1142,6 +1234,10 @@ static float4 renderMandelbrotRelief(
     );
     
     if (centerIteration == uniforms.maxIterations) {
+        if (uniforms.fractalPalette == 24) {
+            return float4(saphireInteriorColor(float2(uv.x, 1.0 - uv.y), float2(x0, y0), uniforms), 1.0);
+        }
+
         if (uniforms.fractalPalette == 13) {
             return float4(auricInteriorColor(uv), 1.0);
         }
@@ -1355,7 +1451,13 @@ static float2 complexDiv(float2 a, float2 b) {
 static float3 newtonPopRootColor(uint palette, uint rootIndex) {
     uint r = rootIndex % 5;
     
-    if (palette == 0) {
+    if (palette == 24) {
+        if (r == 0) return float3(0.025, 0.060, 0.230);
+        if (r == 1) return float3(0.065, 0.230, 0.710);
+        if (r == 2) return float3(0.270, 0.560, 0.860);
+        if (r == 3) return float3(0.480, 0.510, 0.550);
+        return float3(0.890, 0.920, 0.960);
+    } else if (palette == 0) {
         if (r == 0) return float3(0.00, 0.95, 1.00);
         if (r == 1) return float3(0.00, 0.30, 1.00);
         if (r == 2) return float3(0.00, 1.00, 0.58);
@@ -1820,6 +1922,10 @@ fragment float4 fractal_fragment(
     );
     
     if (iteration == uniforms.maxIterations) {
+        if (uniforms.fractalPalette == 24) {
+            return float4(saphireInteriorColor(float2(uv.x, 1.0 - uv.y), float2(x0, y0), uniforms), 1.0);
+        }
+
         if (uniforms.fractalPalette == 16 &&
             (uniforms.fractalMode == 0 || uniforms.fractalMode == 6 ||
              (uniforms.fractalMode >= 11 && uniforms.fractalMode <= 21))) {

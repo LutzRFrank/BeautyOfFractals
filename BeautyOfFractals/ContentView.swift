@@ -328,6 +328,7 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
     case quantumTraps = 21
     case orbitalWaves = 22
     case quantumGlass = 23
+    case saphire = 24
 
     var id: Int {
         rawValue
@@ -383,6 +384,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "Orbital Waves"
         case .quantumGlass:
             return "Quantum Glass"
+        case .saphire:
+            return "Saphire"
         }
     }
 
@@ -436,6 +439,8 @@ enum FractalPalette: Int, CaseIterable, Identifiable {
             return "OrbitalWaves"
         case .quantumGlass:
             return "QuantumGlass"
+        case .saphire:
+            return "Saphire"
         }
     }
 }
@@ -2087,7 +2092,7 @@ struct ContentView: View {
             Menu {
                 let availablePalettes: [FractalPalette] =
                     fractalMode == .julia
-                        ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves, .quantumGlass]
+                        ? [.solarPop, .rainbows, .abyss, .deepCurrent, .auric, .metallicDreams, .embossedMetal, .guilloche, .spheroidGlass, .quantumTraps, .orbitalWaves, .quantumGlass, .saphire]
                         : fractalMode == .mandelbrotPlateau
                             ? [.auric]
                             : FractalPalette.allCases
@@ -4915,7 +4920,9 @@ nonisolated func renderFractalSupersampled(
                                 mode: mode,
                                 palette: palette,
                                 normalizedX: sampleX / Double(sampleWidth),
-                                normalizedY: sampleY / Double(sampleHeight)
+                                normalizedY: sampleY / Double(sampleHeight),
+                                aspectRatio: Double(sampleWidth) / Double(sampleHeight),
+                                parameter: SIMD2(x0, y0)
                             )
                         } else {
                             let t = Double(iteration) / Double(maxIterations)
@@ -5499,21 +5506,14 @@ nonisolated private func renderDirectMandelbrotParallel(
                 ) {
                     color = abstractColor
                 } else if iteration == localMaxIterations {
-                    if palette == .motherOfPearl {
-                        color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
-                    } else if palette == .pearl {
-                        color = pearlInteriorColor(
-                            normalizedX: (Double(px) + 0.5) / Double(width),
-                            normalizedY: (Double(py) + 0.5) / Double(height)
-                        )
-                    } else if palette == .auric {
-                        color = auricInteriorColor(
-                            normalizedX: (Double(px) + 0.5) / Double(width),
-                            normalizedY: (Double(py) + 0.5) / Double(height)
-                        )
-                    } else {
-                        color = insideColor(mode: .mandelbrot, palette: palette)
-                    }
+                    color = texturedInsideColor(
+                        mode: .mandelbrot,
+                        palette: palette,
+                        normalizedX: (Double(px) + 0.5) / Double(width),
+                        normalizedY: (Double(py) + 0.5) / Double(height),
+                        aspectRatio: viewportAspectRatio,
+                        parameter: SIMD2(x0, y0)
+                    )
                 } else {
                     let t = iterationJourneyColorPosition(
                         iteration: iteration,
@@ -5813,21 +5813,14 @@ nonisolated private func renderPerturbationMandelbrotParallel(
             ) {
                 color = abstractColor
             } else if iteration == localMaxIterations {
-                if palette == .motherOfPearl {
-                    color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
-                } else if palette == .pearl {
-                    color = pearlInteriorColor(
-                        normalizedX: (Double(px) + 0.5) / Double(width),
-                        normalizedY: (Double(py) + 0.5) / Double(height)
-                    )
-                } else if palette == .auric {
-                    color = auricInteriorColor(
-                        normalizedX: (Double(px) + 0.5) / Double(width),
-                        normalizedY: (Double(py) + 0.5) / Double(height)
-                    )
-                } else {
-                    color = insideColor(mode: .mandelbrot, palette: palette)
-                }
+                color = texturedInsideColor(
+                    mode: .mandelbrot,
+                    palette: palette,
+                    normalizedX: (Double(px) + 0.5) / Double(width),
+                    normalizedY: (Double(py) + 0.5) / Double(height),
+                    aspectRatio: viewportAspectRatio,
+                    parameter: SIMD2(x0, y0)
+                )
             } else {
                 let t = iterationJourneyColorPosition(
                     iteration: iteration,
@@ -6015,24 +6008,14 @@ nonisolated private func renderDirectMandelbrotDoubleDoubleParallel(
                 ) {
                     color = abstractColor
                 } else if iteration == localMaxIterations {
-                    if palette == .motherOfPearl {
-                        color = motherOfPearlInteriorColor(normalizedX: (Double(px) + 0.5) / Double(width), normalizedY: (Double(py) + 0.5) / Double(height))
-                    } else if palette == .pearl {
-                        color = pearlInteriorColor(
-                            normalizedX: (Double(px) + 0.5) / Double(width),
-                            normalizedY: (Double(py) + 0.5) / Double(height)
-                        )
-                    } else if palette == .auric {
-                        color = auricInteriorColor(
-                            normalizedX: (Double(px) + 0.5) / Double(width),
-                            normalizedY: (Double(py) + 0.5) / Double(height)
-                        )
-                    } else {
-                        color = insideColor(
-                            mode: .mandelbrot,
-                            palette: palette
-                        )
-                    }
+                    color = texturedInsideColor(
+                        mode: .mandelbrot,
+                        palette: palette,
+                        normalizedX: (Double(px) + 0.5) / Double(width),
+                        normalizedY: (Double(py) + 0.5) / Double(height),
+                        aspectRatio: viewportAspectRatio,
+                        parameter: SIMD2(x0.doubleValue, y0.doubleValue)
+                    )
                 } else {
                     let t = iterationJourneyColorPosition(
                         iteration: iteration,
@@ -6381,24 +6364,14 @@ nonisolated private func renderDirectMandelbrotTripleDoubleParallel(
                 ) {
                     color = abstractColor
                 } else if iteration == localMaxIterations {
-                    if palette == .motherOfPearl {
-                        color = motherOfPearlInteriorColor(
-                            normalizedX: normalizedX,
-                            normalizedY: normalizedY
-                        )
-                    } else if palette == .pearl {
-                        color = pearlInteriorColor(
-                            normalizedX: normalizedX,
-                            normalizedY: normalizedY
-                        )
-                    } else if palette == .auric {
-                        color = auricInteriorColor(
-                            normalizedX: normalizedX,
-                            normalizedY: normalizedY
-                        )
-                    } else {
-                        color = insideColor(mode: .mandelbrot, palette: palette)
-                    }
+                    color = texturedInsideColor(
+                        mode: .mandelbrot,
+                        palette: palette,
+                        normalizedX: normalizedX,
+                        normalizedY: normalizedY,
+                        aspectRatio: viewportAspectRatio,
+                        parameter: SIMD2(x0, y0)
+                    )
                 } else {
                     color = cpuPaletteColor(
                         t: iterationJourneyColorPosition(
@@ -6923,7 +6896,9 @@ nonisolated func renderFractal(
                         mode: mode,
                         palette: mode == .mandelbrotPlateau ? .auric : palette,
                         normalizedX: (Double(px) + 0.5) / Double(width),
-                        normalizedY: (Double(py) + 0.5) / Double(height)
+                        normalizedY: (Double(py) + 0.5) / Double(height),
+                        aspectRatio: aspectRatio,
+                        parameter: SIMD2(x0, y0)
                     )
                 } else {
                     let t = iterationJourneyColorPosition(
@@ -7416,6 +7391,14 @@ nonisolated private func calculateNewtonColor(
     let colors: [(Double, Double, Double)]
 
     switch palette {
+    case .saphire:
+        colors = [
+            (0.025, 0.060, 0.230),
+            (0.065, 0.230, 0.710),
+            (0.270, 0.560, 0.860),
+            (0.480, 0.510, 0.550),
+            (0.890, 0.920, 0.960)
+        ]
     case .ocean:
         colors = [
             (0.00, 0.95, 1.00),
@@ -8476,6 +8459,20 @@ nonisolated private func paletteBaseColor(
 ) -> (r: Double, g: Double, b: Double) {
 
     switch palette {
+    case .saphire:
+        // Alternate cobalt ribbons with silver, with a narrow highlight on each ridge.
+        let band = 0.5 - 0.5 * cos(20.0 * sqrt(clamp01(relief)))
+        let blue = smoothstep(edge0: 0.28, edge1: 0.72, x: band)
+        let face = pow(ridge, 1.4)
+        let glint = pow(ridge, 12.0) * (0.55 + 0.45 * glow)
+        let silver = 0.045 + 0.48 * face + 0.35 * glint
+
+        return (
+            clamp01(mix(silver, 0.018 + 0.16 * face + 0.33 * glint, blue)),
+            clamp01(mix(silver * 1.02, 0.035 + 0.29 * face + 0.44 * glint, blue)),
+            clamp01(mix(silver * 1.05, 0.16 + 0.57 * face + 0.24 * glint, blue))
+        )
+
     case .ocean:
         return (
             clamp01(0.02 + 0.18 * relief + 0.18 * glow + 0.10 * ridge),
@@ -8947,6 +8944,8 @@ nonisolated private func insideColor(
 
     if mode == .kleinian {
         switch palette {
+        case .saphire:
+            return (0.012, 0.015, 0.022)
         case .ocean:
             return (0.02, 0.04, 0.11)
         case .electric:
@@ -9005,8 +9004,19 @@ nonisolated private func texturedInsideColor(
     mode: FractalMode,
     palette: FractalPalette,
     normalizedX: Double,
-    normalizedY: Double
+    normalizedY: Double,
+    aspectRatio: Double = 1.0,
+    parameter: @autoclosure () -> SIMD2<Double>? = nil
 ) -> (r: Double, g: Double, b: Double) {
+    if palette == .saphire {
+        return saphireInteriorColor(
+            normalizedX: normalizedX,
+            normalizedY: normalizedY,
+            aspectRatio: aspectRatio,
+            parameter: mode == .mandelbrot || mode == .mandelbrotRelief ? parameter() : nil
+        )
+    }
+
     let supportsPearlInterior =
         mode == .mandelbrot
         || mode == .mandelbrotRelief
@@ -9041,6 +9051,101 @@ nonisolated private func texturedInsideColor(
     }
 
     return insideColor(mode: mode, palette: palette)
+}
+
+// Use the attracting multiplier to center the cut in the main cardioid and
+// period-two bulb. Other components use a cut centered in the visible detail.
+nonisolated private func saphireCutPoint(
+    fallback: SIMD2<Double>,
+    parameter: SIMD2<Double>?
+) -> SIMD2<Double> {
+    guard let parameter else { return fallback }
+
+    let bulb = SIMD2(4.0 * (parameter.x + 1.0), 4.0 * parameter.y)
+    if bulb.x * bulb.x + bulb.y * bulb.y <= 1.0 {
+        return bulb
+    }
+
+    // For the fixed point, the multiplier is 1 - sqrt(1 - 4c).
+    let real = 1.0 - 4.0 * parameter.x
+    let imaginary = -4.0 * parameter.y
+    let magnitude = hypot(real, imaginary)
+    let rootReal = sqrt(max(0.0, 0.5 * (magnitude + real)))
+    let rootImaginary = sqrt(max(0.0, 0.5 * (magnitude - real)))
+    let cardioid = SIMD2(1.0 - rootReal, parameter.y < 0 ? -rootImaginary : rootImaginary)
+    return cardioid.x * cardioid.x + cardioid.y * cardioid.y <= 1.0 ? cardioid : fallback
+}
+
+nonisolated private func saphireInteriorColor(
+    normalizedX: Double,
+    normalizedY: Double,
+    aspectRatio: Double,
+    parameter: SIMD2<Double>?
+) -> (r: Double, g: Double, b: Double) {
+    let fallback = SIMD2(
+        (normalizedX * 2.0 - 1.0) * max(1.0, aspectRatio),
+        (normalizedY * 2.0 - 1.14) * max(1.0, 1.0 / aspectRatio)
+    )
+    let p = saphireCutPoint(fallback: fallback, parameter: parameter)
+    let step = 2.0 * Double.pi / 5.0
+    let angle = atan2(p.y, p.x) + Double.pi * 0.5
+    let turn = angle / step + 5.0
+    let sector = floor(turn).truncatingRemainder(dividingBy: 5.0)
+    let local = turn - floor(turn)
+    let offset = (local - 0.5) * step
+    let radius = hypot(p.x, p.y) * cos(offset) / cos(step * 0.5)
+    let side = 0.5 + 0.5 * tan(offset) / tan(step * 0.5)
+
+    let table = 0.45
+    let tableEdge = 1.0 - smoothstep(edge0: 0.002, edge1: 0.019, x: abs(radius - table))
+    let light = 1.0 - smoothstep(edge0: 0.015, edge1: 0.70, x: abs(p.x + 0.44 * p.y + 0.14))
+    var body = 0.61 + 0.24 * light - 0.13 * p.y
+    var sheen = 0.36 * light * light + 0.15 * tableEdge
+
+    if radius > table {
+        // Stagger the shoulders by sector and tighten the cuts toward the rim.
+        let spread = smoothstep(edge0: table, edge1: 0.67, x: radius)
+        let shoulder = 0.070 * sin(2.0 * angle + 0.4) + 0.038 * cos(3.0 * angle - 0.7)
+        let r = radius + spread * shoulder
+        let inner: Double
+        let outer: Double
+        let ring: Double
+        if r < 0.67 {
+            (inner, outer, ring) = (table, 0.67, 0.0)
+        } else if r < 0.82 {
+            (inner, outer, ring) = (0.67, 0.82, 1.0)
+        } else if r < 0.93 {
+            (inner, outer, ring) = (0.82, 0.93, 2.0)
+        } else {
+            let extra = floor((r - 0.93) / 0.066)
+            inner = 0.93 + 0.066 * extra
+            outer = inner + 0.066
+            ring = 3.0 + extra
+        }
+
+        let height = clamp01((r - inner) / (outer - inner))
+        let cuts = min(5.0, ring + 1.0)
+        let skew = 0.16 * sin(2.7 * sector + 1.9 * ring)
+        let across = side * cuts + skew * sin(Double.pi * side)
+        let slice = floor(across)
+        let u = across - slice
+        let split = height * outer / max(r, table)
+        let diagonal = u - (sin(sector + slice + ring) > 0 ? split : 1.0 - split)
+        let face = smoothstep(edge0: -0.025, edge1: 0.025, x: diagonal)
+        let edge = min(u, 1.0 - u, height, 1.0 - height, abs(diagonal) * 0.72)
+        let bevel = 1.0 - smoothstep(edge0: 0.008, edge1: 0.058, x: edge)
+
+        let tone = 0.5 + 0.5 * sin(2.13 * sector + 1.77 * ring + 3.06 * slice + 2.4 * face)
+        let flash = smoothstep(edge0: 0.57, edge1: 0.96, x: tone)
+        body = (0.22 + 0.57 * tone + 0.10 * (1.0 - height)) * (1.0 - 0.25 * bevel)
+        sheen = flash * (0.11 + 0.35 * light) + (0.05 + 0.20 * flash) * bevel
+    }
+
+    return (
+        0.009 + 0.074 * body + 0.37 * sheen,
+        0.024 + 0.256 * body + 0.55 * sheen,
+        0.105 + 0.580 * body + 0.35 * sheen
+    )
 }
 
 nonisolated private func auricInteriorColor(

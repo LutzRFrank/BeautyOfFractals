@@ -1,6 +1,8 @@
-# App Store Description — macOS 2.32 / iOS 2.31
+# App Store Description — macOS 2.33.1 / iOS 2.31.1
 
 ## macOS — en-US
+
+Discover Saphire, a new style for your fractals. Cobalt-blue bands and silver highlights trace the contours. Inside the Mandelbrot set, shimmering facets give the interior the look of a cut gemstone.
 
 Beauty of Fractals turns mathematical structures into an immersive visual journey on your Mac. A compact selection bar keeps fractal type, skin, quality, iterations, and effects within reach. Collapse it for a clear view; its handle fades away after a short delay. Revised Quick Start tips help you find your way.
 
@@ -47,6 +49,8 @@ services.
 
 ## macOS — de-DE
 
+Entdecke Saphire, den neuen Darstellungsstil für deine Fraktale. Kobaltblaue Bänder und silberne Glanzlichter betonen die Konturen. Im Inneren der Mandelbrot-Menge schimmern Facetten wie bei einem geschliffenen Edelstein.
+
 Beauty of Fractals verwandelt mathematische Strukturen in eine Entdeckungsreise auf deinem Mac. Die kompakte Auswahlleiste hält Fraktaltyp, Skin, Qualität sowie den Zugang zu Iterationen und Effekten bereit. Eingeklappt gibt sie die Bildfläche frei; ihr Griff blendet sich nach kurzer Zeit aus. Überarbeitete Quick-Start-Hinweise helfen dir beim Einstieg.
 
 Erkunde die Mandelbrot-Menge und viele verwandte Fraktale mit flüssiger Maus- und Trackpad-Bedienung, schnellem Metal-Rendering, präzisen CPU-Tiefenzooms, ausdrucksstarken Farbpaletten und abstrakten Darstellungsstilen. Sichere Lieblingsorte mit iCloud-Synchronisierung, exportiere PNG-Bilder und verfolge Berechnungen auf deiner Apple Watch.
@@ -73,6 +77,8 @@ FUNKTIONEN
 Beauty of Fractals lädt zum Entdecken ein. Es gibt keine Benutzerkonten, Werbung, Analysefunktionen oder Tracking. Rendering und Export erfolgen lokal auf deinem Mac. Die optionale iCloud-Synchronisierung und die Kommunikation mit der Apple Watch verwenden Apple-Systemdienste.
 
 ## iOS — en-US
+
+Discover Saphire, a new style for your fractals. Cobalt-blue bands and silver highlights trace the contours. Inside the Mandelbrot set, shimmering facets give the interior the look of a cut gemstone.
 
 Beauty of Fractals brings mathematical art to iPhone and iPad, with adaptive toolbars and compact settings popovers. Revised Quick Start tips introduce the gestures and controls for your next fractal exploration.
 
@@ -117,6 +123,8 @@ your device. Optional iCloud sync and Apple Watch communication use Apple
 system services.
 
 ## iOS — de-DE
+
+Entdecke Saphire, den neuen Darstellungsstil für deine Fraktale. Kobaltblaue Bänder und silberne Glanzlichter betonen die Konturen. Im Inneren der Mandelbrot-Menge schimmern Facetten wie bei einem geschliffenen Edelstein.
 
 Beauty of Fractals bringt mathematische Kunst auf iPhone und iPad – mit anpassungsfähigen Bedienleisten und kompakten Einstellungs-Popovers. Überarbeitete Quick-Start-Hinweise erklären die Gesten und Bedienelemente für deine nächste Entdeckungsreise.
 
