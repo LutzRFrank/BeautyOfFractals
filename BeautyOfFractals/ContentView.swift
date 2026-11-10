@@ -15,6 +15,7 @@ import Foundation
 import Dispatch
 import CoreGraphics
 import AppKit
+import ScreenCaptureKit
 import UniformTypeIdentifiers
 import simd
 import Combine
@@ -1264,6 +1265,7 @@ struct ContentView: View {
     @State private var orbitalWaves: Double = 0.48
     @State private var automaticDisplayedIterations: Int?
     @State private var isSavingSnapshot: Bool = false
+    @State private var isSavingWindowScreenshot = false
     @State private var exportStartDate: Date?
     @State private var exportStatusText: String?
     @State private var iterationInput = ""
@@ -1915,6 +1917,22 @@ struct ContentView: View {
                 Button("Export 2880 × 1800 PNG") {
                     saveSnapshot(width: 2880, height: 1800)
                 }
+
+                Menu("App Store Screenshot") {
+                    Button("1280 × 800 PNG") {
+                        saveWindowScreenshot(width: 1280, height: 800)
+                    }
+                    Button("1440 × 900 PNG") {
+                        saveWindowScreenshot(width: 1440, height: 900)
+                    }
+                    Button("2560 × 1600 PNG") {
+                        saveWindowScreenshot(width: 2560, height: 1600)
+                    }
+                    Button("2880 × 1800 PNG") {
+                        saveWindowScreenshot(width: 2880, height: 1800)
+                    }
+                }
+                .disabled(isSavingWindowScreenshot)
 
                 Divider()
 
@@ -3103,6 +3121,81 @@ struct ContentView: View {
         maxIterations = max(maxIterations, 300)
     }
 
+
+    private func saveWindowScreenshot(width: Int, height: Int) {
+        guard !isSavingWindowScreenshot,
+              let window = NSApp.mainWindow,
+              let windowID = CGWindowID(exactly: window.windowNumber) else {
+            return
+        }
+
+        isSavingWindowScreenshot = true
+        let fileName = "BeautyOfFractals-\(fractalMode.fileName)-\(fractalPalette.fileName)-Screenshot-\(width)x\(height).png"
+
+        Task {
+            defer { isSavingWindowScreenshot = false }
+
+            do {
+                let content = try await SCShareableContent.currentProcess
+                guard let captureWindow = content.windows.first(where: { $0.windowID == windowID }) else {
+                    throw CocoaError(.fileReadUnknown)
+                }
+
+                let filter = SCContentFilter(desktopIndependentWindow: captureWindow)
+                let windowSize = filter.contentRect.size
+                guard windowSize.width > 0, windowSize.height > 0 else {
+                    throw CocoaError(.fileReadUnknown)
+                }
+
+                let scale = min(CGFloat(width) / windowSize.width, CGFloat(height) / windowSize.height)
+                let configuration = SCStreamConfiguration()
+                configuration.width = max(1, Int((windowSize.width * scale).rounded()))
+                configuration.height = max(1, Int((windowSize.height * scale).rounded()))
+                configuration.scalesToFit = true
+                configuration.showsCursor = false
+                configuration.ignoreShadowsSingleWindow = true
+                configuration.ignoreGlobalClipSingleWindow = true
+
+                // Capture before presenting the save panel, then flatten onto an opaque RGB canvas.
+                let image = try await SCScreenshotManager.captureImage(
+                    contentFilter: filter,
+                    configuration: configuration
+                )
+                guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+                      let canvas = CGContext(
+                          data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                          space: colorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+                      ) else {
+                    throw CocoaError(.fileWriteUnknown)
+                }
+
+                canvas.setFillColor(CGColor(gray: 0, alpha: 1))
+                canvas.fill(CGRect(x: 0, y: 0, width: width, height: height))
+                canvas.draw(image, in: CGRect(
+                    x: (width - configuration.width) / 2,
+                    y: (height - configuration.height) / 2,
+                    width: configuration.width,
+                    height: configuration.height
+                ))
+
+                guard let screenshot = canvas.makeImage(),
+                      let png = NSBitmapImageRep(cgImage: screenshot).representation(using: .png, properties: [:]) else {
+                    throw CocoaError(.fileWriteUnknown)
+                }
+
+                let panel = NSSavePanel()
+                panel.allowedContentTypes = [.png]
+                panel.nameFieldStringValue = fileName
+                if await panel.begin() == .OK, let url = panel.url {
+                    try png.write(to: url, options: .atomic)
+                }
+            } catch {
+                let alert = NSAlert(error: error)
+                alert.messageText = "Could Not Export App Store Screenshot"
+                alert.runModal()
+            }
+        }
+    }
 
     private func saveSnapshot(
         width exportWidth: Int = 2560,
