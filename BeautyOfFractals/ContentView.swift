@@ -490,6 +490,27 @@ private func effectiveIterationCount(
 }
 
 
+// Keep the portable favorite format identical on macOS and iOS.
+struct FavoriteAppearance: Codable, Equatable, Sendable {
+    var plateauTiltDegrees: Double
+    var doodadsStructure: Double
+    var doodadsComplexity: Double
+    var doodadsCurl: Double
+    var embossedRelief: Double
+    var guillocheEngraving: Double
+    var spheroidGlass: Double
+    var quantumInterference: Double
+    var orbitalWaves: Double
+    var deepRenderMethodRawValue: String? = nil
+
+    var isValid: Bool {
+        (80...90).contains(plateauTiltDegrees)
+            && [doodadsStructure, doodadsComplexity, doodadsCurl, embossedRelief,
+                guillocheEngraving, spheroidGlass, quantumInterference, orbitalWaves]
+                .allSatisfy { (0...1).contains($0) }
+    }
+}
+
 struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     var id: UUID = UUID()
     var name: String
@@ -523,6 +544,7 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
     var schemaVersion: Int = 5
     var thumbnailPNG: Data? = nil
     var usageCount: Int = 0
+    var appearance: FavoriteAppearance? = nil
 
     /// Restores the exact saved viewport where available. Older favorites
     /// gracefully fall back to their original Double coordinates.
@@ -569,6 +591,19 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
         FractalPalette(rawValue: paletteRawValue) ?? .deepBlue
     }
 
+    var isValidForImport: Bool {
+        guard !deleted, FractalMode(rawValue: modeRawValue) != nil,
+              FractalPalette(rawValue: paletteRawValue) != nil,
+              (1...250_000).contains(iterations),
+              usageCount >= 0, usageCount < Int.max,
+              appearance?.isValid ?? true else { return false }
+
+        let projection = storedPreciseViewport.doubleProjection
+        return projection.centerX.isFinite && projection.centerY.isFinite
+            && projection.scale.isFinite && projection.scale > 0
+            && (3 / projection.scale).isFinite
+    }
+
     var storedRenderQuality: RenderQuality? {
         renderQualityRawValue.flatMap(RenderQuality.init(rawValue:))
     }
@@ -598,6 +633,99 @@ struct FavoriteSpot: Identifiable, Codable, Equatable, Sendable {
         }
 
         return formatCompactPreciseMagnification(mode.defaultScale / scaleMagnitude)
+    }
+}
+
+struct FavoriteArchive: Codable, FileDocument {
+    static let readableContentTypes: [UTType] = [.json]
+
+    private var format = "BeautyOfFractalsFavorites"
+    private var version = 1
+    let favorites: [FavoriteSpot]
+
+    init(favorites: [FavoriteSpot]) {
+        self.favorites = favorites
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self = try Self.decode(data)
+    }
+
+    static func read(from url: URL) throws -> Self {
+        let hasAccess = url.startAccessingSecurityScopedResource()
+        defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
+        return try decode(Data(contentsOf: url))
+    }
+
+    private static func decode(_ data: Data) throws -> Self {
+        let archive = try JSONDecoder().decode(Self.self, from: data)
+        guard archive.format == "BeautyOfFractalsFavorites", archive.version == 1,
+              archive.favorites.allSatisfy({ $0.isValidForImport }) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return archive
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return FileWrapper(regularFileWithContents: try encoder.encode(self))
+    }
+}
+
+struct FavoriteFileTransfer {
+    var isImporting = false
+    var isExporting = false
+    var archive: FavoriteArchive?
+    var fileName = "BeautyOfFractals-Favorites"
+
+    mutating func export(_ spots: [FavoriteSpot]) {
+        archive = FavoriteArchive(favorites: spots)
+        fileName = spots.count == 1 ? "BeautyOfFractals-Favorite" : "BeautyOfFractals-Favorites"
+        isExporting = true
+    }
+}
+
+struct FavoriteFileTransferModifier: ViewModifier {
+    @Binding var transfer: FavoriteFileTransfer
+    let store: FavoritesStore
+    @State private var message: String?
+
+    func body(content: Content) -> some View {
+        content
+            .fileImporter(isPresented: $transfer.isImporting, allowedContentTypes: [.json]) { result in
+                do {
+                    let archive = try FavoriteArchive.read(from: result.get())
+                    let count = try store.importFavorites(archive.favorites)
+                    message = count == 0
+                        ? "No new favorites to import."
+                        : "Imported favorites: \(count). Open the matching fractal type to see them."
+                } catch {
+                    message = "Could not import favorites. \(error.localizedDescription)"
+                }
+            }
+            .fileExporter(
+                isPresented: $transfer.isExporting,
+                document: transfer.archive,
+                contentType: .json,
+                defaultFilename: transfer.fileName
+            ) { result in
+                transfer.archive = nil
+                if case let .failure(error) = result {
+                    message = "Could not export favorites. \(error.localizedDescription)"
+                }
+            }
+            .alert("Favorite Files", isPresented: Binding(
+                get: { message != nil },
+                set: { if !$0 { message = nil } }
+            )) {
+                Button("OK") { message = nil }
+            } message: {
+                Text(message ?? "")
+            }
     }
 }
 
@@ -650,9 +778,9 @@ final class FavoritesStore: ObservableObject {
 
     nonisolated private static func writeCloudFile(
         _ cloudFile: FavoriteSpotsCloudFile,
-        to url: URL
+        to url: URL,
+        mergingExisting: Bool
     ) throws {
-        let data = try JSONEncoder().encode(cloudFile)
         var coordinationError: NSError?
         var writeError: Error?
         let coordinator = NSFileCoordinator(filePresenter: nil)
@@ -663,6 +791,17 @@ final class FavoritesStore: ObservableObject {
             error: &coordinationError
         ) { coordinatedURL in
             do {
+                var outgoing = cloudFile
+                if mergingExisting {
+                    do {
+                        let data = try Data(contentsOf: coordinatedURL)
+                        let remote = try JSONDecoder().decode(FavoriteSpotsCloudFile.self, from: data)
+                        outgoing.favorites = mergeFavorites(cloudFile.favorites, with: remote.favorites)
+                    } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+                        // There is no cloud collection yet.
+                    }
+                }
+                let data = try JSONEncoder().encode(outgoing)
                 try data.write(to: coordinatedURL, options: .atomic)
             } catch {
                 writeError = error
@@ -671,6 +810,31 @@ final class FavoritesStore: ObservableObject {
 
         if let coordinationError { throw coordinationError }
         if let writeError { throw writeError }
+    }
+
+    var activeSpots: [FavoriteSpot] {
+        spots.filter { !$0.deleted }
+    }
+
+    func importFavorites(_ imported: [FavoriteSpot]) throws -> Int {
+        var byID = Dictionary(spots.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var count = 0
+        for var favorite in imported {
+            if let existing = byID[favorite.id] {
+                guard existing.deleted else { continue }
+                favorite.updated = Date()
+            }
+            byID[favorite.id] = favorite
+            count += 1
+        }
+        guard count > 0 else { return 0 }
+
+        let merged = byID.values.sorted { $0.created > $1.created }
+        let data = try JSONEncoder().encode(merged)
+        try data.write(to: fileURL, options: .atomic)
+        spots = merged
+        saveCloudOnly(mergingExisting: true)
+        return count
     }
 
     func spots(for mode: FractalMode) -> [FavoriteSpot] {
@@ -765,34 +929,29 @@ final class FavoritesStore: ObservableObject {
                 return
             }
 
-            var mergedByID: [UUID: FavoriteSpot] = [:]
-
-            for spot in localSnapshot {
-                mergedByID[spot.id] = spot
-            }
-
-            for cloudSpot in cloudSpots {
-                if let localSpot = mergedByID[cloudSpot.id] {
-                    mergedByID[cloudSpot.id] = cloudSpot.updated > localSpot.updated ? cloudSpot : localSpot
-                } else {
-                    mergedByID[cloudSpot.id] = cloudSpot
-                }
-            }
-
-            let mergedSpots = Array(mergedByID.values)
-                .sorted { $0.created > $1.created }
-
             await MainActor.run {
-                self.spots = mergedSpots
+                self.spots = Self.mergeFavorites(self.spots, with: cloudSpots)
                 self.saveLocalOnly()
             }
-
-            #if DEBUG
-            print("☁️ Favorites iCloud merged", mergedSpots.count, "spots")
-            #endif
         }
 
         return true
+    }
+
+    nonisolated private static func mergeFavorites(
+        _ local: [FavoriteSpot], with cloud: [FavoriteSpot]
+    ) -> [FavoriteSpot] {
+        var merged: [UUID: FavoriteSpot] = [:]
+        for favorite in local {
+            merged[favorite.id] = favorite
+        }
+        for favorite in cloud {
+            if let existing = merged[favorite.id], existing.updated >= favorite.updated {
+                continue
+            }
+            merged[favorite.id] = favorite
+        }
+        return merged.values.sorted { $0.created > $1.created }
     }
 
     private func save() {
@@ -805,7 +964,7 @@ final class FavoritesStore: ObservableObject {
         try? data.write(to: fileURL, options: .atomic)
     }
 
-    private func saveCloudOnly() {
+    private func saveCloudOnly(mergingExisting: Bool = false) {
         guard let cloudFileURL else {
             return
         }
@@ -817,7 +976,7 @@ final class FavoritesStore: ObservableObject {
         )
 
         do {
-            try Self.writeCloudFile(cloudFile, to: cloudFileURL)
+            try Self.writeCloudFile(cloudFile, to: cloudFileURL, mergingExisting: mergingExisting)
             print("☁️ Favorites iCloud wrote", spots.count, "spots to", cloudFileURL.path)
         } catch {
             print("☁️ Favorites iCloud write failed:", error)
@@ -1294,6 +1453,7 @@ struct ContentView: View {
     @State private var isSyncingFavorites: Bool = false
     @State private var favoriteSort: FavoriteSort = .newest
     @State private var hoveredFavoriteSpot: FavoriteSpot?
+    @State private var favoriteFileTransfer = FavoriteFileTransfer()
     @State private var spotToRename: FavoriteSpot?
     @State private var renameFavoriteText: String = ""
     @StateObject private var favoritesStore = FavoritesStore()
@@ -1582,6 +1742,7 @@ struct ContentView: View {
             zoomOut: zoomOut,
             reset: resetView
         ))
+        .modifier(FavoriteFileTransferModifier(transfer: $favoriteFileTransfer, store: favoritesStore))
         .alert("Rename Favorite", isPresented: Binding(
             get: { spotToRename != nil },
             set: { if !$0 { spotToRename = nil } }
@@ -2533,6 +2694,22 @@ struct ContentView: View {
 
                 Spacer()
 
+                Menu {
+                    Button("Import Favorites") {
+                        favoriteFileTransfer.isImporting = true
+                    }
+                    Button("Export All Favorites") {
+                        favoriteFileTransfer.export(favoritesStore.activeSpots)
+                    }
+                    .disabled(favoritesStore.activeSpots.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .accessibilityLabel("Favorite Files")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Import or export favorites")
+
                 Button {
                     showFavoritesPanel = false
                 } label: {
@@ -2830,6 +3007,10 @@ struct ContentView: View {
                 loadFavorite(spot)
             }
 
+            Button("Export Favorite") {
+                favoriteFileTransfer.export([spot])
+            }
+
             Button("Rename") {
                 spotToRename = spot
                 renameFavoriteText = spot.name
@@ -2900,7 +3081,19 @@ struct ContentView: View {
                 renderQualityRawValue: renderQuality.rawValue,
                 thumbnailPNG: fractalMode == .mandelbrotRelief
                     ? nil
-                    : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite())
+                    : (currentHighPrecisionThumbnailForFavorite() ?? fallbackThumbnailForCurrentFavorite()),
+                appearance: FavoriteAppearance(
+                    plateauTiltDegrees: plateauTiltDegrees,
+                    doodadsStructure: doodadsStructure,
+                    doodadsComplexity: doodadsComplexity,
+                    doodadsCurl: doodadsCurl,
+                    embossedRelief: embossedRelief,
+                    guillocheEngraving: guillocheEngraving,
+                    spheroidGlass: spheroidGlass,
+                    quantumInterference: quantumInterference,
+                    orbitalWaves: orbitalWaves,
+                    deepRenderMethodRawValue: deepRenderMethod.rawValue
+                )
             )
         )
 
@@ -2919,6 +3112,21 @@ struct ContentView: View {
         fractalPalette = spot.palette
         applyPreciseViewport(spot.storedPreciseViewport)
         maxIterations = spot.iterations
+        if let appearance = spot.appearance {
+            plateauTiltDegrees = appearance.plateauTiltDegrees
+            doodadsStructure = appearance.doodadsStructure
+            doodadsComplexity = appearance.doodadsComplexity
+            doodadsCurl = appearance.doodadsCurl
+            embossedRelief = appearance.embossedRelief
+            guillocheEngraving = appearance.guillocheEngraving
+            spheroidGlass = appearance.spheroidGlass
+            quantumInterference = appearance.quantumInterference
+            orbitalWaves = appearance.orbitalWaves
+            if let rawValue = appearance.deepRenderMethodRawValue,
+               let method = DeepRenderMethod(rawValue: rawValue) {
+                deepRenderMethod = method
+            }
+        }
         if let storedRenderQuality = spot.storedRenderQuality {
             renderQuality = storedRenderQuality
         }
