@@ -1277,6 +1277,13 @@ private struct FractalWelcomeView: View {
                 quickTip(icon: "line.3.horizontal.decrease", text: welcomeText("Wähle Fraktaltyp, Skin und Qualität: Fast, High oder Deep.", "Choose the fractal type, skin and quality: Fast, High or Deep."))
                 quickTip(icon: "slider.horizontal.3", text: welcomeText("Passe Iterationen und Effekte an, zum Beispiel den Glass-Effekt.", "Adjust iterations and effects, such as the glass effect."))
                 quickTip(icon: "star", text: welcomeText("Speichere und öffne deine Lieblingsorte.", "Save and open your favorite spots."))
+                quickTip(
+                    icon: "arrow.up.arrow.down",
+                    text: welcomeText(
+                        "Öffne im Favoritenfenster das Menü ⋯. Dort kannst du JSON-Dateien importieren oder alle Favoriten exportieren. Einen einzelnen Favoriten exportierst du per Rechtsklick.",
+                        "Open the ⋯ menu in Favorite Spots to import JSON files or export all favorites. Right-click a favorite to export it on its own."
+                    )
+                )
                 quickTip(icon: "gauge", text: welcomeText("Blende den Renderstatus ein oder aus.", "Show or hide render status."))
                 quickTip(icon: "square.and.arrow.up", text: welcomeText("Exportiere das Fraktal als PNG – ohne Bedienoberfläche.", "Export the fractal as a PNG without the interface."))
             }

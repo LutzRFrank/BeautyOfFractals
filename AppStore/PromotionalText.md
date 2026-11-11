@@ -1,11 +1,9 @@
-# Promotional Text — macOS 2.33.1 / iOS 2.31.1
-
-The text below applies to both macOS and iOS.
+# Promotional Text for 2.34
 
 ## en-US
 
-Explore fractals in Saphire, a new style with cobalt-blue bands, silver highlights, and facets that shimmer like a cut gemstone.
+Share favorite fractal spots between Mac, iPhone, and iPad. JSON files preserve your exact zoom and saved style settings.
 
 ## de-DE
 
-Erkunde Fraktale im neuen Saphire-Stil mit kobaltblauen Bändern, silbernen Glanzlichtern und schimmernden Edelsteinfacetten.
+Teile Fraktal-Favoriten zwischen Mac, iPhone und iPad. JSON-Dateien bewahren deinen genauen Zoom und die gespeicherten Stileinstellungen.

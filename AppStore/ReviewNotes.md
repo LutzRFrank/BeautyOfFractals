@@ -1,13 +1,17 @@
-# App Review Notes — macOS 2.33.1 (79) / iOS and watchOS 2.31.1 (77)
+# App Review Notes for 2.34 (81)
 
-## macOS — English
+Version 2.34 adds local JSON import and export for saved fractal views on Mac, iPhone, and iPad. A favorite file preserves its precise viewport, fractal type, palette, render quality, iteration settings, and any saved effect settings and preview. Existing active favorites are kept when a file is imported again.
 
-Open the selection bar, choose Mandelbrot as the fractal type, then choose Saphire from the Skin menu. In the full Mandelbrot view, look for gemstone-like facets in the central shape and alternating cobalt-blue and silver bands around its boundary.
+## macOS
 
-Rendering and PNG export happen locally. The app requires no account, sign-in, subscription, or in-app purchase. Optional favorites sync uses iCloud.
+Open Favorite Spots with the star in the toolbar. Enter a name and click the plus button to save the current view. Right-click the saved row and choose Export Favorite. Save the JSON file. Open the ⋯ menu in Favorite Spots and choose Import Favorites to select the file. The same menu contains Export All Favorites.
 
-## iPhone, iPad, and Apple Watch — English
+## iPhone and iPad
 
-On iPhone or iPad, tap the selection button in the toolbar, choose Mandelbrot as the fractal type, then select Saphire from the Skin menu. The full Mandelbrot view shows gemstone-like facets inside the central shape and alternating cobalt-blue and silver bands around its boundary.
+Open Favorite Spots with the star and tap Save Current View. Touch and hold the saved row and choose Export Favorite. Save the JSON file to Files. Choose Import Favorites in the same sheet and select the file. Export All Favorites is available in the sheet as well.
 
-Rendering and PNG export happen locally. The app requires no account, sign-in, subscription, or in-app purchase. Optional favorites sync uses iCloud. A paired Apple Watch can display render progress, previews, and zoom values from the iPhone app. Select Saphire on the iPhone to see it in previews sent to Apple Watch.
+## Test the import
+
+You can import a file from another device or reimport one you just exported. Reimporting an existing active favorite leaves one copy. To test restoration on a single device, export a test favorite, delete it, then import the saved file. Open the restored favorite and confirm its zoom and palette.
+
+Local import and export work without an account. Optional iCloud sync is available separately. The paired Apple Watch companion displays render progress, previews, and zoom values from the iPhone app.

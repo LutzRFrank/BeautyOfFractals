@@ -1,11 +1,9 @@
-# App Store Release Notes — macOS 2.33.1 / iOS 2.31.1
-
-The text below applies to both macOS and iOS.
+# App Store Release Notes for 2.34
 
 ## en-US
 
-Discover Saphire, a new style for your fractals. Cobalt-blue bands and silver highlights trace the contours. Inside the Mandelbrot set, shimmering facets give the interior the look of a cut gemstone.
+Take your favorite fractal spots from Mac to iPhone or iPad and back. Export one favorite or your entire collection as a JSON file, then import it on another device. The file preserves precise coordinates, zoom, palette, render quality, and saved iteration settings. The Quick Start guide shows where to find the new controls.
 
 ## de-DE
 
-Entdecke Saphire, den neuen Darstellungsstil für deine Fraktale. Kobaltblaue Bänder und silberne Glanzlichter betonen die Konturen. Im Inneren der Mandelbrot-Menge schimmern Facetten wie bei einem geschliffenen Edelstein.
+Übertrage deine Lieblingsorte zwischen Mac, iPhone und iPad. Exportiere einzelne Favoriten oder die ganze Sammlung als JSON-Datei und importiere sie auf einem anderen Gerät. Präzise Koordinaten, Zoom, Farbpalette, Renderqualität und gespeicherte Iterationseinstellungen bleiben erhalten. Die Hilfe zeigt dir, wo du die neuen Funktionen findest.
